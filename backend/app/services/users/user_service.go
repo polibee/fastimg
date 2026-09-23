@@ -10,6 +10,7 @@ import (
 	"goravel/app/facades"
 	"goravel/app/models"
 	notificationservices "goravel/app/services/notifications"
+	planservices "goravel/app/services/plans"
 	rbacservices "goravel/app/services/rbac"
 )
 
@@ -81,7 +82,12 @@ func (s *UserService) Create(name, email, password, locale, status string) (*mod
 		locale = "zh-CN"
 	}
 	user := &models.User{Name: name, Email: email, Password: hash, Locale: locale, Status: status}
-	if err := facades.Orm().Query().Create(user); err != nil {
+	if err := facades.Orm().Transaction(func(tx orm.Query) error {
+		if err := tx.Create(user); err != nil {
+			return err
+		}
+		return planservices.EnsureFreeSubscriptionWithQuery(tx, user.ID)
+	}); err != nil {
 		return nil, err
 	}
 	notificationservices.NewNotificationService().PublishBestEffort(user.ID, notificationservices.NotificationInput{

@@ -9,6 +9,7 @@ import (
 	"goravel/app/facades"
 	adminmiddleware "goravel/app/http/middleware"
 	"goravel/app/modules/admin/registry"
+	plancontrollers "goravel/app/modules/plans/controllers"
 	usercontrollers "goravel/app/modules/users/controllers"
 	"goravel/app/openapi"
 )
@@ -31,7 +32,9 @@ func Web() {
 	}
 
 	userController := usercontrollers.NewUserController()
+	planController := plancontrollers.NewPlanController()
 	facades.Route().Get("/users", userController.Index)
+	facades.Route().Get("/api/v1/plans", planController.Index)
 
 	authController := authcontrollers.NewAuthController()
 	facades.Route().Post("/api/v1/auth/login", authController.Login)
@@ -39,6 +42,8 @@ func Web() {
 	facades.Route().Post("/api/v1/auth/refresh", authController.Refresh)
 	facades.Route().Post("/api/v1/auth/logout", authController.Logout)
 	facades.Route().Post("/api/v1/auth/logout-all", authController.LogoutAll)
+	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Get("/api/v1/subscription", planController.Subscription)
+	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Get("/api/v1/me/usage", planController.Usage)
 
 	rbacController := admincontrollers.NewRBACController()
 	overviewController := admincontrollers.NewOverviewController()

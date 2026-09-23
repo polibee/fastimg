@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { generatedResourceRoutes } from '@/core/resource/generated'
 import ResourceListPage from '@/core/resource/pages/ResourceListPage.vue'
+import ResourceFormPage from '@/core/resource/pages/ResourceFormPage.vue'
 import ResourceDetailPage from '@/core/resource/pages/ResourceDetailPage.vue'
 
 const router = createRouter({
@@ -25,12 +26,14 @@ const router = createRouter({
         { path: 'rbac', name: 'rbac', meta: { anyPermissions: ['admin.users.view', 'admin.roles.manage', 'admin.permissions.manage'] }, component: () => import('@/modules/rbac/pages/RBACPage.vue') },
         { path: 'audit-logs', name: 'audit-logs', meta: { permission: 'admin.users.view' }, component: () => import('@/modules/audit/pages/AuditLogPage.vue') },
         ...generatedResourceRoutes,
-        { path: ':resource(users|roles|permissions)', name: 'resource-list', component: ResourceListPage },
+        { path: ':resource(users|roles|permissions|plans)', name: 'resource-list', component: ResourceListPage },
         { path: 'users/new', name: 'user-create', meta: { permission: 'admin.users.manage' }, component: () => import('@/modules/users/pages/UserFormPage.vue') },
         { path: 'users/:id/edit', name: 'user-edit', meta: { permission: 'admin.users.manage' }, component: () => import('@/modules/users/pages/UserFormPage.vue') },
         { path: 'roles/new', name: 'role-create', meta: { permission: 'admin.roles.manage' }, component: () => import('@/modules/roles/pages/RoleFormPage.vue') },
         { path: 'roles/:id/edit', name: 'role-edit', meta: { permission: 'admin.roles.manage' }, component: () => import('@/modules/roles/pages/RoleFormPage.vue') },
-        { path: ':resource(users|roles|permissions)/:id', name: 'resource-detail', component: ResourceDetailPage },
+        { path: 'plans/new', name: 'plans-resource-create', meta: { permission: 'admin.plans.create' }, props: { resource: 'plans' }, component: ResourceFormPage },
+        { path: 'plans/:id/edit', name: 'plans-resource-edit', meta: { permission: 'admin.plans.update' }, props: { resource: 'plans' }, component: ResourceFormPage },
+        { path: ':resource(users|roles|permissions|plans)/:id', name: 'resource-detail', component: ResourceDetailPage },
         { path: 'loading', name: 'loading', component: () => import('@/core/pages/LoadingPage.vue') },
         { path: 'empty', name: 'empty', component: () => import('@/core/pages/EmptyPage.vue') },
         { path: 'error', name: 'error', component: () => import('@/core/pages/ErrorPage.vue') },
@@ -56,7 +59,7 @@ router.beforeEach(async (to) => {
     return { name: 'forbidden' }
   }
   const resource = typeof to.params.resource === 'string' ? to.params.resource : ''
-  const resourcePermission: Record<string, string> = { users: 'admin.users.view', roles: 'admin.roles.manage', permissions: 'admin.permissions.manage' }
+  const resourcePermission: Record<string, string> = { users: 'admin.users.view', roles: 'admin.roles.manage', permissions: 'admin.permissions.manage', plans: 'admin.plans.view' }
   if (resource && resourcePermission[resource] && !auth.can(resourcePermission[resource])) {
     return { name: 'forbidden' }
   }

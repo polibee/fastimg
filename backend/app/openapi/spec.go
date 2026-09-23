@@ -38,6 +38,8 @@ func Spec() map[string]any {
 				"NotificationReadResponse":        notificationReadResponseSchema(),
 				"NotificationMarkAllReadResponse": notificationMarkAllReadResponseSchema(),
 				"NotificationUnreadCount":         notificationUnreadCountSchema(),
+				"Plan":                            planSchema(),
+				"Subscription":                    subscriptionSchema(),
 			},
 		},
 		"paths": map[string]any{
@@ -50,6 +52,9 @@ func Spec() map[string]any {
 			}},
 			"/auth/logout-all": map[string]any{"post": operation("logoutAll")},
 			"/auth/me":         map[string]any{"get": operation("currentUser")},
+			"/plans":           map[string]any{"get": operation("listPlans")},
+			"/subscription":    map[string]any{"get": operation("currentSubscription")},
+			"/me/usage":        map[string]any{"get": operation("currentUsage")},
 			"/admin/registry":  map[string]any{"get": operation("listResources")},
 			"/admin/search":    map[string]any{"get": globalSearchOperation()},
 			"/admin/{resource}": map[string]any{
@@ -86,6 +91,22 @@ func Spec() map[string]any {
 			}},
 		},
 	}
+}
+
+func planSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"id", "code", "name", "price_amount", "currency", "billing_period", "status"}, "properties": map[string]any{
+		"id": map[string]any{"type": "integer", "format": "int64"}, "code": map[string]any{"type": "string"}, "name": map[string]any{"type": "string"},
+		"description": map[string]any{"type": "string", "nullable": true}, "price_amount": map[string]any{"type": "integer", "format": "int64"},
+		"currency": map[string]any{"type": "string"}, "billing_period": map[string]any{"type": "string"}, "status": map[string]any{"type": "string"},
+		"entitlements": map[string]any{"type": "object", "additionalProperties": true}, "sort_order": map[string]any{"type": "integer"},
+	}}
+}
+
+func subscriptionSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{
+		"subscription": map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "integer"}, "user_id": map[string]any{"type": "integer"}, "plan_id": map[string]any{"type": "integer"}, "status": map[string]any{"type": "string"}}},
+		"plan":         map[string]any{"$ref": "#/components/schemas/Plan"},
+	}}
 }
 
 func resourceOptionSchema() map[string]any {

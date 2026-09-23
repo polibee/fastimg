@@ -22,5 +22,6 @@ func Migrations() []schema.Migration {
 		&migrations.MdepartmentsCreateDepartmentsTable{},
 		&migrations.M20260922000004AddDepartmentsParentID{},
 		&migrations.M20260922000005CreateNotificationsTable{},
+		&migrations.M20260923000001CreatePlansSubscriptionsUsageTables{},
 	}
 }

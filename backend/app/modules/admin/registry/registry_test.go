@@ -51,3 +51,16 @@ func TestDepartmentsIsAStandardGenericResource(t *testing.T) {
 		t.Fatalf("departments route = %q, want /admin/departments", manifest.Route)
 	}
 }
+
+func TestPlansIsAvailableThroughGenericAdminResource(t *testing.T) {
+	manifest, err := AdminRegistry().Find("plans")
+	if err != nil {
+		t.Fatalf("plans resource missing: %v", err)
+	}
+	if manifest.Route != "/admin/plans" || manifest.Table != "plans" {
+		t.Fatalf("unexpected plans manifest: %+v", manifest)
+	}
+	if len(manifest.Fields) < 8 || manifest.Fields[0].Name != "code" {
+		t.Fatalf("plans fields are incomplete: %+v", manifest.Fields)
+	}
+}

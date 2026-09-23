@@ -1,6 +1,9 @@
 package registry
 
-import "goravel/app/core/resource"
+import (
+	"goravel/app/core/resource"
+	plansresource "goravel/app/modules/plans/resource"
+)
 
 func AdminRegistry() *resource.Registry {
 	registry := resource.NewRegistry()
@@ -29,6 +32,7 @@ func AdminRegistry() *resource.Registry {
 		Fields:  []resource.Field{{Name: "name", Label: "Name", Type: "text"}, {Name: "display_name", Label: "Display name", Type: "text"}},
 		Columns: []resource.Column{{Name: "name", Label: "Name", Sortable: true}, {Name: "display_name", Label: "Display name", Sortable: true}},
 	})
+	_ = registry.Register(plansresource.Manifest())
 	return registry
 }
 
