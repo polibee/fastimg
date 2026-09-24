@@ -63,3 +63,7 @@ export async function startMemberPayment(id: string, gatewayCode: string, token:
 export async function cancelMemberOrder(id: string, token: string) {
   return apiFetch<void>(`/api/v1/orders/${id}/cancel`, { method: 'POST' }, token)
 }
+
+export async function completeFakeMemberPayment(id: string, token: string) {
+  return apiFetch<{ event_id: string; accepted: boolean }>(`/api/v1/orders/${id}/payments/fake/succeed`, { method: 'POST' }, token)
+}

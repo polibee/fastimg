@@ -25,6 +25,17 @@ func init() {
 				"success_url":  config.Env("NOWPAYMENTS_SUCCESS_URL", ""),
 				"cancel_url":   config.Env("NOWPAYMENTS_CANCEL_URL", ""),
 			},
+			"paypal": map[string]any{
+				"enabled":       config.Env("PAYPAL_ENABLED", "false"),
+				"environment":   config.Env("PAYPAL_ENVIRONMENT", "sandbox"),
+				"base_url":      config.Env("PAYPAL_API_BASE_URL", "https://api-m.sandbox.paypal.com"),
+				"client_id":     config.Env("PAYPAL_CLIENT_ID", ""),
+				"client_secret": config.Env("PAYPAL_CLIENT_SECRET", ""),
+				"webhook_id":    config.Env("PAYPAL_WEBHOOK_ID", ""),
+				"timeout":       config.Env("PAYPAL_TIMEOUT", "10s"),
+				"return_url":    config.Env("PAYPAL_RETURN_URL", ""),
+				"cancel_url":    config.Env("PAYPAL_CANCEL_URL", ""),
+			},
 		},
 	})
 }

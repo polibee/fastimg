@@ -8,17 +8,22 @@ import (
 	httpcontract "github.com/goravel/framework/contracts/http"
 
 	"goravel/app/facades"
+	"goravel/app/models"
 	billing "goravel/app/services/billing"
 	"goravel/app/services/billing/providers"
+	"goravel/app/services/billing/providers/fake"
 )
 
 type MemberController struct {
 	orders   *billing.OrderService
 	payments *billing.PaymentService
+	gateways *providers.Registry
+	webhooks *billing.WebhookService
 }
 
 func NewMemberController() *MemberController {
-	return &MemberController{orders: billing.NewOrderService(), payments: billing.NewPaymentService(billing.DefaultGatewayRegistry())}
+	gateways := billing.DefaultGatewayRegistry()
+	return &MemberController{orders: billing.NewOrderService(), payments: billing.NewPaymentService(gateways), gateways: gateways, webhooks: billing.NewWebhookService(gateways)}
 }
 
 func (c *MemberController) CreateOrder(ctx httpcontract.Context) httpcontract.Response {
@@ -89,6 +94,42 @@ func (c *MemberController) CancelOrder(ctx httpcontract.Context) httpcontract.Re
 		return billingError(ctx, err)
 	}
 	return ctx.Response().NoContent(http.StatusNoContent)
+}
+
+func (c *MemberController) CompleteFakePayment(ctx httpcontract.Context) httpcontract.Response {
+	if facades.Config().GetString("app.env", "production") == "production" {
+		return ctx.Response().Status(http.StatusNotFound).Json(httpcontract.Json{"code": "FAKE_GATEWAY_DISABLED"})
+	}
+	userID, err := memberUserID(ctx)
+	if err != nil {
+		return ctx.Response().Status(http.StatusUnauthorized).Json(httpcontract.Json{"code": "AUTH_UNAUTHORIZED"})
+	}
+	orderID := uint(ctx.Request().RouteInt64("id"))
+	if _, err := c.orders.GetOwnOrder(ctx.Context(), userID, orderID); err != nil {
+		return ctx.Response().Status(http.StatusNotFound).Json(httpcontract.Json{"code": "ORDER_NOT_FOUND"})
+	}
+	var intent models.PaymentIntent
+	exists, err := facades.Orm().Query().Model(&models.PaymentIntent{}).Where("order_id = ? AND user_id = ? AND provider_code = ?", orderID, userID, "fake").Exists()
+	if err != nil || !exists || facades.Orm().Query().Where("order_id = ? AND user_id = ? AND provider_code = ?", orderID, userID, "fake").OrderByDesc("id").First(&intent) != nil {
+		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "PAYMENT_INTENT_NOT_FOUND"})
+	}
+	gateway, err := c.gateways.Get("fake")
+	if err != nil {
+		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "GATEWAY_UNAVAILABLE"})
+	}
+	fakeGateway, ok := gateway.(*fake.Provider)
+	if !ok {
+		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "GATEWAY_UNAVAILABLE"})
+	}
+	event, err := fakeGateway.Transition(intent.ProviderPaymentID, "succeeded")
+	if err != nil {
+		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "PAYMENT_TRANSITION_FAILED"})
+	}
+	event, duplicate, err := c.webhooks.IngestVerified(ctx.Context(), "fake", event, []byte(event.EventID))
+	if err != nil {
+		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "PAYMENT_CONFIRMATION_FAILED"})
+	}
+	return ctx.Response().Success().Json(httpcontract.Json{"data": httpcontract.Json{"event_id": event.EventID, "accepted": true, "duplicate": duplicate}})
 }
 
 func memberUserID(ctx httpcontract.Context) (uint, error) {

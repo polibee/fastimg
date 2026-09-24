@@ -614,3 +614,25 @@ POST   /api/v1/media/{id}/signed-url
 - NOWPayments HTTP stub、创建/查询、IPN canonical JSON 验签和 partial payment 测试通过：`go test ./app/services/billing/providers/nowpayments -count=1`；Xcash 与统一 billing 回归仍通过。
 - 本轮没有访问真实 NOWPayments 网络，没有配置真实密钥，没有执行迁移或重启后端；不能将该 Provider 描述为沙盒/生产已验证。
 - 下一步实现 PayPal Orders v2/capture/webhook 验签，再进入 Fake 成功回调、迁移和本地运行态支付链路验收。
+
+## 三十三、2026-09-24：M7 PayPal Provider 离线适配
+
+### 本轮完成
+
+- 新增 `PAYPAL_*` 配置和统一 registry 注册；支持 sandbox/live base URL 配置，默认关闭，OAuth Client ID/Secret/Webhook ID 只在服务端使用。
+- 实现 OAuth client-credentials token 缓存、Orders v2 `intent=CAPTURE` 创建、PayPal approval URL、订单/捕获查询、capture refund 请求和 `PayPal-Request-Id` 幂等头。
+- Webhook 通过 PayPal Verification API 校验 transmission headers、Webhook ID 和原始事件；只将捕获完成事件作为成功候选，拒绝未验签或状态不确定事件。
+- 新增 `docs/fastimg-payment-provider-paypal.md`，明确沙盒配置、状态、退款和真实启用门禁。
+
+### 验证与边界
+
+- PayPal OAuth、Orders v2 stub、查询捕获、Webhook Verification stub 测试通过：`go test ./app/services/billing/providers/paypal ./app/services/billing ./app/modules/billing/controllers -count=1`；Xcash/NOWPayments 回归仍通过。
+- 本轮没有访问真实 PayPal 网络，没有配置真实 Client Secret，没有执行迁移或重启后端；不能将 PayPal 描述为 Sandbox/生产已验证。
+- M7 代码适配已完成，下一阶段进入 M8 运维能力和 Fake 成功回调/本地迁移验收；真实渠道只有在各自沙盒证据完成后才能启用。
+
+## 三十四、2026-09-24：Fake 支付成功与履约验收入口
+
+- 开发环境新增认证会员接口 `POST /api/v1/orders/{id}/payments/fake/succeed`，只允许当前用户自己的订单，生产环境固定返回不可用；前端结算页在 Fake 支付意图创建后显示“确认测试支付”。
+- 服务端通过 Fake Provider 的状态转换生成内部事件，再进入统一 `IngestVerified` 入口，复用 Webhook 事件去重、订单金额/币种校验、支付流水和履约任务，不增加未验签生产旁路。
+- 会员看到订单由 `pending_payment` 进入 `paid/fulfilled` 的状态变化；管理员仍通过 `/admin/orders` 和履约权限处理异常任务。真实 Xcash/NOWPayments/PayPal 不受该开发入口影响。
+- 验证：会员 UI 静态契约、zh-CN/en-US JSON、`node node_modules/vue-tsc/bin/vue-tsc.js -b --pretty false`、支付 Provider 和 billing Go 测试通过；尚未在 `fastimg_dev` 执行迁移和浏览器运行态验收。

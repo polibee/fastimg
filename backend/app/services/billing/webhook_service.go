@@ -61,16 +61,23 @@ func (s *WebhookService) Ingest(ctx context.Context, gatewayCode string, request
 	if err != nil {
 		return providers.GatewayEvent{}, false, err
 	}
+	return s.IngestVerified(ctx, gatewayCode, event, request.Body)
+}
+
+// IngestVerified applies an event that was verified by a trusted adapter or a
+// development-only local provider transition. It keeps the same idempotency,
+// amount validation and post-commit fulfillment path as external webhooks.
+func (s *WebhookService) IngestVerified(_ context.Context, gatewayCode string, event providers.GatewayEvent, rawBody []byte) (providers.GatewayEvent, bool, error) {
 	if event.GatewayCode == "" {
 		event.GatewayCode = gatewayCode
 	}
 	if event.EventID == "" || !strings.EqualFold(event.GatewayCode, gatewayCode) {
 		return providers.GatewayEvent{}, false, ErrInvalidPaymentEvent
 	}
-	hash := sha256.Sum256(request.Body)
+	hash := sha256.Sum256(rawBody)
 	payloadHash := hex.EncodeToString(hash[:])
 	var duplicate bool
-	err = facades.Orm().Transaction(func(tx orm.Query) error {
+	err := facades.Orm().Transaction(func(tx orm.Query) error {
 		var stored models.PaymentWebhookEvent
 		if exists, findErr := tx.Model(&models.PaymentWebhookEvent{}).Where("provider_code = ? AND event_id = ?", gatewayCode, event.EventID).Exists(); findErr != nil {
 			return findErr

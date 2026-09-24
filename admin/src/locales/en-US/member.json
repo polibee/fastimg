@@ -299,6 +299,8 @@
     "cancelOrder": "Cancel order",
     "cancelingOrder": "Canceling…",
     "payWithFake": "Use test payment",
+    "confirmFake": "Confirm test payment",
+    "confirmingFake": "Confirming…",
     "paymentCreated": "Payment request created",
     "paymentPending": "Waiting for payment confirmation. Use the test flow in development to verify the order lifecycle.",
     "openCheckout": "Continue payment",

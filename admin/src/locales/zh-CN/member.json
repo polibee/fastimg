@@ -299,6 +299,8 @@
     "cancelOrder": "取消订单",
     "cancelingOrder": "取消中…",
     "payWithFake": "使用测试支付",
+    "confirmFake": "确认测试支付成功",
+    "confirmingFake": "确认中…",
     "paymentCreated": "支付请求已创建",
     "paymentPending": "等待支付确认。开发环境可使用测试支付流程验证订单链路。",
     "openCheckout": "继续支付",

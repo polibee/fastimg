@@ -58,6 +58,7 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication()).Get("/api/v1/orders/{id}", billingMemberController.ShowOrder)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication()).Post("/api/v1/orders/{id}/payments", billingMemberController.StartPayment)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication()).Post("/api/v1/orders/{id}/cancel", billingMemberController.CancelOrder)
+	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication()).Post("/api/v1/orders/{id}/payments/fake/succeed", billingMemberController.CompleteFakePayment)
 	facades.Route().Post("/api/v1/payment-gateways/{gateway}/webhook", billingWebhookController.Receive)
 
 	authController := authcontrollers.NewAuthController()
