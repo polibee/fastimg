@@ -90,3 +90,14 @@ func (c *PriceCatalog) GetActivePrice(planID uint, currency, period string) (*mo
 	}
 	return &price, nil
 }
+
+func (c *PriceCatalog) ActivePricesForPlan(planID uint) ([]models.PlanPrice, error) {
+	if planID == 0 || !facades.Schema().HasTable("plan_prices") {
+		return []models.PlanPrice{}, nil
+	}
+	var prices []models.PlanPrice
+	if err := facades.Orm().Query().Where("plan_id = ? AND status = ?", planID, "active").OrderBy("billing_period", "asc").OrderBy("currency", "asc").OrderByDesc("effective_from").Get(&prices); err != nil {
+		return nil, err
+	}
+	return prices, nil
+}

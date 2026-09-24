@@ -1,15 +1,17 @@
 package controllers
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/goravel/framework/contracts/http"
 
 	"goravel/app/facades"
 	"goravel/app/models"
+	billing "goravel/app/services/billing"
 	planservices "goravel/app/services/plans"
+	"goravel/app/services/quota"
 )
 
 type PlanController struct{}
@@ -23,9 +25,26 @@ func (p *PlanController) Index(ctx http.Context) http.Response {
 	}
 	data := make([]map[string]any, 0, len(plans))
 	for _, plan := range plans {
-		data = append(data, publicPlan(plan))
+		public, err := publicPlan(plan)
+		if err != nil {
+			return ctx.Response().Status(500).Json(http.Json{"code": "PLANS_UNAVAILABLE"})
+		}
+		prices, err := billing.NewPriceCatalog().ActivePricesForPlan(plan.ID)
+		if err != nil {
+			return ctx.Response().Status(500).Json(http.Json{"code": "PLANS_UNAVAILABLE"})
+		}
+		public["prices"] = publicPlanPrices(prices)
+		data = append(data, public)
 	}
 	return ctx.Response().Success().Json(http.Json{"data": data})
+}
+
+func publicPlanPrices(prices []models.PlanPrice) []map[string]any {
+	items := make([]map[string]any, 0, len(prices))
+	for _, price := range prices {
+		items = append(items, map[string]any{"id": price.ID, "version": price.Version, "currency": price.Currency, "amount_minor": price.AmountMinor, "billing_period": price.BillingPeriod, "trial_days": price.TrialDays, "status": price.Status})
+	}
+	return items
 }
 
 func (p *PlanController) Subscription(ctx http.Context) http.Response {
@@ -37,13 +56,35 @@ func (p *PlanController) Subscription(ctx http.Context) http.Response {
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{"code": "SUBSCRIPTION_UNAVAILABLE"})
 	}
-	var plan models.Plan
-	if err := facades.Orm().Query().Find(&plan, subscription.PlanID); err != nil {
-		return ctx.Response().Status(500).Json(http.Json{"code": "PLAN_NOT_FOUND"})
+	snapshot, err := planservices.ParseSubscriptionSnapshot(subscription.EntitlementSnapshotJSON)
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "SUBSCRIPTION_UNAVAILABLE"})
+	}
+	var public map[string]any
+	if snapshot.HasPlan {
+		public = map[string]any{
+			"id": snapshot.Plan.ID, "code": snapshot.Plan.Code, "name": snapshot.Plan.Name,
+			"description": snapshot.Plan.Description, "price_amount": snapshot.Plan.PriceAmount,
+			"currency": snapshot.Plan.Currency, "billing_period": snapshot.Plan.BillingPeriod,
+			"entitlements": snapshot.Entitlements,
+		}
+	} else {
+		// Older subscriptions persisted entitlements only. Preserve their quota
+		// behavior, but identify that plan display terms are not historically known.
+		var plan models.Plan
+		if err := facades.Orm().Query().Find(&plan, subscription.PlanID); err != nil {
+			return ctx.Response().Status(500).Json(http.Json{"code": "PLAN_NOT_FOUND"})
+		}
+		public, err = publicPlan(plan)
+		if err != nil {
+			return ctx.Response().Status(500).Json(http.Json{"code": "PLANS_UNAVAILABLE"})
+		}
 	}
 	return ctx.Response().Success().Json(http.Json{"data": map[string]any{
-		"subscription": subscription,
-		"plan":         publicPlan(plan),
+		"subscription":       subscription,
+		"plan":               public,
+		"plan_version":       snapshot.PlanVersion,
+		"snapshot_available": snapshot.HasPlan,
 	}})
 }
 
@@ -56,26 +97,59 @@ func (p *PlanController) Usage(ctx http.Context) http.Response {
 	if err := facades.Orm().Query().Where("user_id = ?", userID).Get(&entries); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{"code": "USAGE_UNAVAILABLE"})
 	}
-	usage := map[string]int64{}
+	usageEntries := make([]quota.UsageEntry, 0, len(entries))
 	for _, entry := range entries {
-		usage[entry.ResourceType] += entry.Delta
+		usageEntries = append(usageEntries, quota.UsageEntry{
+			ResourceType: entry.ResourceType, Delta: entry.Delta, PeriodKey: entry.PeriodKey,
+		})
 	}
-	return ctx.Response().Success().Json(http.Json{"data": http.Json{"user_id": userID, "usage": usage}})
+	subscription, err := planservices.NewPlanService().SubscriptionForUser(userID)
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "SUBSCRIPTION_UNAVAILABLE"})
+	}
+	entitlements, err := quota.ParseEntitlementJSON(subscription.EntitlementSnapshotJSON)
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "SUBSCRIPTION_UNAVAILABLE"})
+	}
+	periodKey := time.Now().UTC().Format("2006-01")
+	usage := quota.AggregateUsage(usageEntries, periodKey)
+	return ctx.Response().Success().Json(http.Json{"data": http.Json{
+		"user_id": userID, "period_key": periodKey, "usage": usage, "limits": entitlements,
+	}})
 }
 
-func publicPlan(plan models.Plan) map[string]any {
+func (p *PlanController) UsageLedger(ctx http.Context) http.Response {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return ctx.Response().Status(401).Json(http.Json{"code": "AUTH_UNAUTHORIZED"})
+	}
+	page, _ := strconv.Atoi(ctx.Request().Query("page", "1"))
+	perPage, _ := strconv.Atoi(ctx.Request().Query("per_page", "20"))
+	ledger, err := quota.ListUsageLedger(userID, page, perPage)
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "USAGE_UNAVAILABLE"})
+	}
+	return ctx.Response().Success().Json(http.Json{
+		"data": ledger.Data,
+		"meta": http.Json{
+			"page": ledger.Page, "per_page": ledger.PerPage,
+			"total": ledger.Total, "last_page": ledger.LastPage,
+		},
+	})
+}
+
+func publicPlan(plan models.Plan) (map[string]any, error) {
 	result := map[string]any{
 		"id": plan.ID, "code": plan.Code, "name": plan.Name, "description": plan.Description,
 		"price_amount": plan.PriceAmount, "currency": plan.Currency,
 		"billing_period": plan.BillingPeriod, "status": plan.Status, "sort_order": plan.SortOrder,
 	}
-	if plan.EntitlementsJSON != "" {
-		var entitlements map[string]any
-		if json.Unmarshal([]byte(plan.EntitlementsJSON), &entitlements) == nil {
-			result["entitlements"] = entitlements
-		}
+	entitlements, err := quota.ParseEntitlementJSON(plan.EntitlementsJSON)
+	if err != nil {
+		return nil, err
 	}
-	return result
+	result["entitlements"] = entitlements
+	return result, nil
 }
 
 func authenticatedUserID(ctx http.Context) (uint, error) {

@@ -76,6 +76,9 @@ const router = createRouter({
                 { path: 'share-links', name: 'member-share-links', component: () => import('@/modules/member/pages/MemberShareLinksPage.vue'), meta: { requiresAuth: true } },
                 { path: 'tokens', name: 'member-tokens', component: () => import('@/modules/member/pages/MemberTokensPage.vue'), meta: { requiresAuth: true } },
                 { path: 'plans', name: 'member-plans', component: () => import('@/modules/member/pages/MemberPlansPage.vue') },
+                { path: 'checkout/:orderId', name: 'member-checkout', component: () => import('@/modules/member/pages/MemberCheckoutPage.vue'), meta: { requiresAuth: true } },
+                { path: 'orders', name: 'member-orders', component: () => import('@/modules/member/pages/MemberOrdersPage.vue'), meta: { requiresAuth: true } },
+                { path: 'orders/:id', name: 'member-order-detail', component: () => import('@/modules/member/pages/MemberOrderDetailPage.vue'), meta: { requiresAuth: true } },
             ],
         },
         {
