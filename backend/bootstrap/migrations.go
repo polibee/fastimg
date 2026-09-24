@@ -23,5 +23,15 @@ func Migrations() []schema.Migration {
 		&migrations.M20260922000004AddDepartmentsParentID{},
 		&migrations.M20260922000005CreateNotificationsTable{},
 		&migrations.M20260923000001CreatePlansSubscriptionsUsageTables{},
+		&migrations.M20260923000002CreateFastimgMediaTables{},
+		&migrations.MadvertisingCreateAdvertisingTable{},
+		&migrations.MfoldersCreateFoldersTable{},
+		&migrations.MalbumsCreateAlbumsTable{},
+		&migrations.M20260924000001AddMediaFolderID{},
+		&migrations.M20260924000002CreateShareLinksTable{},
+		&migrations.M20260924000003CreateAPITokensTable{},
+		&migrations.M20260924000004AddAdvertisingCreativeFields{},
+		&migrations.M20260924000005CreateLinkSecurityTables{},
+		&migrations.M20260924000006CreateBillingTables{},
 	}
 }
