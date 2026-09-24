@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ClipboardList, Languages, LayoutDashboard, LogOut, Search, ShieldCheck, Unplug } from '@lucide/vue'
+import { Activity, ArrowRight, ClipboardList, Languages, LayoutDashboard, LogOut, Search, ShieldCheck, Unplug, WalletCards } from '@lucide/vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { useAuthStore } from '@/stores/auth'
 import { generatedApi, type GlobalSearchResult, type ResourceManifest } from '@/generated/api'
-import { dashboardResourceRoute, visibleDashboardResources } from '@/lib/dashboard-resources'
+import { adminResourcePath, dashboardResourceRoute, visibleDashboardResources } from '@/lib/dashboard-resources'
 import { groupResourceNavigation } from '@/lib/resource-navigation'
 import NotificationMenu from '@/core/notifications/NotificationMenu.vue'
 import { localizedResourceLabel } from '@/core/resource/resource-i18n'
@@ -22,9 +22,10 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const resourceManifests = ref<ResourceManifest[]>([])
+const adminResourceManifests = computed(() => resourceManifests.value.filter((item) => item.data_scope !== 'own'))
 const searchOpen = ref(false)
-const searchResults = computed(() => visibleDashboardResources(resourceManifests.value, auth.user?.permissions || []))
-const resourceNavigationGroups = computed(() => groupResourceNavigation(resourceManifests.value, auth.user?.permissions || []))
+const searchResults = computed(() => visibleDashboardResources(adminResourceManifests.value, auth.user?.permissions || []))
+const resourceNavigationGroups = computed(() => groupResourceNavigation(adminResourceManifests.value, auth.user?.permissions || []))
 const globalSearchResults = ref<GlobalSearchResult[]>([])
 const globalSearchLoading = ref(false)
 let globalSearchTimer: ReturnType<typeof setTimeout> | undefined
@@ -40,9 +41,14 @@ const breadcrumbResource = computed(() => {
   return generatedResource || ''
 })
 const breadcrumbLabel = computed(() => {
-  if (route.name === 'home') return t('auth.dashboard')
+  if (route.name === 'admin-home') return t('auth.dashboard')
   if (route.name === 'rbac') return t('rbac.title')
   if (route.name === 'audit-logs') return t('auth.auditLogs')
+  if (route.name === 'media-access-logs') return t('auth.mediaAccessLogs')
+  if (route.name === 'admin-orders') return t('billing.admin.orders')
+  if (route.name === 'admin-payment-transactions') return t('billing.admin.transactions')
+  if (route.name === 'admin-payment-events') return t('billing.admin.events')
+  if (route.name === 'admin-refunds') return t('billing.admin.refunds')
   const resource = resourceManifests.value.find((item) => item.name === breadcrumbResource.value)
   return resource ? localizedResourceLabel(t, te, resource.name, resource.label) : breadcrumbResource.value || t('auth.dashboard')
 })
@@ -72,14 +78,14 @@ function openResource(resource: { name: string; route: string }) {
 }
 
 function openSearchResult(result: GlobalSearchResult) {
+  if (!adminResourceManifests.value.some((resource) => resource.name === result.resource)) return
   searchOpen.value = false
-  void router.push(result.route)
+  void router.push(adminResourcePath(result.route, result.resource))
 }
 
 function resourceGroupLabel(name: string) {
-  if (name === 'system') return locale.value === 'zh-CN' ? '系统管理' : 'System'
-  if (name === 'business') return locale.value === 'zh-CN' ? '业务管理' : 'Business'
-  return name
+  const key = `core.resourceGroups.${name}`
+  return te(key) ? t(key) : name
 }
 
 function handleSearchInput(value: string) {
@@ -145,8 +151,8 @@ onBeforeUnmount(() => {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton as-child :is-active="true" :tooltip="t('auth.dashboard')">
-                  <RouterLink to="/">
+                <SidebarMenuButton as-child :is-active="$route.name === 'admin-home'" :tooltip="t('auth.dashboard')">
+                  <RouterLink to="/admin">
                     <LayoutDashboard />
                     <span>{{ t('auth.dashboard') }}</span>
                   </RouterLink>
@@ -154,12 +160,22 @@ onBeforeUnmount(() => {
               </SidebarMenuItem>
               <SidebarMenuItem v-if="auth.canAny(['admin.users.view', 'admin.roles.manage', 'admin.permissions.manage'])">
                 <SidebarMenuButton as-child :is-active="$route.name === 'rbac'" :tooltip="t('rbac.title')">
-                  <RouterLink to="/rbac"><ShieldCheck /><span>{{ t('rbac.title') }}</span></RouterLink>
+                  <RouterLink to="/admin/rbac"><ShieldCheck /><span>{{ t('rbac.title') }}</span></RouterLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.users.view')">
                 <SidebarMenuButton as-child :is-active="$route.name === 'audit-logs'" :tooltip="t('auth.auditLogs')">
-                  <RouterLink to="/audit-logs"><ClipboardList /><span>{{ t('auth.auditLogs') }}</span></RouterLink>
+                  <RouterLink to="/admin/audit-logs"><ClipboardList /><span>{{ t('auth.auditLogs') }}</span></RouterLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.media_access_logs.view')">
+                <SidebarMenuButton as-child :is-active="$route.name === 'media-access-logs'" :tooltip="t('auth.mediaAccessLogs')">
+                  <RouterLink to="/admin/media-access-logs"><Activity /><span>{{ t('auth.mediaAccessLogs') }}</span></RouterLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.canAny(['admin.orders.view', 'admin.payment_transactions.view', 'admin.payment_events.view', 'admin.refunds.view'])">
+                <SidebarMenuButton as-child :is-active="$route.path.startsWith('/admin/orders') || $route.path.startsWith('/admin/payment-') || $route.path.startsWith('/admin/refunds')" :tooltip="t('billing.admin.orders')">
+                  <RouterLink to="/admin/orders"><WalletCards /><span>{{ t('billing.admin.orders') }}</span></RouterLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -223,6 +239,13 @@ onBeforeUnmount(() => {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
+        <Button variant="outline" size="sm" as-child class="shrink-0" :aria-label="t('core.memberFrontend')">
+          <RouterLink to="/">
+            <ArrowRight data-icon="inline-start" />
+            <span class="hidden sm:inline">{{ t('core.memberFrontend') }}</span>
+            <span class="sr-only sm:hidden">{{ t('core.memberFrontend') }}</span>
+          </RouterLink>
+        </Button>
         <Button variant="outline" class="ml-auto hidden h-9 w-56 justify-start gap-2 font-normal text-muted-foreground sm:flex" @click="searchOpen = true">
           <Search data-icon="inline-start" />
           <span>{{ t('core.searchResources') }}</span>

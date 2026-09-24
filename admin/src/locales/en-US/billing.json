@@ -1,0 +1,37 @@
+{
+  "admin": {
+    "orders": "Orders",
+    "ordersDescription": "Review member orders, price snapshots, and fulfillment state.",
+    "transactions": "Payment transactions",
+    "transactionsDescription": "Review append-only payment, refund, and provider transactions.",
+    "events": "Payment webhooks",
+    "eventsDescription": "Review signature verification, deduplication, and processing state.",
+    "refunds": "Refunds",
+    "refundsDescription": "Review refund requests and provider status.",
+    "loadFailed": "Billing data could not be loaded",
+    "loadFailedDescription": "Check permissions and the backend service, then retry.",
+    "empty": "No records",
+    "emptyDescription": "There are no billing records in the current scope.",
+    "total": "{count} records"
+  },
+  "fields": {
+    "public_order_no": "Order number",
+    "user_id": "User",
+    "order_id": "Order",
+    "status": "Status",
+    "total_amount_minor": "Order amount",
+    "amount_minor": "Amount",
+    "currency": "Currency",
+    "provider_code": "Provider",
+    "provider_payment_id": "Provider payment ID",
+    "type": "Type",
+    "direction": "Direction",
+    "event_id": "Event ID",
+    "event_type": "Event type",
+    "signature_valid": "Signature valid",
+    "processing_status": "Processing status",
+    "created_at": "Created",
+    "requested_at": "Requested"
+  },
+  "actions": { "refresh": "Refresh" }
+}
