@@ -583,3 +583,34 @@ POST   /api/v1/media/{id}/signed-url
 - `pnpm exec vue-tsc -b` 在当前 Windows pnpm 环境仅输出锁文件检查后长时间无结果，已终止；未修改依赖或锁文件。后续用直接 Node 类型检查和 Vite 构建复核。
 - 迁移尚未执行到 `fastimg_dev`，因此当前运行后端不会看到 `plan_prices` 价格，会员页会安全地显示无可购买的付费价格；Fake Provider 仍缺少面向会员的“模拟成功回调”入口，当前支付按钮创建 pending 支付意图，不宣称支付完成。
 - 下一切片优先补 Fake/离线验收成功路径和管理端退款/履约操作，再按计划进入 Xcash、NOWPayments、PayPal Provider，真实渠道默认关闭。
+
+## 三十一、2026-09-24：M7 Xcash Provider 离线适配
+
+### 本轮完成
+
+- 新增 Xcash Provider 配置 `backend/config/payment.go` 和 `XCASH_*` 环境变量；注册逻辑位于统一 billing registry，只有 `XCASH_ENABLED=true` 且必要密钥存在时注册，默认不影响 Free/Fake。
+- 按 Xcash 官方协议实现 `XC-Appid`、`XC-Timestamp`、`XC-Nonce`、`XC-Signature` HMAC-SHA256；Webhook 校验 AppID、原始 body 签名和 5 分钟时间窗，拒绝缺失/过期/伪造事件。
+- 实现 `/v1/invoice` hosted invoice 创建、公开状态查询和统一 Provider 状态映射。Webhook 没有法币金额时先查询账单，禁止把链上 `pay_amount` 直接当成订单金额。
+- `completed/confirmed` 只有在金额、币种、Provider ID 通过通用 WebhookService 校验后才会进入支付成功；少付、多付、高风险、错误网络进入 `pending_review`/`failed`，不自动履约。Xcash 自动退款明确保持未实现，进入人工处理边界。
+- 新增 `docs/fastimg-payment-provider-xcash.md`，记录配置、签名、状态、测试和真实渠道启用门禁。
+
+### 验证与边界
+
+- Xcash HTTP stub、签名向量、时间窗、禁用 Provider 无网络调用、账单创建/查询/Webhook 回填金额测试通过：`go test ./app/services/billing/providers/xcash ./app/services/billing ./app/modules/billing/controllers -count=1`。
+- 本轮未请求真实 Xcash 网络，未写入支付密钥，未执行数据库迁移或重启后端；不能将 Xcash 描述为沙盒或生产收款已验证。
+- 下一步按 M7 顺序实现 NOWPayments，再实现 PayPal；每个 Provider 保持独立配置、签名/回调测试和默认关闭状态。
+
+## 三十二、2026-09-24：M7 NOWPayments Provider 离线适配
+
+### 本轮完成
+
+- 新增 `NOWPAYMENTS_*` 配置和统一 registry 注册；默认关闭，API Key/IPN Secret 只留在服务端配置边界。
+- 实现 hosted invoice 创建、`GET /v1/payment/{id}` 查询、`x-api-key` 请求认证，以及 `x-nowpayments-sig` HMAC-SHA512 IPN 验签。IPN JSON 递归排序 Key 后再计算签名，避免依赖回调字段顺序。
+- 状态映射只把 `finished` 作为成功候选；`waiting`、`confirming`、`confirmed`、`sending` 保持 pending，`partially_paid` 进入 pending review，失败/过期/退款不履约。
+- 新增 `docs/fastimg-payment-provider-nowpayments.md`，明确 Payment API/Invoice API、密钥、网络/资产、少付、重复回调和沙盒门禁。
+
+### 验证与边界
+
+- NOWPayments HTTP stub、创建/查询、IPN canonical JSON 验签和 partial payment 测试通过：`go test ./app/services/billing/providers/nowpayments -count=1`；Xcash 与统一 billing 回归仍通过。
+- 本轮没有访问真实 NOWPayments 网络，没有配置真实密钥，没有执行迁移或重启后端；不能将该 Provider 描述为沙盒/生产已验证。
+- 下一步实现 PayPal Orders v2/capture/webhook 验签，再进入 Fake 成功回调、迁移和本地运行态支付链路验收。

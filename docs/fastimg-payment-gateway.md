@@ -10,7 +10,7 @@ FastImg 的业务模块不直接调用支付宝、微信、Stripe、PayPal 或�
 
 ## 当前实现状态
 
-截至 2026-09-24，M6 Task 1-6 已完成代码切片：已增加版本化 `plan_prices` 价格目录模型、订单/支付/退款/财务/履约表模型和本地迁移定义；价格快照会复制套餐条款与权益，避免后台修改当前套餐后改变历史订单。Seeder 保留 Free 免费套餐，并预置 Creator/Pro 付费层级及月付/年付 CNY 价格（仅在 `plan_prices` 表存在时写入）。会员端已增加 own-scope 订单创建、订单列表、订单详情、支付启动和取消 API，以及 `/plans`、`/checkout/:orderId`、`/orders` 的独立页面和导航；开发环境 Fake Provider 支持幂等创建和测试态状态转换；Webhook 入口已具备事件去重、金额/币种校验和支付成功后创建履约任务的边界，履约服务会用订单快照更新订阅；退款上限、追加式财务流水、对账差异分类以及管理员订单/流水/Webhook/退款查询接口已建立。迁移尚未在本地数据库执行，Fake 支付确认闭环、后台退款/履约操作页面和真实 Provider 仍在后续任务中实现。
+截至 2026-09-24，M6 Task 1-6 已完成，M7 Xcash Task 7 和 NOWPayments Task 8 已完成离线适配：已增加版本化 `plan_prices` 价格目录模型、订单/支付/退款/财务/履约表模型和本地迁移定义；价格快照会复制套餐条款与权益，避免后台修改当前套餐后改变历史订单。Seeder 保留 Free 免费套餐，并预置 Creator/Pro 付费层级及月付/年付 CNY 价格（仅在 `plan_prices` 表存在时写入）。会员端已增加 own-scope 订单创建、订单列表、订单详情、支付启动和取消 API，以及 `/plans`、`/checkout/:orderId`、`/orders` 的独立页面和导航；开发环境 Fake Provider 支持幂等创建和测试态状态转换；Xcash Provider 已完成 HMAC、账单创建、状态查询、Webhook 验签和风险状态映射；NOWPayments Provider 已完成 hosted invoice、状态查询、IPN HMAC-SHA512 验签和部分支付复核映射，二者默认关闭。Webhook 入口已具备事件去重、金额/币种校验和支付成功后创建履约任务的边界，履约服务会用订单快照更新订阅；退款上限、追加式财务流水、对账差异分类以及管理员订单/流水/Webhook/退款查询接口已建立。迁移尚未在本地数据库执行，Fake 支付确认闭环、后台退款/履约操作页面、Xcash/NOWPayments 沙盒证据和 PayPal 仍在后续任务中实现。
 
 当前迁移使用文本字段保存受服务层校验的快照 JSON，以兼容项目现有 Goravel Schema 抽象；暂不宣称已完成 PostgreSQL JSONB 索引优化。前端价格只展示服务端返回的活动价格，不提交金额；Free 套餐不依赖支付网关，游客可以访问套餐目录，只有认证会员可以创建订单。
 
