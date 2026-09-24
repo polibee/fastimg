@@ -120,6 +120,7 @@ type Refund struct {
 	Status               string     `json:"status"`
 	Reason               string     `json:"reason"`
 	ProviderRefundID     string     `json:"provider_refund_id"`
+	IdempotencyKey       string     `json:"-"`
 	RequestedAt          time.Time  `json:"requested_at"`
 	CompletedAt          *time.Time `json:"completed_at"`
 }

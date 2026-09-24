@@ -183,11 +183,13 @@ func createBillingTailTables() error {
 			table.String("status", 24)
 			table.String("reason", 255).Nullable()
 			table.String("provider_refund_id", 160).Nullable()
+			table.String("idempotency_key", 160)
 			table.DateTimeTz("requested_at")
 			table.DateTimeTz("completed_at").Nullable()
 			table.DateTimeTz("created_at").Nullable()
 			table.DateTimeTz("updated_at").Nullable()
 			table.Index("order_id", "status")
+			table.Unique("idempotency_key")
 		}); err != nil {
 			return err
 		}
