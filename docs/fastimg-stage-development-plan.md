@@ -636,3 +636,10 @@ POST   /api/v1/media/{id}/signed-url
 - 服务端通过 Fake Provider 的状态转换生成内部事件，再进入统一 `IngestVerified` 入口，复用 Webhook 事件去重、订单金额/币种校验、支付流水和履约任务，不增加未验签生产旁路。
 - 会员看到订单由 `pending_payment` 进入 `paid/fulfilled` 的状态变化；管理员仍通过 `/admin/orders` 和履约权限处理异常任务。真实 Xcash/NOWPayments/PayPal 不受该开发入口影响。
 - 验证：会员 UI 静态契约、zh-CN/en-US JSON、`node node_modules/vue-tsc/bin/vue-tsc.js -b --pretty false`、支付 Provider 和 billing Go 测试通过；尚未在 `fastimg_dev` 执行迁移和浏览器运行态验收。
+
+## 三十五、2026-09-24：fastimg_dev 本地迁移与运行态准备
+
+- 已先通过 `go run . artisan migrate:status --no-ansi` 检查 `fastimg_dev`，仅 `20260924000006_create_billing_tables` 为 Pending；随后执行 `go run . artisan migrate --no-ansi`，仅该 billing migration 成功应用。
+- 已执行 `go run . artisan db:seed --no-ansi`；`db:table plan_prices`、`db:table orders` 和再次查询迁移状态确认支付表、价格目录和 migration batch `[7] Ran`。
+- 后端已由本项目独立进程运行在 `http://127.0.0.1:53082`，`GET /api/v1/plans` 返回 Free、Creator、Pro 及月付/年付 CNY 价格；支付渠道仍保持默认关闭。
+- 常规 Vite 运行被当前共享 `node_modules` 缺少 Windows `@tailwindcss/oxide-win32-x64-msvc` 原生绑定阻断；没有修改依赖或锁文件。开发阶段临时使用静态 `dist` 预览和 `/api` 代理运行在 `http://127.0.0.1:5181`，该预览不替代源码构建，待恢复同版本 Windows 依赖后再做源码热更新验收。
