@@ -10,7 +10,6 @@ import (
 	"goravel/app/facades"
 	billing "goravel/app/services/billing"
 	"goravel/app/services/billing/providers"
-	"goravel/app/services/billing/providers/fake"
 )
 
 type MemberController struct {
@@ -19,9 +18,7 @@ type MemberController struct {
 }
 
 func NewMemberController() *MemberController {
-	registry := providers.NewRegistry()
-	_ = registry.Register("fake", fake.New())
-	return &MemberController{orders: billing.NewOrderService(), payments: billing.NewPaymentService(registry)}
+	return &MemberController{orders: billing.NewOrderService(), payments: billing.NewPaymentService(billing.DefaultGatewayRegistry())}
 }
 
 func (c *MemberController) CreateOrder(ctx httpcontract.Context) httpcontract.Response {

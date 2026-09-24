@@ -49,6 +49,7 @@ func Web() {
 	folderController := collectioncontrollers.NewMemberCollectionController(collectionservices.KindFolder)
 	albumController := collectioncontrollers.NewMemberCollectionController(collectionservices.KindAlbum)
 	billingMemberController := billingcontrollers.NewMemberController()
+	billingWebhookController := billingcontrollers.NewWebhookController()
 	facades.Route().Get("/users", userController.Index)
 	facades.Route().Get("/api/v1/plans", planController.Index)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication()).Post("/api/v1/orders", billingMemberController.CreateOrder)
@@ -56,6 +57,7 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication()).Get("/api/v1/orders/{id}", billingMemberController.ShowOrder)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication()).Post("/api/v1/orders/{id}/payments", billingMemberController.StartPayment)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication()).Post("/api/v1/orders/{id}/cancel", billingMemberController.CancelOrder)
+	facades.Route().Post("/api/v1/payment-gateways/{gateway}/webhook", billingWebhookController.Receive)
 
 	authController := authcontrollers.NewAuthController()
 	facades.Route().Post("/api/v1/auth/login", authController.Login)
