@@ -169,7 +169,11 @@ pwsh -File scripts/fastimg-clean-dev-artifacts.ps1
 pwsh -File scripts/fastimg-clean-dev-artifacts.ps1 -Apply
 ```
 
-清理工具不会删除媒体目录；旧运行二进制和 `storage/bin` 需要额外开关并在确认进程未使用后处理。
+清理工具不会删除媒体目录；旧运行二进制和 `storage/bin` 需要额外开关并在确认进程未使用后处理：
+
+```powershell
+pwsh -File scripts/fastimg-clean-dev-artifacts.ps1 -Apply -IncludeOldRuntime -IncludeStorageBin
+```
 
 ### 11.4 SSD 写入说明
 

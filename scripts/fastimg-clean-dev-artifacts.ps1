@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$Apply,
-    [switch]$IncludeOldRuntime
+    [switch]$IncludeOldRuntime,
+    [switch]$IncludeStorageBin
 )
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -39,10 +40,43 @@ if ($IncludeOldRuntime) {
     Get-Process -ErrorAction SilentlyContinue | ForEach-Object {
         try { if ($_.Path) { $running += $_.Path } } catch { }
     }
-    Get-ChildItem -LiteralPath (Join-Path $backendRoot '.runtime') -File -Filter '*.exe' -ErrorAction SilentlyContinue |
-        Where-Object { $running -notcontains $_.FullName -and $_.Name -ne 'fastimg-dev.exe' } |
+    $runtimeRoot = Join-Path $backendRoot '.runtime'
+    $runtimeStems = @($running | Where-Object { $_.StartsWith($runtimeRoot + '\', [System.StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) })
+    Get-ChildItem -LiteralPath $runtimeRoot -File -ErrorAction SilentlyContinue |
+        Where-Object {
+            $keep = $false
+            foreach ($stem in $runtimeStems) { if ($_.Name.StartsWith($stem, [System.StringComparison]::OrdinalIgnoreCase)) { $keep = $true } }
+            -not $keep
+        } |
         ForEach-Object {
-            Remove-Item -LiteralPath $_.FullName -Force
-            Write-Host "已删除旧运行产物：$($_.FullName)"
+            try {
+                Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop
+                Write-Host "已删除旧运行产物：$($_.FullName)"
+            } catch {
+                Write-Host "跳过被占用运行产物：$($_.FullName)"
+            }
+        }
+}
+
+if ($Apply -and $IncludeStorageBin) {
+    $running = @()
+    Get-Process -ErrorAction SilentlyContinue | ForEach-Object {
+        try { if ($_.Path) { $running += $_.Path } } catch { }
+    }
+    $binRoot = Join-Path $backendRoot 'storage/bin'
+    $binStems = @($running | Where-Object { $_.StartsWith($binRoot + '\', [System.StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) })
+    Get-ChildItem -LiteralPath $binRoot -File -ErrorAction SilentlyContinue |
+        Where-Object {
+            $keep = $false
+            foreach ($stem in $binStems) { if ($_.Name.StartsWith($stem, [System.StringComparison]::OrdinalIgnoreCase)) { $keep = $true } }
+            -not $keep
+        } |
+        ForEach-Object {
+            try {
+                Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop
+                Write-Host "已删除 storage/bin 构建产物：$($_.FullName)"
+            } catch {
+                Write-Host "跳过被占用 storage/bin 文件：$($_.FullName)"
+            }
         }
 }
