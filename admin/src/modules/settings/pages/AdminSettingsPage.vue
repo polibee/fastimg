@@ -8,6 +8,8 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { generatedApi, type SystemSetting } from '@/generated/api'
+import { ApiError, errorMessageKey } from '@/lib/api'
+import { buildSettingUpdates } from '@/modules/settings/save'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
 
@@ -17,6 +19,7 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
+const initialValues = reactive<Record<string, string>>({})
 const groups = [
   { key: 'seo', fields: ['site_title', 'site_description', 'site_keywords', 'robots', 'sitemap.enabled', 'sitemap.extra_paths'] },
   { key: 'gateway', fields: ['payment.default_gateway', 'payment.fake.enabled', 'payment.paypal.enabled', 'payment.paypal.environment', 'payment.paypal.client_id', 'payment.paypal.client_secret', 'payment.paypal.webhook_id', 'payment.paypal.base_url', 'payment.paypal.webhook_url', 'payment.paypal.return_url', 'payment.paypal.cancel_url', 'payment.xcash.enabled', 'payment.xcash.app_id', 'payment.xcash.hmac_key', 'payment.xcash.base_url', 'payment.xcash.callback_url', 'payment.xcash.return_url', 'payment.nowpayments.enabled', 'payment.nowpayments.api_key', 'payment.nowpayments.ipn_secret', 'payment.nowpayments.base_url', 'payment.nowpayments.callback_url', 'payment.nowpayments.success_url', 'payment.nowpayments.cancel_url'] },
@@ -90,12 +93,17 @@ function applyGatewayDefaults() {
   }
 }
 
+function snapshotInitialValues() {
+  for (const key of Object.keys(definitions)) initialValues[key] = values[key] || (definitions[key].type === 'boolean' ? 'false' : '')
+}
+
 onMounted(async () => {
   if (!auth.token) return
   try {
     const settings = await generatedApi.settings(auth.token)
     for (const item of settings as SystemSetting[]) values[item.key] = item.value
     applyGatewayDefaults()
+    snapshotInitialValues()
   } catch { error.value = t('settings.loadFailed') } finally { loading.value = false }
 })
 watch(() => [values.site_url, values['payment.paypal.environment']], () => applyGatewayDefaults())
@@ -103,10 +111,19 @@ watch(() => [values.site_url, values['payment.paypal.environment']], () => apply
 async function save() {
   if (!auth.token) return
   saving.value = true; error.value = ''; saved.value = false
+  let currentKey = ''
   try {
-    for (const [key, definition] of Object.entries(definitions)) await generatedApi.updateSetting(key, { value: values[key] || (definition.type === 'boolean' ? 'false' : ''), value_type: definition.type, group: definition.group, description: fieldLabel(key) }, auth.token)
+    const updates = buildSettingUpdates(definitions, values, initialValues, fieldLabel)
+    for (const update of updates) {
+      currentKey = update.key
+      await generatedApi.updateSetting(update.key, update, auth.token)
+      initialValues[update.key] = update.value
+    }
     saved.value = true
-  } catch { error.value = t('settings.saveFailed') } finally { saving.value = false }
+  } catch (cause) {
+    const detail = cause instanceof ApiError && cause.code ? t(errorMessageKey(cause.code)) : t('settings.saveFailed')
+    error.value = currentKey ? `${t('settings.saveFailed')}: ${fieldLabel(currentKey)}（${detail}）` : detail
+  } finally { saving.value = false }
 }
 </script>
 
