@@ -136,3 +136,41 @@ Free 套餐优先保证低频真实使用；Creator 套餐应覆盖稳定外链�
 - 对象存储错误率和回源流量
 
 这些指标应进入管理端运营仪表盘，并设置异常增长告警。
+
+## 11. 本地开发磁盘与 SSD 约束
+
+开发机上的 Go 构建缓存、前端依赖和临时预览产物不属于 FastImg 业务数据，不能因为一次测试或一次重启不断复制保留。
+
+### 11.1 单一缓存原则
+
+- 一个 checkout 只使用一个 `GOCACHE`，禁止使用 `.gocache-<功能>-<版本>` 这种按任务分裂的目录。
+- Windows 使用 `scripts/fastimg-go.ps1`，WSL/Linux 使用 `scripts/fastimg-go.sh`；默认缓存位于用户缓存目录，避免污染 `D:\laragon\www\fastimg`。
+- `go test -count=1` 只表示不复用测试结果，不应通过新建 GOCACHE 来实现“隔离”；编译缓存仍应共享。
+- 需要真正隔离时使用临时 checkout 或容器，并在任务结束时销毁临时缓存，不得把隔离缓存留在仓库中。
+
+### 11.2 稳定运行产物
+
+- 后端开发服务覆盖写入 `backend/.runtime/fastimg-dev.exe`，日志使用 `fastimg-dev.log`，PID 使用 `fastimg-dev.pid`。
+- 不以时间戳、端口或功能名不断生成新的开发二进制。需要保留崩溃现场时只复制一次，并注明保留期限。
+- `admin/node_modules` 可以重建；`.tmp-dist`、Vite 缓存、Go 缓存可以清理；`backend/storage/fastimg`、回收站、数据库导出和业务日志必须单独确认。
+
+### 11.3 开发预算与清理
+
+本地默认预算为：Go/前端缓存不超过 8 GB，运行产物不超过 1 GB，日志不超过 500 MB。每个阶段验收前执行：
+
+```powershell
+pwsh -File scripts/fastimg-disk-audit.ps1
+```
+
+清理命令默认只预览，必须显式确认后才执行：
+
+```powershell
+pwsh -File scripts/fastimg-clean-dev-artifacts.ps1
+pwsh -File scripts/fastimg-clean-dev-artifacts.ps1 -Apply
+```
+
+清理工具不会删除媒体目录；旧运行二进制和 `storage/bin` 需要额外开关并在确认进程未使用后处理。
+
+### 11.4 SSD 写入说明
+
+当前 48 GB 主要是重复缓存和开发二进制，不是每次都在写入 48 GB。重复缓存会造成不必要的编译和 SSD 写放大，但偶发几十 GB 的累计开发写入通常远低于普通 SSD 的 TBW 额定寿命；真正需要避免的是长期、无上限地为每次测试建立新缓存。单一缓存、稳定产物和预算检查可以同时降低磁盘占用、编译时间和写入量。

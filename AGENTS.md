@@ -12,6 +12,15 @@
 - 前端开发服务器必须后台启动并记录日志、PID；向用户提供地址前先验证实际端口。
 - 后端启动失败时，先读取日志确认数据库、Redis 或迁移问题，再修改代码。
 
+## 本地构建与磁盘约束
+
+- 同一个 checkout 只允许使用一个 Go 构建缓存。优先运行 `scripts/fastimg-go.ps1`（Windows）或 `scripts/fastimg-go.sh`（WSL/Linux），禁止按功能、测试或版本创建 `.gocache-*` 独立目录。
+- Go 构建缓存默认放在用户缓存目录，不放在业务源码目录；仓库内的 `.gocache*` 只允许作为历史遗留清理对象，不能提交或继续产生。
+- 后端开发服务使用稳定产物名 `backend/.runtime/fastimg-dev.exe`、固定日志和 PID 文件；调试版本不得持续创建 `fastimg-dev-<timestamp>-<version>.exe`。
+- `admin/node_modules`、Vite 临时预览目录和 Go 缓存均属于可重建产物；媒体、回收站、数据库导出和运行日志不属于缓存，清理前必须单独审计。
+- 每次阶段验收前运行 `scripts/fastimg-disk-audit.ps1`。本地开发预算：缓存不超过 8 GB、运行产物不超过 1 GB、日志不超过 500 MB；超过预算先清理再继续大规模测试。
+- 清理脚本默认只输出候选项；只有明确传入 `-Apply` 才允许删除，并且不得触碰 `backend/storage/fastimg`。
+
 ## Git 交付节奏
 
 - 阶段性功能完成并通过对应验证后再统一推送 GitHub；开发过程只保留本地提交，不频繁推送。

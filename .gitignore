@@ -6,6 +6,7 @@ backend/storage/bin/
 backend/.gocache/
 backend/.gocache*/
 backend/.runtime/
+backend/.cache/
 backend/tmp/
 
 # Vue / frontend

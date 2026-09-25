@@ -78,8 +78,7 @@ Xcash 账单 Webhook 示例通常只包含 `sys_no`、链、币、交易哈希�
 ## 测试与上线门禁
 
 ```powershell
-$env:GOCACHE='D:\laragon\www\fastimg\go-vue-admin\.gocache-payment'
-go test ./app/services/billing/providers/xcash ./app/services/billing ./app/modules/billing/controllers -count=1
+pwsh -File scripts/fastimg-go.ps1 test ./app/services/billing/providers/xcash ./app/services/billing ./app/modules/billing/controllers -count=1
 ```
 
 测试使用本地 HTTP stub，不访问真实 Xcash。启用前必须补齐真实沙盒/小额生产前验证、Webhook 重复投递、过期报价、少付、多付、风险复核、错误网络和失败重试证据，并保持 `XCASH_ENABLED=false` 直到这些门禁通过。

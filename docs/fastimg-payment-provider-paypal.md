@@ -38,8 +38,7 @@ PAYPAL_CANCEL_URL=https://img.example.com/orders/{order_id}?payment=cancelled
 ## 离线验证与启用门禁
 
 ```powershell
-$env:GOCACHE='D:\laragon\www\fastimg\go-vue-admin\.gocache-payment'
-go test ./app/services/billing/providers/paypal ./app/services/billing ./app/modules/billing/controllers -count=1
+pwsh -File scripts/fastimg-go.ps1 test ./app/services/billing/providers/paypal ./app/services/billing ./app/modules/billing/controllers -count=1
 ```
 
 启用前必须补齐真实 Sandbox 的 OAuth、订单创建、审批、捕获、退款、Webhook Verification、重复通知、超时后查询和金额/货币不匹配证据；`PAYPAL_ENABLED` 在门禁完成前保持 `false`。

@@ -42,8 +42,7 @@ API Key 只由服务端通过 `x-api-key` 请求头发送；IPN Secret 只用于
 ## 离线验证
 
 ```powershell
-$env:GOCACHE='D:\laragon\www\fastimg\go-vue-admin\.gocache-payment'
-go test ./app/services/billing/providers/nowpayments ./app/services/billing ./app/modules/billing/controllers -count=1
+pwsh -File scripts/fastimg-go.ps1 test ./app/services/billing/providers/nowpayments ./app/services/billing ./app/modules/billing/controllers -count=1
 ```
 
 上线前必须使用官方当前 API 文档和沙盒/小额环境验证支付币种、网络、最小金额、过期、少付、IPN 重复投递、错误签名、状态查询和对账。`NOWPAYMENTS_ENABLED` 在门禁完成前保持 `false`。
