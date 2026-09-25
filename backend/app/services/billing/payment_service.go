@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	ErrPaymentNotAllowed      = errors.New("payment is not allowed for this order")
-	ErrPaymentIntentNotFound  = errors.New("payment intent not found")
+	ErrPaymentNotAllowed     = errors.New("payment is not allowed for this order")
+	ErrPaymentIntentNotFound = errors.New("payment intent not found")
 )
 
 type StartPaymentRequest struct {
@@ -59,10 +59,10 @@ func (s *PaymentService) StartPayment(ctx context.Context, userID, orderID uint,
 	}
 	session, err := gateway.CreatePayment(ctx, providers.CreatePaymentRequest{OrderNo: order.PublicOrderNo, PaymentIntentID: intent.ID, AmountMinor: order.TotalAmountMinor, Currency: order.Currency, Description: "FastImg plan order", IdempotencyKey: idempotencyKey})
 	if err != nil {
-		_, _ = facades.Orm().Query().Where("id = ?", intent.ID).Update(map[string]any{"status": "failed", "failed_at": time.Now().UTC()})
+		_, _ = facades.Orm().Query().Model(&models.PaymentIntent{}).Where("id = ?", intent.ID).Update(map[string]any{"status": "failed", "failed_at": time.Now().UTC()})
 		return nil, fmt.Errorf("create gateway payment: %w", err)
 	}
-	if _, err := facades.Orm().Query().Where("id = ?", intent.ID).Update(map[string]any{"status": session.Status, "provider_payment_id": session.ProviderPaymentID, "checkout_url": session.CheckoutURL}); err != nil {
+	if _, err := facades.Orm().Query().Model(&models.PaymentIntent{}).Where("id = ?", intent.ID).Update(map[string]any{"status": session.Status, "provider_payment_id": session.ProviderPaymentID, "checkout_url": session.CheckoutURL}); err != nil {
 		return nil, err
 	}
 	intent.Status, intent.ProviderPaymentID, intent.CheckoutURL = session.Status, session.ProviderPaymentID, session.CheckoutURL

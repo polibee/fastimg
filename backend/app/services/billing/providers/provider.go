@@ -1,6 +1,30 @@
 package providers
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
+
+// RequestError is a safe summary of a provider HTTP failure. It deliberately
+// carries only the status and provider error code/message, never credentials or
+// request bodies.
+type RequestError struct {
+	GatewayCode     string
+	StatusCode      int
+	ProviderCode    string
+	ProviderMessage string
+	Retryable       bool
+}
+
+func (e *RequestError) Error() string {
+	if e == nil {
+		return "payment provider request failed"
+	}
+	if e.ProviderCode != "" {
+		return fmt.Sprintf("%s provider request failed status=%d code=%s", e.GatewayCode, e.StatusCode, e.ProviderCode)
+	}
+	return fmt.Sprintf("%s provider request failed status=%d", e.GatewayCode, e.StatusCode)
+}
 
 type CreatePaymentRequest struct {
 	OrderNo         string

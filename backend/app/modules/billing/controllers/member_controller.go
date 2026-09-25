@@ -88,6 +88,7 @@ func (c *MemberController) StartPayment(ctx httpcontract.Context) httpcontract.R
 	}
 	intent, err := c.payments.StartPayment(ctx.Context(), userID, uint(ctx.Request().RouteInt64("id")), input, ctx.Request().Header("Idempotency-Key"))
 	if err != nil {
+		facades.Log().Errorf("payment create failed user_id=%d order_id=%d gateway=%s error=%v", userID, ctx.Request().RouteInt64("id"), input.GatewayCode, err)
 		return billingError(ctx, err)
 	}
 	return ctx.Response().Status(http.StatusCreated).Json(httpcontract.Json{"data": intent})
@@ -153,6 +154,16 @@ func memberUserID(ctx httpcontract.Context) (uint, error) {
 }
 
 func billingError(ctx httpcontract.Context, err error) httpcontract.Response {
+	var providerErr *providers.RequestError
+	if errors.As(err, &providerErr) {
+		code := "PAYMENT_PROVIDER_REJECTED"
+		status := http.StatusBadGateway
+		if providerErr.Retryable {
+			code = "PAYMENT_PROVIDER_UNAVAILABLE"
+			status = http.StatusServiceUnavailable
+		}
+		return ctx.Response().Status(status).Json(httpcontract.Json{"code": code, "gateway_code": providerErr.GatewayCode, "provider_code": providerErr.ProviderCode})
+	}
 	switch {
 	case errors.Is(err, billing.ErrInvalidOrderRequest):
 		return ctx.Response().Status(http.StatusUnprocessableEntity).Json(httpcontract.Json{"code": "ORDER_VALIDATION_FAILED"})

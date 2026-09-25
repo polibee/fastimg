@@ -49,7 +49,7 @@ func (p *Provider) CreatePayment(ctx context.Context, request providers.CreatePa
 	payload := map[string]any{
 		"out_no": request.OrderNo, "title": truncateTitle(request.Description), "currency": request.Currency,
 		"amount": formatMinor(request.AmountMinor), "duration": 30,
-		"notify_url": p.config.CallbackURL, "return_url": orderReturnURL(p.config.ReturnURL, request.OrderNo),
+		"redirect_url": orderReturnURL(p.config.ReturnURL, request.OrderNo),
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -148,7 +148,7 @@ func (p *Provider) request(ctx context.Context, method, path string, body []byte
 	}
 	response, err := p.client.Do(request)
 	if err != nil {
-		return nil, 0, fmt.Errorf("xcash request failed: %w", err)
+		return nil, 0, &providers.RequestError{GatewayCode: "xcash", Retryable: true, ProviderMessage: "network request failed"}
 	}
 	defer response.Body.Close()
 	limited, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20+1))
@@ -159,9 +159,29 @@ func (p *Provider) request(ctx context.Context, method, path string, body []byte
 		return nil, response.StatusCode, ErrInvalidResponse
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, response.StatusCode, fmt.Errorf("xcash request returned status %d", response.StatusCode)
+		return nil, response.StatusCode, parseRequestError(response.StatusCode, limited)
 	}
 	return limited, response.StatusCode, nil
+}
+
+func parseRequestError(status int, body []byte) error {
+	var payload struct {
+		Code    json.RawMessage `json:"code"`
+		Message string          `json:"message"`
+		Detail  string          `json:"detail"`
+	}
+	providerCode, providerMessage := "", ""
+	if json.Unmarshal(body, &payload) == nil {
+		providerCode = strings.Trim(strings.TrimSpace(string(payload.Code)), `"`)
+		providerMessage = strings.TrimSpace(payload.Message)
+		if providerMessage == "" {
+			providerMessage = strings.TrimSpace(payload.Detail)
+		}
+	}
+	return &providers.RequestError{
+		GatewayCode: "xcash", StatusCode: status, ProviderCode: providerCode,
+		ProviderMessage: providerMessage, Retryable: status == http.StatusTooManyRequests || status >= 500,
+	}
 }
 
 type invoiceResponse struct {

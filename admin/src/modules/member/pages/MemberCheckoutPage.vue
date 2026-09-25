@@ -100,7 +100,7 @@ onMounted(load)
           </Select>
         </label>
         <Button v-if="order.status === 'pending_payment'" :disabled="paying || !selectedGateway" @click="pay">{{ paying ? t('member.billing.startingPayment') : t('member.billing.payNow') }}</Button>
-        <Button v-if="payment?.provider_payment_id && order.status === 'pending_payment'" variant="secondary" :disabled="confirmingFake" @click="completeFake">{{ confirmingFake ? t('member.billing.confirmingFake') : t('member.billing.confirmFake') }}</Button>
+        <Button v-if="payment?.provider_payment_id && selectedGateway === 'fake' && order.status === 'pending_payment'" variant="secondary" :disabled="confirmingFake" @click="completeFake">{{ confirmingFake ? t('member.billing.confirmingFake') : t('member.billing.confirmFake') }}</Button>
         <Button v-if="order.status === 'pending_payment'" variant="ghost" :disabled="canceling" @click="cancel">{{ canceling ? t('member.billing.cancelingOrder') : t('member.billing.cancelOrder') }}</Button>
         <Alert v-if="payment"><AlertTitle>{{ t('member.billing.paymentCreated') }}</AlertTitle><AlertDescription>{{ t('member.billing.paymentPending') }} <a v-if="payment.checkout_url.startsWith('http')" class="underline" :href="payment.checkout_url" target="_blank" rel="noreferrer">{{ t('member.billing.openCheckout') }}</a></AlertDescription></Alert>
         <p class="text-xs text-muted-foreground">{{ t('member.billing.fulfillmentNotice') }}</p>

@@ -2,9 +2,12 @@ package xcash
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +19,19 @@ func TestProviderUsesSignedCreateAndPublicQuery(t *testing.T) {
 		if r.URL.Path == "/v1/invoice" && r.Method == http.MethodPost {
 			if r.Header.Get("XC-Appid") != "app-1" || r.Header.Get("XC-Signature") == "" {
 				t.Fatalf("signed headers missing: %+v", r.Header)
+			}
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode invoice payload: %v", err)
+			}
+			if payload["redirect_url"] != "https://img.test/orders/FST-1?payment=success" {
+				t.Fatalf("redirect_url = %v, want Xcash redirect_url", payload["redirect_url"])
+			}
+			if _, exists := payload["notify_url"]; exists {
+				t.Fatal("Xcash invoice must not send unsupported notify_url")
+			}
+			if _, exists := payload["return_url"]; exists {
+				t.Fatal("Xcash invoice must not send unsupported return_url")
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"sys_no":"INV1","out_no":"FST-1","pay_url":"https://pay.test/INV1","status":"waiting"}`))
@@ -32,7 +48,7 @@ func TestProviderUsesSignedCreateAndPublicQuery(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := New(Config{Enabled: true, BaseURL: server.URL, AppID: "app-1", HMACKey: "key-1", Timeout: time.Second})
+	provider := New(Config{Enabled: true, BaseURL: server.URL, AppID: "app-1", HMACKey: "key-1", Timeout: time.Second, ReturnURL: "https://img.test/orders/{order_id}?payment=success"})
 	session, err := provider.CreatePayment(context.Background(), providers.CreatePaymentRequest{OrderNo: "FST-1", PaymentIntentID: 7, AmountMinor: 1999, Currency: "CNY", Description: "Creator"})
 	if err != nil || session.ProviderPaymentID != "INV1" || session.Status != "pending" {
 		t.Fatalf("create session = %+v, err=%v", session, err)
@@ -67,5 +83,23 @@ func TestDisabledProviderNeverCallsNetwork(t *testing.T) {
 	_, err := provider.CreatePayment(context.Background(), providers.CreatePaymentRequest{OrderNo: "FST-1", PaymentIntentID: 1, AmountMinor: 100, Currency: "CNY"})
 	if err != providers.ErrGatewayUnavailable {
 		t.Fatalf("disabled provider error = %v, want gateway unavailable", err)
+	}
+}
+
+func TestProviderReturnsSafeProviderErrorSummary(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":"1003","message":"signature invalid","detail":"do not expose request secrets"}`))
+	}))
+	defer server.Close()
+
+	provider := New(Config{Enabled: true, BaseURL: server.URL, AppID: "app-1", HMACKey: "key-1", Timeout: time.Second})
+	_, err := provider.CreatePayment(context.Background(), providers.CreatePaymentRequest{OrderNo: "FST-1", PaymentIntentID: 1, AmountMinor: 100, Currency: "CNY"})
+	var requestErr *providers.RequestError
+	if !errors.As(err, &requestErr) || requestErr.ProviderCode != "1003" || requestErr.Retryable {
+		t.Fatalf("provider error = %#v, want safe non-retryable code 1003", err)
+	}
+	if strings.Contains(err.Error(), "do not expose") {
+		t.Fatal("provider response detail leaked into error")
 	}
 }
