@@ -2,18 +2,17 @@ package actions
 
 import (
 	adminactions "goravel/app/core/admin/actions"
+	developeractions "goravel/app/modules/developer/actions"
 	useractions "goravel/app/modules/users/actions"
 )
 
 var applicationRegistry = func() *adminactions.Registry {
-	registry := adminactions.NewRegistry()
-	_ = registry.Register(useractions.NewSetStatusHandler())
-	return registry
+	r := adminactions.NewRegistry()
+	_ = r.Register(useractions.NewSetStatusHandler())
+	_ = r.Register(developeractions.NewSetStatusHandler())
+	_ = r.Register(NewResolveHandler())
+	return r
 }()
 
-// Registry returns the application-level batch Action Handler registry.
-// Modules should register custom handlers during application bootstrap.
-func Registry() *adminactions.Registry { return applicationRegistry }
-
-// Register adds a module-owned batch Action Handler to the application registry.
-func Register(handler adminactions.Handler) error { return applicationRegistry.Register(handler) }
+func Registry() *adminactions.Registry      { return applicationRegistry }
+func Register(h adminactions.Handler) error { return applicationRegistry.Register(h) }

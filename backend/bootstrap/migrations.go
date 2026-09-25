@@ -16,6 +16,7 @@ func Migrations() []schema.Migration {
 		&migrations.M20260921000002CreateAuthRefreshTokensTable{},
 		&migrations.M20260921000003CreateAuditLogsTable{},
 		&migrations.M20260921000004CreateAuthLoginAttemptsTable{},
+		&migrations.M20260921000005CreateSystemSettingsTable{},
 		&migrations.MannouncementsCreateAnnouncementsTable{},
 		&migrations.M20260922000001AddPermissionRoleScope{},
 		&migrations.M20260922000002CreatePermissionRoleFieldsTable{},
@@ -33,5 +34,13 @@ func Migrations() []schema.Migration {
 		&migrations.M20260924000004AddAdvertisingCreativeFields{},
 		&migrations.M20260924000005CreateLinkSecurityTables{},
 		&migrations.M20260924000006CreateBillingTables{},
+		&migrations.M20260924000007AddPlanPriceGatewayCode{},
+		&migrations.M20260924000008DropPlanPriceGatewayCode{},
+		&migrations.M20260925000001CreateMediaReportsTable{},
+		&migrations.M20260925000002RemovePlanPriceAdminPermissions{},
+		&migrations.M20260925000003CreateAPITokenRateLimitsTable{},
+		&migrations.M20260925000004CreateAlbumMediaTable{},
+		&migrations.M20260925000005AddDiscoveryStateToMedia{},
+		&migrations.M20260925000006AddWatermarkEntitlementDefaults{},
 	}
 }

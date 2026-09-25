@@ -1,0 +1,1 @@
+{ "title": "统计分析", "description": "查看媒体、用户、相册、文件夹和订单的基础运营指标。", "loadFailed": "统计数据加载失败", "metrics": { "users": "用户", "media": "媒体", "albums": "相册", "folders": "文件夹", "orders": "订单", "payment_transactions": "支付流水" } }

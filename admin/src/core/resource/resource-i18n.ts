@@ -13,6 +13,10 @@ export function localizedFieldLabel(t: Translate, te: HasTranslation, resource: 
   return localized(t, te, `resource.fields.${resource}.${field}`, fallback)
 }
 
+export function localizedFieldHint(t: Translate, te: HasTranslation, resource: string, field: string, fallback: string) {
+  return localized(t, te, `resource.hints.${resource}.${field}`, fallback)
+}
+
 export function localizedActionLabel(t: Translate, te: HasTranslation, action: string, fallback: string) {
   return localized(t, te, `resource.actionLabels.${action}`, fallback)
 }

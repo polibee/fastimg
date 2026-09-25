@@ -52,6 +52,15 @@ async function logout() {
           >
             {{ t('member.nav.plans') }}
           </RouterLink>
+          <RouterLink
+            to="/discover"
+            :aria-label="t('member.discover.title')"
+            :title="t('member.discover.title')"
+            class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3"
+            active-class="bg-muted font-medium"
+          >
+            {{ t('member.nav.discover') }}
+          </RouterLink>
           <template v-if="auth.isAuthenticated">
             <RouterLink
               to="/orders"
@@ -82,6 +91,9 @@ async function logout() {
             </RouterLink>
             <RouterLink to="/tokens" :aria-label="t('member.tokens.title')" :title="t('member.tokens.title')" class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3" active-class="bg-muted font-medium">
               {{ t('member.nav.tokens') }}
+            </RouterLink>
+            <RouterLink to="/reports" :aria-label="t('member.reports.title')" :title="t('member.reports.title')" class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3" active-class="bg-muted font-medium">
+              {{ t('member.nav.reports') }}
             </RouterLink>
           </template>
           <RouterLink

@@ -32,6 +32,8 @@
 
 媒体对外“可访问”不能只判断一个字段，必须同时满足：未删除、处理 ready、分享/公开策略允许、审核状态允许。
 
+文件夹归档规则：`folder_id` 可为空；非空时必须引用同一 `user_id` 的文件夹。清空归档只更新媒体所属关系，不改变媒体处理状态、存储用量或链接权限。会员端只能修改自己的 `ready` 媒体，管理员跨用户调整必须走后台授权用例并记录审计。
+
 ## 3. MediaVariant 字段契约
 
 Variant 类型首期固定为：
@@ -64,10 +66,17 @@ created_at
 规则：
 
 - 正数表示增加占用或消耗，负数表示释放或冲销。
+- `upload`、`restore`、`download`、`api_request` 来源只能写正数；`delete` 来源只能写负数；人工 `adjustment` 可正可负但不能为零。
 - 同一个 `idempotency_key` 只能成功写入一次。
+- `idempotency_key` 由 `user_id + resource_type + source_type + source_id + period_key` 规范化后生成 SHA-256；相同 key 的重复事件且 delta 相同视为已完成，delta 不同则报冲突，不可静默覆盖。
+- 数据库流水写入必须和对应业务状态转换处于同一事务；上传/媒体生命周期先锁定用户行，再写流水以串行化同一用户的余额变更。唯一索引作为最终防重约束。
+- 存储使用 `resource_type=storage`、`period_key=lifetime`；软删除进入回收站不释放额度，只有对象物理删除成功后才写负数流水。历史 `storage_bytes` 仅作为读取兼容名。
 - 管理员赠送额度必须记录操作者、原因和过期时间。
 - 当前余额可以缓存，但最终账务依据是流水和周期聚合。
+
+会员只能通过 `GET /api/v1/me/usage/ledger?page=1&per_page=20` 分页读取自己的用量流水；用户归属从认证身份取得，不接受请求传入 `user_id`。每页默认 20、最大 100，按流水 ID 倒序。响应只含 `data` 与 `meta`，不暴露幂等键。
 - 删除失败不能提前写入释放空间的流水。
+- 月度 `upload` 与 `transform` 以 `UploadSession.created_at` 所属 UTC 月作为预占和最终入账周期；成功完成、处理中预占和统计摘要必须使用同一周期。旧会话缺失创建时间时，完成入账回退到完成时间所属 UTC 月。
 
 ## 5. Personal API Token 与分享 Token
 
@@ -101,9 +110,23 @@ FastImg 对外产品名称统一使用 `Personal API Token`，数据库表和内
 
 Token 原文只存在于创建响应和用户当前页面内存中；服务端认证只使用 `token_hash`。认证失败日志必须只记录 prefix、Token ID 和 request ID。
 
-### Scope 兼容规则
+### Scope 规则
 
-首期固定基础能力为 `upload:write`、`links:read`、`media:delete`，三者默认授予且不能被用户关闭，只能作用于 Token 所属用户自己的媒体。可选 Scope 为 `media:read`、`usage:read`、`webhook:manage`。新增可选 Scope 必须默认不授予已有 Token，并在 Token 详情中明确展示。
+当前 Personal API Token 采用最小固定开放面，不在 C 端创建表单中让用户自行勾选 Scope，也不把链接读取拆成独立的 `links:read` 权限：
+
+| Scope | 当前用途 | 数据范围 |
+| --- | --- | --- |
+| `upload:write` | 单文件上传 | 只能创建当前 Token 所属用户的媒体 |
+| `media:read` | 查询本人媒体列表、详情、内容和上传完成后的各种链接 | 只能读取当前 Token 所属用户的媒体 |
+| `media:delete` | 删除本人媒体到回收站 | 只能删除当前 Token 所属用户的媒体 |
+
+当前不向 Personal API Token 开放 `links:read`、`usage:read`、`webhook:manage`、批量上传、上传重试、套餐/用量、文件夹、相册、分享链接、防盗链和任何管理员接口。链接属于本人媒体详情/上传结果的一部分，由 `media:read` 统一保护；删除能力由 `media:delete` 单独保护。上传完成后的 `links` 使用 `APP_URL` 生成带 APP_KEY 签名的绝对公开地址，支持 `url`、`markdown`、`html`、`bbcode` 及 `original`、`thumbnail`、`medium` 三个 Variant；不暴露对象存储地址。
+
+公开媒体、分享链接、发现页和会员自己的媒体读取都会在返回内容前按实际响应字节写入 `bandwidth/download` 流水。当前 UTC 月累计值通过 `/api/v1/me/usage` 的 `usage.bandwidth` 返回，响应同时提供 `bandwidth_metered: true`；超出套餐非零 `monthly_bandwidth_bytes` 时拒绝本次响应，不允许把套餐流量限制当作展示字段。
+
+会员网页登录会话与 Personal API Token 是两种不同的认证边界。网页登录会话可以访问会员端的订单、套餐用量、文件夹、相册、分享链接和防盗链页面；Personal API Token 只用于脚本、PicGo、ShareX、CI 等自动化上传和本人媒体闭环。
+
+管理员后台使用独立的登录会话和 `admin.*` RBAC 权限。管理员不会通过 Personal API Token 调用 `/api/v1/admin/**`；后台的 `api_tokens` 资源只允许授权管理员查看 Token 的非敏感运营元数据，并执行停用/撤销，不能创建、读取明文或导出 Token。
 
 ## 6. 状态机
 
@@ -132,12 +155,28 @@ processing -> failed
 failed -> processing
 ready -> deleted
 deleted -> ready
+deleted -> cleanup_pending -> physically_deleted
 ready -> expired
 ```
 
-`deleted -> ready` 只允许回收站恢复；如果原对象已被清理，恢复必须失败并说明原因。
+`deleted -> ready` 只允许回收站恢复；如果原对象已被清理，恢复必须失败并说明原因。永久删除先原子迁移到 `cleanup_pending`，阻止并发恢复；存储 Provider 删除所有对象成功后，数据库事务将对象/Variant 标为 deleted、媒体标为 `physically_deleted` 并写入负向存储流水。失败保持 `cleanup_pending`，允许以相同请求安全重试；Provider 的 `Delete` 必须幂等。共享存储对象在引用计数/共享删除契约实现前拒绝永久删除。
 
 ### Subscription
+
+套餐及权益快照约定：
+
+- `price_amount` 是非负最小货币单位整数；首期 `billing_period` 只允许 `monthly`、`yearly`，状态只允许 `active`、`disabled`。
+- `entitlements_json` 使用完整 JSON 对象，字段固定为 `storage_bytes`、`max_file_bytes`、`daily_uploads`、`monthly_api_uploads`、`monthly_bandwidth_bytes`、`transform_count`、`api_rate_per_minute`、`token_limit`、`ads_enabled`、`watermark_enabled`；字节和次数均为整数。
+- `transform_count` 按 UTC 月统计成功完成的媒体处理作业；单张媒体生成原图、缩略图和中图合计为一次。处理中上传会话预占一次，成功后以幂等流水确认，失败会话释放预占且不计成功用量。
+- `storage_bytes` 必须大于零；其他数值上限不得小于零，零表示该项不设上限；`ads_enabled` 和 `watermark_enabled` 必须显式为布尔值。
+- 新写入必须包含全部字段且不能包含未知字段，JSON/API 输出统一使用 snake_case。读取存量快照时兼容旧 Go 默认编码的 PascalCase 字段名；旧快照缺少 `watermark_enabled` 时按关闭处理，不能把旧快照改写为另一组权限语义。
+- 已存在的版本化订阅快照如果是在 `watermark_enabled` 加入前生成，继续接受旧的内容哈希并按关闭处理；新计划写入和新订阅统一使用包含水印字段的新哈希，避免修改套餐后会员订阅页出现 `SUBSCRIPTION_UNAVAILABLE`。
+
+站点水印设置使用动态系统设置键：`watermark.text` 为上传时写入原图、缩略图和中图的文字，`watermark.domain` 为可选追加域名，`watermark.fallback_image_url` 为会员端图片加载失败时的备用图片地址。后端公开 `GET /api/v1/site/presentation` 只返回经过 URL 安全校验的兜底图地址，不返回其他设置或凭证；空值使用内置 FastImg 兜底图。
+- 系统设置写入的 `value_type` 支持 `string`、`secret`、`boolean`、`integer` 和 `json`。`secret` 只接受提交值用于加密更新，列表接口统一返回占位符；可选整数允许空字符串，具体业务读取时必须使用安全默认值。管理员设置表单不得因为未配置的支付密钥或可选统计参数阻断其他设置保存。
+- 创建订阅时在现有 `entitlement_snapshot_json` 字段保存完整订阅快照：`schema_version`、`plan_version`、套餐 ID/编码/名称/描述/价格/货币/周期和完整权益。配额读取兼容从快照 envelope 读取权益；旧的纯权益 JSON 继续有效。
+- `plan_version` 是对规范化套餐条款与权益计算的 `sha256:<hex>` 内容版本：相同条款得到相同版本，任一条款/权益变化得到新版本；读取时重新计算并校验，快照内容不能静默偏离版本。该版本标识内容，不承诺按时间单调递增；订阅周期/创建时间负责时间顺序。
+- 新订阅和后续订单必须使用创建时快照，套餐后续编辑不得回写订阅或订单快照。既有纯权益快照没有保存套餐名称/价格等信息，不能推断历史条款；API 对这类记录回退显示当前套餐并明确 `snapshot_available: false`。不在未授权时对本地数据库做回填。
 
 ```text
 pending -> active -> scheduled_downgrade -> expired
@@ -269,11 +308,10 @@ created_at
 ### HotlinkPolicy
 
 ```text
-mode: off | referer_allowlist | signed_url | hybrid
-allow_missing_referer: boolean
-domain_ids: string[]
-signed_url_ttl_seconds: bounded integer
-placeholder_mode: deny | placeholder
+mode: off | referer | signed | hybrid
+allow_no_referer: boolean
+hotlink_domains: normalized host[]
+signed_url_ttl_seconds: 60..86400
 updated_at: UTC time
 ```
 
@@ -289,7 +327,9 @@ key_id: active signing key version
 scope: view
 ```
 
-签名至少绑定媒体 ID、规范化投递路径、过期时间和 scope。过期、撤销、格式错误或与当前策略不兼容时统一返回 `HOTLINK_BLOCKED`，不得暴露具体校验步骤。
+当前实现使用应用层 HMAC-SHA256，签名绑定媒体 ID、Variant 和过期时间；公开投递路径是 `/i/{id}`，永不返回对象存储源地址。过期、篡改、格式错误或与当前策略不兼容时统一返回 `404 LINK_NOT_FOUND`，不得暴露具体校验步骤。`media_access_logs` 只记录投递决策和最小请求元数据，不记录签名、密码或完整 Token；记录写入失败不阻断图片响应。
+
+管理员访问查询使用独立的 all-scope RBAC 接口 `GET /api/v1/admin/media-access-logs` 和页面 `/admin/media-access-logs`。允许按媒体、Variant、投递模式、结果和 Referer 主机筛选；接口只投影脱敏访问字段，不把访问日志表当作会员 own-scope 媒体接口。
 
 ## 10. 事务和一致性边界
 

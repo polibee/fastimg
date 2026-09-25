@@ -75,6 +75,29 @@ func TestCheckModuleRequiresRuntimeDiscoveryFiles(t *testing.T) {
 	}
 }
 
+func TestCheckModuleSupportsFrontendSiblingWhenRunFromBackend(t *testing.T) {
+	projectRoot := t.TempDir()
+	backendRoot := filepath.Join(projectRoot, "backend")
+	adminRoot := filepath.Join(projectRoot, "admin")
+	if err := os.MkdirAll(backendRoot, 0o755); err != nil {
+		t.Fatalf("create backend root: %v", err)
+	}
+	if err := os.MkdirAll(adminRoot, 0o755); err != nil {
+		t.Fatalf("create admin root: %v", err)
+	}
+	if _, err := GenerateResource(backendRoot, Input{Name: "billing", Fields: []string{"name:text"}}, "20260923000000"); err != nil {
+		t.Fatalf("generate resource: %v", err)
+	}
+
+	report, err := CheckModule(backendRoot, "billing")
+	if err != nil {
+		t.Fatalf("check module: %v", err)
+	}
+	if !report.Complete || len(report.Missing) != 0 {
+		t.Fatalf("report = %+v, want complete sibling frontend module", report)
+	}
+}
+
 func containsPath(paths []string, want string) bool {
 	for _, path := range paths {
 		if path == want {

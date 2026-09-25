@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
@@ -16,7 +17,9 @@ import { createResourceForm, serializeResourceForm, type ResourceFormField } fro
 import { generatedApi, type RelationOption } from '@/generated/api'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
-import { localizedFieldLabel, localizedOptionLabel, localizedResourceLabel } from '@/core/resource/resource-i18n'
+import { localizedFieldHint, localizedFieldLabel, localizedOptionLabel, localizedResourceLabel } from '@/core/resource/resource-i18n'
+import ResourceDateTimePicker from '@/components/resource/ResourceDateTimePicker.vue'
+import ResourceEntitlementsEditor from '@/components/resource/ResourceEntitlementsEditor.vue'
 
 interface ResourceDefinition {
   label: string
@@ -58,12 +61,16 @@ const formGroups = computed(() => {
 const resourceLabel = computed(() => localizedResourceLabel(t, te, props.resource.route.split('/').filter(Boolean).pop() || '', props.resource.label))
 const formTitle = computed(() => t(editing.value ? 'resource.editResource' : 'resource.createResource', { resource: resourceLabel.value }))
 function fieldLabel(field: ResourceFormField) { return localizedFieldLabel(t, te, props.resource.route.split('/').filter(Boolean).pop() || '', field.name, field.label) }
+function fieldHint(field: ResourceFormField) { return localizedFieldHint(t, te, props.resource.route.split('/').filter(Boolean).pop() || '', field.name, field.hint || '') }
 function optionLabel(field: ResourceFormField, value: string, fallback: string) { return localizedOptionLabel(t, te, field.name, value, fallback) }
 
 function fieldId(field: ResourceFormField) { return `resource-field-${field.name}` }
 function inputType(field: ResourceFormField) { return field.type === 'email' || field.type === 'password' || field.type === 'number' || field.type === 'date' ? field.type : 'text' }
 function isBoolean(field: ResourceFormField) { return field.type === 'boolean' }
 function isSelect(field: ResourceFormField) { return field.type === 'select' }
+function isTextarea(field: ResourceFormField) { return field.type === 'textarea' }
+function isDatetime(field: ResourceFormField) { return field.type === 'datetime-local' }
+function isEntitlements(field: ResourceFormField) { return field.type === 'entitlements' }
 function isNumber(field: ResourceFormField) { return field.type === 'number' }
 function fieldRequired(field: ResourceFormField) { return !editing.value && field.required === true }
 function relationForField(field: ResourceFormField) { return selectableRelations.value.find((relation) => relation.field === field.name) }
@@ -155,10 +162,14 @@ async function submit() {
           <FieldGroup :class="['grid gap-5', groupClass(group.columns)]">
         <Field v-for="field in group.fields" v-show="fieldVisible(field)" :key="field.name">
           <FieldLabel :for="fieldId(field)">{{ fieldLabel(field) }}</FieldLabel>
+          <p v-if="fieldHint(field)" class="-mt-3 text-xs leading-5 text-muted-foreground">{{ fieldHint(field) }}</p>
           <Switch v-if="isBoolean(field)" :id="fieldId(field)" v-model="form[field.name] as boolean" />
           <div v-else-if="relationForField(field)" class="grid gap-2"><Input v-model="relationSearch[relationForField(field)?.name || '']" :placeholder="t('resource.relationSearch')" @input="debouncedRelationSearch(relationForField(field))" @keydown.enter.prevent="loadRelationOptions(relationForField(field), false)" /><Select v-model="form[field.name] as string" :disabled="relationLoading[relationForField(field)?.name || '']"><SelectTrigger :id="fieldId(field)"><SelectValue /></SelectTrigger><SelectContent><SelectItem v-for="option in relationOptions[relationForField(field)?.name || ''] || []" :key="option.value" :value="option.value">{{ option.label }}</SelectItem></SelectContent></Select><Button v-if="(relationMeta[relationForField(field)?.name || '']?.last_page || 1) > (relationMeta[relationForField(field)?.name || '']?.page || 1)" type="button" variant="outline" size="sm" :disabled="relationLoading[relationForField(field)?.name || '']" @click="loadRelationOptions(relationForField(field), true)">{{ t('resource.loadMore') }}</Button></div>
           <Select v-else-if="isSelect(field)" v-model="form[field.name] as string"><SelectTrigger :id="fieldId(field)"><SelectValue /></SelectTrigger><SelectContent><SelectItem v-for="option in field.options || []" :key="option.value" :value="option.value">{{ optionLabel(field, option.value, option.label) }}</SelectItem></SelectContent></Select>
-          <Input v-else :id="fieldId(field)" v-model="form[field.name] as string" :type="inputType(field)" :required="fieldRequired(field)" :step="isNumber(field) ? '1' : undefined" :aria-invalid="Boolean(fieldErrors[field.name])" />
+          <Textarea v-else-if="isTextarea(field)" :id="fieldId(field)" v-model="form[field.name] as string" :required="fieldRequired(field)" :aria-invalid="Boolean(fieldErrors[field.name])" :class="field.name === 'creative_content' ? 'min-h-40 font-mono text-xs leading-5' : 'min-h-28'" />
+          <ResourceDateTimePicker v-else-if="isDatetime(field)" v-model="form[field.name] as string" />
+          <ResourceEntitlementsEditor v-else-if="isEntitlements(field)" v-model="form[field.name] as Record<string, unknown>" />
+          <Input v-else :id="fieldId(field)" v-model="form[field.name] as string" :type="inputType(field)" :placeholder="fieldHint(field) || undefined" :required="fieldRequired(field)" :step="isNumber(field) ? '1' : undefined" :aria-invalid="Boolean(fieldErrors[field.name])" />
           <p v-if="fieldErrors[field.name]" class="text-sm text-destructive">{{ fieldErrors[field.name] }}</p>
         </Field>
           </FieldGroup>

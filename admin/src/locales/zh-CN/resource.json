@@ -26,6 +26,12 @@
   "passwordRequired": "密码至少 8 个字符。",
   "userLocale": "语言区域",
   "userActive": "用户已启用",
+  "userPlanTitle": "套餐与额度",
+  "userPlanDescription": "为该用户指定当前生效的会员计划。管理员账户上传不受会员额度限制，但这里仍可设置后台显示的计划档位。",
+  "userPlanLabel": "当前套餐",
+  "userPlanPlaceholder": "选择套餐",
+  "userPlanHint": "保存后立即更新订阅快照，并影响会员端显示和普通用户的额度校验。",
+  "saveUserPlan": "保存套餐",
   "saving": "保存中…",
   "save": "保存",
   "cancel": "取消",
@@ -35,7 +41,11 @@
   "formDescription": "请检查并保存表单内容。",
   "filterAll": "全部",
   "trueValue": "是",
-  "falseValue": "否"
+  "falseValue": "否",
+  "pickDateTime": "选择日期",
+  "pickTime": "选择时间",
+  "clearDateTime": "清除时间",
+  "entitlements": { "storage_bytes": "存储空间", "max_file_bytes": "单文件大小上限", "daily_uploads": "每日上传次数", "monthly_api_uploads": "每月 API 上传次数", "monthly_bandwidth_bytes": "每月带宽", "transform_count": "图片处理次数", "api_rate_per_minute": "API 每分钟请求数", "token_limit": "API Token 数量", "ads_enabled": "显示广告", "watermark_enabled": "启用图片水印", "enabled": "已启用", "disabled": "未启用" }
   ,"actions": "操作"
   ,"edit": "编辑"
   ,"delete": "删除"
@@ -86,8 +96,9 @@
   ,"loadMore": "加载更多"
   ,"bulkActionDescription": "确定对已选择的 {count} 项记录执行此操作？"
   ,"actionFieldRequired": "{field}为必填项"
-  ,"labels": {"users": "用户", "roles": "角色", "permissions": "权限", "departments": "部门", "announcements": "公告"}
-  ,"fields": {"users": {"name": "姓名", "email": "邮箱", "password": "密码", "locale": "语言区域", "status": "状态"}, "roles": {"name": "名称", "display_name": "显示名称"}, "permissions": {"name": "名称", "display_name": "显示名称"}, "departments": {"name": "名称", "code": "编码", "status": "状态", "parent_id": "上级部门"}, "announcements": {"title": "标题", "status": "状态"}}
+  ,"labels": {"users": "用户", "roles": "角色", "permissions": "权限", "departments": "部门", "announcements": "公告", "folders": "文件夹", "albums": "相册", "advertising": "广告位", "api_tokens": "API Token", "media": "媒体库", "reports": "违规举报", "plan_prices": "价格版本", "plans": "会员计划", "orders": "订单", "payment_transactions": "支付流水", "payment_events": "支付回调事件", "refunds": "退款记录"}
+  ,"fields": {"reports": {"media_asset_id": "媒体 ID", "reporter_id": "举报人 ID", "reason": "举报原因", "description": "补充说明", "status": "处理状态", "resolution": "处理说明", "resolved_by": "处理人", "resolved_at": "处理时间"}, "users": {"name": "姓名", "email": "邮箱", "password": "密码", "locale": "语言区域", "status": "状态"}, "roles": {"name": "名称", "display_name": "显示名称"}, "permissions": {"name": "名称", "display_name": "显示名称"}, "departments": {"name": "部门", "code": "编码", "status": "状态", "parent_id": "上级部门"}, "announcements": {"title": "标题", "status": "状态"}, "folders": {"name": "文件夹名称", "parent_id": "上级文件夹"}, "albums": {"name": "相册名称", "cover_media_id": "封面媒体 ID", "visibility": "可见性"}, "advertising": {"name": "广告名称", "placement": "投放位置", "creative_type": "内容类型", "creative_content": "广告内容", "creative_url": "旧素材地址", "target_url": "跳转地址", "plan_code": "套餐编码", "starts_at": "开始时间", "ends_at": "结束时间", "status": "状态"}, "api_tokens": {"user_id": "用户 ID", "name": "名称", "token_prefix": "Token 前缀", "scopes_json": "权限范围", "status": "状态", "expires_at": "过期时间", "last_used_at": "最近使用时间", "last_used_ip": "最近使用 IP", "usage_count": "使用次数", "revoked_at": "撤销时间", "created_at": "创建时间"}, "media": {"id": "媒体 ID", "user_id": "用户 ID", "folder_id": "文件夹 ID", "original_name": "原始文件名", "content_type": "内容类型", "format": "格式", "size_bytes": "文件大小（字节）", "width": "宽度", "height": "高度", "status": "状态", "deleted_at": "删除时间", "created_at": "上传时间"}, "plan_prices": {"plan_id": "会员计划", "version": "价格版本", "currency": "币种", "amount_minor": "金额（最小单位）", "billing_period": "计费周期", "trial_days": "试用天数", "status": "状态", "effective_from": "生效时间", "effective_to": "失效时间"}, "plans": {"code": "计划编码", "name": "计划名称", "entitlements_json": "权益与额度", "description": "计划说明", "price_amount": "展示价格", "currency": "币种", "billing_period": "计费周期", "status": "状态", "sort_order": "排序"}}
   ,"actionLabels": {"view": "查看", "create": "新建", "update": "编辑", "delete": "删除", "bulk-delete": "批量删除", "bulk-update": "批量更新", "set-status": "设置状态", "restore": "恢复", "force-delete": "永久删除"}
-  ,"options": {"status": {"active": "正常", "disabled": "已停用", "locked": "已锁定", "draft": "草稿", "published": "已发布"}}
+  ,"hints": {"advertising": {"creative_content": "按内容类型填写：文本直接输入；图片填写图片 URL；JavaScript 粘贴源码，不要包含 script 标签。"}, "plans": {"entitlements_json": "使用下方权益表单设置存储、上传、API、带宽、广告和图片水印限制，普通运营人员无需编辑 JSON。"}}
+  ,"options": {"status": {"active": "正常", "disabled": "已停用", "locked": "已锁定", "revoked": "已撤销", "draft": "草稿", "published": "已发布", "processing": "处理中", "ready": "可用", "blocked": "已拦截", "deleted": "已删除", "archived": "已归档"}, "visibility": {"private": "私有", "link": "仅链接可见", "public": "公开"}, "moderation_status": {"pending": "待审核", "manual_review": "人工复核", "approved": "已通过", "rejected": "已拒绝"}, "placement": {"header": "页眉", "footer": "页脚", "left": "左侧栏", "right": "右侧栏", "upload": "旧上传页", "dashboard": "旧控制台", "discovery": "旧发现页"}, "creative_type": {"text": "文本", "image": "图片", "script": "JavaScript 代码"}, "billing_period": {"monthly": "按月", "yearly": "按年"}}
 }

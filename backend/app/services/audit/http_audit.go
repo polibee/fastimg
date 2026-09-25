@@ -2,6 +2,7 @@ package auditservices
 
 import (
 	"encoding/json"
+	"mime"
 	"strings"
 )
 
@@ -23,6 +24,19 @@ func ShouldAuditHTTP(method, path string) bool {
 		return false
 	}
 	return path != "/api/v1/admin/audit-logs"
+}
+
+// RequestBodyForAudit avoids parsing file bodies into audit events and leaves
+// multipart parsing to the route after its request-size limit is installed.
+func RequestBodyForAudit(contentType string, readAll func() map[string]any) map[string]any {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(contentType)), "multipart/") {
+		return map[string]any{"omitted": "multipart"}
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err == nil && strings.HasPrefix(strings.ToLower(mediaType), "multipart/") {
+		return map[string]any{"omitted": "multipart"}
+	}
+	return readAll()
 }
 
 func BuildHTTPAuditMetadata(input HTTPAuditInput) map[string]any {

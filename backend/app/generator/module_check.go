@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type ModuleCheckReport struct {
@@ -38,8 +39,14 @@ func CheckModule(root, name string) (ModuleCheckReport, error) {
 		expected = append(expected, filepath.ToSlash(artifact.Path))
 	}
 	report := ModuleCheckReport{Name: spec.Name, Expected: expected}
+	frontendRoot := resolveFrontendRoot(root)
 	for _, relative := range expected {
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(relative))); err != nil {
+		artifactRoot := root
+		if strings.HasPrefix(relative, "admin/") && frontendRoot != root {
+			artifactRoot = frontendRoot
+			relative = strings.TrimPrefix(relative, "admin/")
+		}
+		if _, err := os.Stat(filepath.Join(artifactRoot, filepath.FromSlash(relative))); err != nil {
 			if os.IsNotExist(err) {
 				report.Missing = append(report.Missing, relative)
 				continue

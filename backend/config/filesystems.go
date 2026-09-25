@@ -33,6 +33,10 @@ func init() {
 				"root":   path.Storage("app/public"),
 				"url":    config.Env("APP_URL", "").(string) + "/storage",
 			},
+			"fastimg": map[string]any{
+				"driver": "local",
+				"root":   path.Storage("fastimg"),
+			},
 		},
 	})
 }

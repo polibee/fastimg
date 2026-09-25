@@ -10,6 +10,8 @@
 
 **Spec:** `docs/fastimg-product-design.md`、`docs/architecture.md`、`docs/module-layout.md`、`docs/resource-engine.md`
 
+**Localization:** `docs/i18n.md`（所有功能共同遵守的中英文实现与验收约束）
+
 **Requirements:** `docs/fastimg-requirements-matrix.md`
 
 **Developer API:** `docs/fastimg-developer-api.md`
@@ -39,6 +41,8 @@
 - 不重复实现用户、RBAC、通用 CRUD、审计、配置、队列、文件系统和基础 UI。
 - 所有用户资源执行 `user_id` 归属校验；所有额度变化写入用量流水。
 - Redis 与 PostgreSQL 使用项目现有配置，禁止静默内存降级。
+- 所有用户可见文案在同一功能变更内同步交付 `zh-CN`/`en-US` JSON；前端仅通过 vue-i18n namespace key 读取，后端通过 Goravel Localization 本地化，禁止内联双语文案和重复建设 i18n。
+- 每个前端功能必须纳入语言文件路径/嵌套 Key 一致性测试，并覆盖对应页面使用语言 Key；统一运行 `cd admin && node --test tests/fastimg-i18n.test.mjs`。
 - 每阶段完成后运行后端测试、前端类型检查和构建，并形成独立本地提交。
 
 ## Review Focus
@@ -89,26 +93,27 @@ Task 2 是上传和支付的共同前置；Task 3 是媒体库的前置；Task 4
 - Create: `go-vue-admin/docs/fastimg-module-map.md`
 - Modify: none in framework code
 
-- [ ] 记录 `backend/app/modules`、`backend/app/services`、`backend/database/migrations`、`backend/routes/web.go`、`backend/bootstrap/migrations.go` 和 `backend/bootstrap/schedule.go` 的扩展位置。
-- [ ] 记录 Resource Generator、Registry discovery、OpenAPI、前端生成 API 的现有入口。
-- [ ] 检查 PostgreSQL/Redis 端口和 `backend/.env`，不修改用户服务配置。
-- [ ] 在 `backend` 运行 `go test ./...`，在 `admin` 运行 `pnpm exec vue-tsc --noEmit` 和 `pnpm run build`，保存基线结果。
-- [ ] 检查 `127.0.0.1:5432` 和 `127.0.0.1:6379`，只使用项目现有 PostgreSQL/Redis 配置。
+- [x] 记录 `backend/app/modules`、`backend/app/services`、`backend/database/migrations`、`backend/routes/web.go`、`backend/bootstrap/migrations.go` 和 `backend/bootstrap/schedule.go` 的扩展位置。
+- [x] 记录 Resource Generator、Registry discovery、OpenAPI、前端生成 API 的现有入口。
+- [x] 检查 PostgreSQL/Redis 端口和 `backend/.env`，不修改用户服务配置。
+- [x] 在 `backend` 运行 `go test ./...`，在 `admin` 运行 `pnpm exec vue-tsc --noEmit` 和 `pnpm run build`，保存基线结果（环境/工具链失败项见模块映射文档，不据此宣称全绿）。
+- [x] 检查 Windows Laragon 主机上的 `127.0.0.1:5432` 和 `127.0.0.1:6379`，只使用项目现有 PostgreSQL/Redis 配置。
 
 ## Task 1: 生成标准套餐、文件夹、相册和广告资源
 
 **Files:**
-- Create via command: `backend/app/modules/plans/`、`backend/app/modules/folders/`、`backend/app/modules/albums/`、`backend/app/modules/advertising/`
-- Create via command: `backend/database/migrations/*_create_plans_tables.go`、对应资源迁移
-- Create via command: `admin/src/modules/plans/`、`admin/src/modules/folders/`、`admin/src/modules/albums/`、`admin/src/modules/advertising/`
+- Reuse existing: `backend/app/modules/plans/`、`backend/app/services/plans/`、`backend/database/migrations/20260923000001_create_plans_subscriptions_usage_tables.go` and the generic admin Resource page.
+- Generate via command: the not-yet-existing folder, album, and advertising resources, their migrations and frontend modules.
+- Modify generic extension only: `backend/app/core/resource/registry.go` and `backend/app/core/admin/controllers/*`; keep plan business rules in `backend/app/services/plans/`.
 - Modify generated discovery files only through `admin:make-resource`
 
-- [ ] 使用 `go run . admin:make-resource plans ...` 生成套餐标准资源。
-- [ ] 使用 `--scope=own --owner-field=user_id` 为用户文件夹、相册等用户资源声明数据范围；管理员资源使用权限控制。
-- [ ] 审阅生成的 model/request/repository/service/controller/manifest/routes/permissions/menu/migration。
-- [ ] 增加套餐权益 JSON/结构化字段、价格周期和启停状态的领域校验。
-- [ ] 为套餐权益建立版本和用户订阅快照，避免编辑套餐影响历史订单。
-- [ ] 运行模块检查和生成资源测试，不执行未审阅迁移。
+- [x] 复用已存在的手写 plans Resource 和迁移；不对现有文件再次执行 `admin:make-resource plans`，因为生成器会拒绝覆盖非生成文件（见 SDD ruling）。
+- [x] 使用 `--scope=own --owner-field=user_id` 为用户文件夹、相册资源声明数据范围；广告位使用管理员权限控制。
+- [x] 审阅生成的 model/request/repository/service/controller/manifest/routes/permissions/menu/migration。
+- [x] 增加套餐权益 JSON/结构化字段、价格周期和启停状态的领域校验；挂接现有 Resource Engine 写入入口，兼容旧权益快照字段名。
+- [x] 为 Resource Engine 增加可选的通用写入准备钩子；套餐规则保留在 `services/plans`，其他资源默认不变。
+- [x] 为套餐权益建立内容版本和用户订阅快照，避免编辑套餐影响新建订阅；旧纯权益快照兼容但无法还原历史价格/名称。
+- [x] 运行 advertising/folders/albums 模块检查和生成资源测试；迁移审阅后仅按用户授权应用到 `fastimg_dev`，未触及其他数据库。
 
 ## Task 2: 建立配额、用量流水和订阅服务
 
@@ -125,6 +130,8 @@ Task 2 是上传和支付的共同前置；Task 3 是媒体库的前置；Task 4
 - [ ] 实现升级即时生效、降级周期末生效和超额只限制新增操作。
 - [ ] 覆盖免费用户达到容量、并发上传、删除恢复和套餐切换测试。
 
+> 会员端页面当前使用扁平 URL：`/` 为上传首页，`/media` 为本人媒体库，`/plans` 为本人套餐/用量；后台分别位于 `/admin/**`。具体会员页面范围和验证记录见 `docs/superpowers/plans/2026-09-23-member-admin-route-separation.md`。不表示升级/降级、支付履约或跨用户媒体管理已实现。订阅生命周期仍受本任务订阅状态/存储契约约束，不得以覆盖当前行或直接改 `plan_id` 实现伪升级/降级。
+
 ## Task 3: 存储 Provider 和上传会话
 
 **Files:**
@@ -134,12 +141,14 @@ Task 2 是上传和支付的共同前置；Task 3 是媒体库的前置；Task 4
 - Modify: `backend/routes/web.go`，注册上传接口
 - Create: 上传 API 和 Provider 合约测试
 
-- [ ] 定义 `StorageProvider` 接口：`Put`、`CompleteMultipartUpload`、`GetMetadata`、`Delete`、`CreateSignedURL`、`Copy`、`Exists`。
-- [ ] 实现 Local Provider，使用框架文件系统，不依赖绝对路径。
+- [x] 定义 `StorageProvider` 接口：`Put`、`CompleteMultipartUpload`、`GetMetadata`、`Delete`、`CreateSignedURL`、`Copy`、`Exists`。
+- [x] 实现 Local Provider，使用框架文件系统，不依赖绝对路径。
 - [ ] 实现 S3-compatible Provider；若项目依赖不具备，先保留接口和 fake Provider，不修改锁文件绕过问题。
-- [ ] 创建上传会话时检查用户状态、真实文件类型声明、文件大小和配额。
-- [ ] 完成确认时验证对象存在、大小、哈希、会话归属和幂等键。
+- [x] 创建上传会话时检查用户状态、真实文件类型声明、文件大小和配额。
+- [x] 完成确认时验证对象存在、大小、哈希、会话归属和幂等键。
 - [ ] 对象成功而数据库失败时记录补偿任务，不标记媒体 ready。
+
+> 状态查询 API 已补齐，但恢复 Job、超时租约与人工重试尚未实现；对象写入后数据库确认失败会保留 processing 记录，不能视为恢复闭环。
 
 ## Task 4: 媒体资产、派生图和媒体库
 
@@ -147,15 +156,22 @@ Task 2 是上传和支付的共同前置；Task 3 是媒体库的前置；Task 4
 - Create: `backend/app/modules/media/`
 - Create: `backend/app/services/media/`
 - Create: `admin/src/modules/media/`
+- Create: `admin/src/locales/zh-CN/media.json`、`admin/src/locales/en-US/media.json`
+- Modify: `admin/src/i18n/index.ts` 注册媒体命名空间
 - Modify: `backend/routes/web.go`，注册媒体专用 API
 - Create: 媒体归属、状态和派生图测试
 
-- [ ] 创建 `MediaAsset`、`MediaVariant`、`StorageObject` 的模型和迁移。
-- [ ] 实现媒体状态迁移：`pending -> processing -> ready -> deleted -> expired`。
-- [ ] 实现媒体列表、详情、编辑、批量移动、批量删除、恢复和 Variant 查询。
-- [ ] 通过 manifest 的 own scope 和 Service 双重保障用户归属。
-- [ ] 用户媒体库使用 Custom List/Detail 页面，复用现有 shadcn-vue 组件。
-- [ ] 图片处理首期使用 fake/offline processor，生成缩略图、中图并清理 EXIF。
+- [x] 创建 `MediaAsset`、`MediaVariant`、`StorageObject`、`UploadSession` 的模型和迁移（仅代码审阅，尚未执行迁移）。
+- [ ] 完整实现媒体状态迁移；当前另新增 `cleanup_pending -> physically_deleted` 清理迁移，expired 清理和后台恢复流程仍未完成。
+- [ ] 完成媒体列表、私有预览、回收站和恢复；所有者确认后永久删除 API 已实现，会员端只读详情现已实现，详情编辑、批量操作和后台清理仍未实现。
+- [ ] 自定义媒体 API 与 Repository 双重执行用户归属检查；尚未通过 Resource Engine manifest 表达 own scope。
+- [ ] 已提供 shadcn-vue 媒体库网格切片；列表/详情工作台和浏览器验收未完成。
+- [x] 当前媒体库页面、导航、空/错误/恢复状态通过 vue-i18n namespace key 展示；中英文 JSON 同步并通过 Key 一致性测试。媒体详情/编辑/批量操作等仍按其他条目待完成。
+- [x] 建立会员扁平入口 `/`、`/media`、`/plans`，管理页面统一收拢到 `/admin/**`；旧 `/app*` 会员地址保留明确重定向，详情见 `2026-09-23-member-admin-route-separation.md`。
+- [x] 会员首页与媒体库共用上传队列和处理状态逻辑；首页显示最近本人媒体和套餐/存储摘要。媒体库继续提供本人媒体预览、搜索、软删除和恢复；请求不发送 `user_id`。
+- [ ] 管理员跨用户媒体运营工作台仍未实现：不注册 `/admin/media`，也不通过 own-scope 文件夹/相册资源冒充全站管理。
+- [ ] 会员端稳定链接复制、详情编辑/批量操作、媒体关联整理、Token、订单和发现页仍待后续阶段；只读媒体详情页已提供 `/media/:id`，文件夹/相册基础 CRUD 已提供 `/folders`、`/albums`。
+- [x] 使用本地可测图片处理器生成缩略图、中图并清理源元数据；异步处理、WebP/AVIF 尚未实现。
 
 ## Task 5: 分享链接和稳定访问 URL
 
@@ -181,30 +197,45 @@ Task 2 是上传和支付的共同前置；Task 3 是媒体库的前置；Task 4
 - Modify: `backend/routes/web.go` 和 OpenAPI 契约
 - Create: Personal API Token 和幂等上传测试
 
-- [ ] Personal API Token 只保存 hash，创建时只返回一次完整值。
-- [ ] 实现 Key 禁用、撤销、轮换、权限范围和最后使用时间。
+- [x] Personal API Token 只保存 hash，创建时只返回一次完整值（源代码已实现；迁移和运行验收待后续）。
+- [x] 实现撤销、轮换、权限范围、过期和最后使用时间；会员端不能恢复已撤销 Token，后台可按权限停用/撤销。
 - [ ] API 上传复用同一上传、媒体和配额服务，禁止复制网页上传逻辑。
+- [x] 无 active 订阅时自动补齐 Free；仅在完全缺少 `free` 套餐记录时创建默认 Free，已停用的 Free 不自动恢复。
 - [ ] 支持 IP、用户、Key 限流和 `Idempotency-Key`。
-- [ ] 更新 OpenAPI 和 `admin/src/generated/api.ts`，不手改生成产物之外的客户端类型。
+- [x] 更新 OpenAPI；`admin/src/generated/api.ts` 需在可访问运行后端后重新生成。
 
 ### Token API 交付细化
 
-- [ ] 将用户界面术语统一为 `Personal API Token`，内部表名使用 `api_tokens`。
-- [ ] 实现 Token 创建、列表、撤销、禁用、轮换、过期和最近使用信息。
-- [ ] 首期固定基础能力为 `upload:write`、`links:read`、`media:delete`；可选 Scope 为 `media:read`、`usage:read`、`webhook:manage`。
-- [ ] 实现 `Authorization: Bearer <token>` 认证，不接受 URL query 或表单字段传递 Token。
+- [x] 将用户界面术语统一为 `Personal API Token`，内部表名使用 `api_tokens`。
+- [x] 实现 Token 创建、列表、撤销、轮换、过期和最近使用信息；后台 `/admin/api_tokens` 只读运营字段并支持批量停用/撤销。
+- [x] 管理端不声明或返回 `token_hash`，通用资源列表统一执行 Manifest 字段投影；管理员只能看到用户 ID、前缀、Scope、状态和使用元数据。
+- [x] 首期固定基础能力为 `upload:write`、`links:read`、`media:delete`；可选 Scope 为 `media:read`、`usage:read`、`webhook:manage`。
+- [x] 实现 `Authorization: Bearer <token>` 认证，不接受 URL query 或表单字段传递 Token（迁移执行后验收）。
 - [ ] 实现 `POST /api/v1/uploads` 的 multipart 上传、表单元数据和 `Idempotency-Key`，同时支持登录会话和 Personal API Token。
-- [ ] 实现 `POST /api/v1/uploads/batch`，按文件返回独立状态，限制批量数量、总大小和并发数。
+- [x] 实现 `POST /api/v1/uploads/batch`，按文件返回独立状态，限制最多 5 个文件、单文件 10 MB、批次总大小 50 MB；使用派生幂等键串行处理。真实 Token/数据库/运行进程验收仍待集成阶段。
 - [ ] 实现 `/api/v1/uploads/sessions` 分片会话接口，用于大文件和断点续传。
 - [ ] 让普通上传和分片上传共同调用 `CompleteUpload` 用例，不复制媒体写入、配额、审核和用量逻辑。
-- [ ] 实现 `GET /api/v1/media` 的 `media:read` 可选权限、统一分页和筛选。
+- [x] 实现 `GET /api/v1/media` 的 `media:read` 可选权限、统一分页和筛选（Token 路由源码已接入）。
 - [ ] ready 时返回 `201` 和 `links.original/thumbnail/medium/webp/avif/url/markdown/html/bbcode`。
 - [ ] processing 时返回 `202`、媒体 ID 和 status URL；失败时返回稳定错误码和重试状态。
-- [ ] Token 默认可以获取自己图片链接和删除自己图片；所有操作必须执行 Token 所属用户的资源归属校验。
-- [ ] 增加 curl、JavaScript、PicGo/ShareX 配置示例和 OpenAPI 契约测试。
-- [ ] 将开发者 API 示例和响应字段写入 `docs/fastimg-developer-api.md`，实现与文档同一版本交付。
+- [x] Token 默认可以获取自己图片链接和删除自己图片；所有操作必须执行 Token 所属用户的资源归属校验（真实数据库验收待迁移）。
+- [ ] 增加 curl、JavaScript、PicGo/ShareX 配置示例和完整 API 契约测试（OpenAPI Token 路径/Schema 已补）。
+- [x] 将开发者 API 示例和响应字段写入 `docs/fastimg-developer-api.md`，实现与文档同一版本交付；运行/数据库限制已明确记录。
 - [ ] 增加单文件、批量、部分失败、重复幂等键和分页查询的 API 契约测试。
-- [ ] 按前端设计实现上传状态、配额提示、链接复制、Token 一次性展示和撤销确认。
+- [x] 按前端设计实现 Token 一次性展示、复制、轮换和撤销确认；Token 上传状态、配额和真实 API 验收待下一切片。
+
+### 广告位简化约束（2026-09-24）
+
+- [x] 广告后台只保留 `header`、`footer`、`left`、`right` 四个固定位置，继续使用现有 advertising Generic Resource。
+- [x] 新建/编辑位置选项和中英文文案已同步；本切片不增加 Campaign、竞价、复杂定向或点击统计。
+- [ ] 会员端广告展示、套餐免广告和素材审核在广告投放切片中实现，不把后台 CRUD 误认为完整广告系统。
+
+### 管理员广告内容与会员展示（2026-09-24）
+
+- [x] 广告只由管理员配置；新增文本、图片、JavaScript 三种内容类型及 `creative_content`，会员端没有广告写入能力。
+- [x] 新增认证会员只读 `/api/v1/ads`，MemberShell 按四个固定位置展示；脚本使用无同源权限的 `sandbox="allow-scripts"` iframe，文本不使用 `v-html`。
+- [x] 生成并注册 `20260924000004_add_advertising_creative_fields`，兼容旧 `creative_url` 图片数据；迁移尚未执行。
+- [ ] 套餐免广告、广告审核、展示/点击统计、复杂定向仍属于后续商业化切片。
 
 ## Task 7: 回收站、清理任务和失败恢复
 
@@ -214,11 +245,12 @@ Task 2 是上传和支付的共同前置；Task 3 是媒体库的前置；Task 4
 - Create: 队列 Job、失败任务查询和管理端重试 Action
 - Create: 清理和恢复测试
 
-- [ ] 删除进入软删除/回收站，不立即物理删除。
-- [ ] 异步清理对象、派生图和孤儿对象。
-- [ ] 处理超时上传会话、失败处理任务和对象删除失败重试。
+- [x] 删除进入软删除/回收站，不立即物理删除。
+- [x] 所有者通过 `DELETE /api/v1/media/{id}/permanent` 显式确认同步永久删除：所有对象删除成功后才原子冲销存储流水；失败保持 `cleanup_pending` 且不释放额度。
+- [ ] 异步清理对象、派生图和孤儿对象（定期调度/后台批处理仍未实现）。
+- [ ] 处理超时上传会话、失败处理任务和对象删除失败重试（用户可对 `cleanup_pending` 媒体重复调用永久删除接口恢复失败清理；定期队列、失败任务查询与管理员重试仍未实现）。
 - [ ] 每个任务具备幂等键、最大重试、退避、失败原因和审计事件。
-- [ ] 任务状态异常时可人工重试，不能永久卡在 processing。
+- [ ] 任务状态异常时可人工重试，不能永久卡在 processing（上传可经 `POST /api/v1/uploads/{id}/retry` 恢复；管理员操作和其他任务类型未覆盖）。
 
 ## Task 8: 审核、举报和发现页
 

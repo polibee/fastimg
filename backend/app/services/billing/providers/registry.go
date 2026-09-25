@@ -1,6 +1,9 @@
 package providers
 
-import "errors"
+import (
+	"errors"
+	"sort"
+)
 
 var ErrGatewayUnavailable = errors.New("payment gateway unavailable")
 
@@ -22,4 +25,13 @@ func (r *Registry) Get(code string) (PaymentGateway, error) {
 		return nil, ErrGatewayUnavailable
 	}
 	return gateway, nil
+}
+
+func (r *Registry) Codes() []string {
+	codes := make([]string, 0, len(r.gateways))
+	for code := range r.gateways {
+		codes = append(codes, code)
+	}
+	sort.Strings(codes)
+	return codes
 }

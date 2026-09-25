@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiFetch } from '@/lib/api'
+import { setPageSEO } from '@/lib/seo'
 import { useAuthStore } from '@/stores/auth'
 import { createMemberOrder, type MemberPlanPrice } from '@/modules/billing/api'
 import { useRouter } from 'vue-router'
@@ -23,6 +24,7 @@ interface PlanEntitlements {
   api_rate_per_minute: number
   token_limit: number
   ads_enabled: boolean
+  watermark_enabled: boolean
 }
 
 interface Plan {
@@ -47,6 +49,8 @@ interface UsageResponse {
   period_key: string
   usage: Record<string, number>
   limits: PlanEntitlements
+  bandwidth_metered: boolean
+  administrator?: boolean
 }
 
 const { t, locale } = useI18n()
@@ -57,7 +61,7 @@ const subscription = ref<SubscriptionResponse>()
 const usage = ref<UsageResponse>()
 const loading = ref(true)
 const error = ref(false)
-const bandwidthMeteringEnabled = false
+const bandwidthMeteringEnabled = computed(() => usage.value?.bandwidth_metered ?? false)
 const checkoutLoading = ref<number | null>(null)
 
 const currentPlanID = computed(() => subscription.value?.plan?.id ?? subscription.value?.subscription?.plan_id)
@@ -66,6 +70,7 @@ const storagePercent = computed(() => quotaPercent(usage.value?.usage.storage ??
 const bandwidthPercent = computed(() => quotaPercent(usage.value?.usage.bandwidth ?? 0, usage.value?.limits.monthly_bandwidth_bytes ?? 0))
 
 onMounted(async () => {
+  setPageSEO({ title: `${t('member.plans.title')} · FastImg`, description: t('member.plans.guestDescription'), path: '/plans' })
   try {
     plans.value = await apiFetch<Plan[]>('/api/v1/plans')
     if (auth.token) {
@@ -125,6 +130,7 @@ function entitlementRows(plan: Plan) {
     { label: t('member.plans.apiRate'), value: formatCount(entitlements.api_rate_per_minute) },
     { label: t('member.plans.tokens'), value: formatCount(entitlements.token_limit) },
     { label: t('member.plans.ads'), value: entitlements.ads_enabled ? t('member.plans.adsEnabled') : t('member.plans.adsDisabled') },
+    { label: t('member.plans.watermark'), value: entitlements.watermark_enabled ? t('member.plans.watermarkEnabled') : t('member.plans.watermarkDisabled') },
   ]
 }
 
@@ -173,6 +179,11 @@ async function startCheckout(plan: Plan) {
 
     <template v-else-if="!error">
       <section v-if="usage" class="grid gap-4 md:grid-cols-2" :aria-label="t('member.plans.usageTitle')">
+        <Alert v-if="usage.administrator" class="md:col-span-2">
+          <ShieldCheck />
+          <AlertTitle>{{ t('member.plans.administratorTitle') }}</AlertTitle>
+          <AlertDescription>{{ t('member.plans.administratorDescription') }}</AlertDescription>
+        </Alert>
         <Card>
           <CardHeader class="pb-3">
             <CardDescription class="flex items-center gap-2"><Image />{{ t('member.plans.storageUsed') }}</CardDescription>

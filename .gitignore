@@ -4,6 +4,8 @@ backend/storage/*.log
 backend/storage/logs/
 backend/storage/bin/
 backend/.gocache/
+backend/.gocache*/
+backend/.runtime/
 backend/tmp/
 
 # Vue / frontend
@@ -13,9 +15,19 @@ admin/.env
 admin/.env.*
 !admin/.env.example
 admin/storage/
+admin/.tmp-dist/
+admin/.tmp-*.pid
+admin/.tmp-*.log
+
+# Generated JavaScript copies and local preview helpers
+admin/src/**/*.js
+admin/src/**/*.tmp
+admin/.tmp-static-proxy.cjs
 
 # Workspace and tooling
 .runtime/
+.gocache*/
+**/.gocache*/
 .pnpm-store/
 .superpowers/
 .agents/

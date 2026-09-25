@@ -1,0 +1,1 @@
+{ "title": "Statistics", "description": "Review basic user, media, collection, folder, and order metrics.", "loadFailed": "Statistics could not be loaded", "metrics": { "users": "Users", "media": "Media", "albums": "Albums", "folders": "Folders", "orders": "Orders", "payment_transactions": "Payment transactions" } }

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --configLoader native",
     "build": "vue-tsc -b && vite build --configLoader native",
+    "build:ssg": "npm run build && node scripts/prerender-seo.mjs",
     "preview": "vite preview",
     "generate:api": "node scripts/generate-api-client.mjs"
   },

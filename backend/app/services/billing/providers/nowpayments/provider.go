@@ -52,7 +52,7 @@ func (p *Provider) CreatePayment(ctx context.Context, request providers.CreatePa
 	payload := map[string]any{
 		"price_amount": json.Number(formatMinor(request.AmountMinor)), "price_currency": strings.ToLower(request.Currency),
 		"order_id": request.OrderNo, "order_description": truncate(request.Description),
-		"ipn_callback_url": p.config.CallbackURL, "success_url": p.config.SuccessURL, "cancel_url": p.config.CancelURL,
+		"ipn_callback_url": p.config.CallbackURL, "success_url": orderReturnURL(p.config.SuccessURL, request.OrderNo), "cancel_url": orderReturnURL(p.config.CancelURL, request.OrderNo),
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -67,6 +67,10 @@ func (p *Provider) CreatePayment(ctx context.Context, request providers.CreatePa
 		return providers.PaymentSession{}, ErrInvalidResponse
 	}
 	return providers.PaymentSession{GatewayCode: "nowpayments", ProviderPaymentID: response.ID, Status: MapStatus(response.Status), CheckoutURL: response.InvoiceURL, OccurredAt: time.Now().Unix()}, nil
+}
+
+func orderReturnURL(template, orderNo string) string {
+	return strings.ReplaceAll(template, "{order_id}", orderNo)
 }
 
 func (p *Provider) QueryPayment(ctx context.Context, request providers.QueryPaymentRequest) (providers.GatewayPayment, error) {

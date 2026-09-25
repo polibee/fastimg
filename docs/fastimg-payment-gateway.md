@@ -12,7 +12,11 @@ FastImg 的业务模块不直接调用支付宝、微信、Stripe、PayPal 或�
 
 截至 2026-09-24，M6 Task 1-6 已完成，M7 Xcash Task 7、NOWPayments Task 8 和 PayPal Task 9 已完成离线适配：已增加版本化 `plan_prices` 价格目录模型、订单/支付/退款/财务/履约表模型和本地迁移定义；价格快照会复制套餐条款与权益，避免后台修改当前套餐后改变历史订单。Seeder 保留 Free 免费套餐，并预置 Creator/Pro 付费层级及月付/年付 CNY 价格（仅在 `plan_prices` 表存在时写入）。会员端已增加 own-scope 订单创建、订单列表、订单详情、支付启动和取消 API，以及 `/plans`、`/checkout/:orderId`、`/orders` 的独立页面和导航；开发环境 Fake Provider 支持幂等创建、测试态状态转换和会员“确认测试支付”成功路径，该入口在生产环境返回不可用；Xcash Provider 已完成 HMAC、账单创建、状态查询、Webhook 验签和风险状态映射；NOWPayments Provider 已完成 hosted invoice、状态查询、IPN HMAC-SHA512 验签和部分支付复核映射；PayPal Provider 已完成 OAuth、Orders v2 CAPTURE、审批链接、捕获查询/退款和 Webhook Verification API 验签，三者默认关闭。Webhook 入口已具备事件去重、金额/币种校验和支付成功后创建履约任务的边界，履约服务会用订单快照更新订阅；退款上限、追加式财务流水、对账差异分类以及管理员订单/流水/Webhook/退款查询接口已建立。`fastimg_dev` 已执行 billing migration 并完成 seed，后端已在本地独立端口运行；后台退款/履约操作页面和三家渠道的真实沙盒证据仍待后续任务。
 
-当前迁移使用文本字段保存受服务层校验的快照 JSON，以兼容项目现有 Goravel Schema 抽象；暂不宣称已完成 PostgreSQL JSONB 索引优化。前端价格只展示服务端返回的活动价格，不提交金额；Free 套餐不依赖支付网关，游客可以访问套餐目录，只有认证会员可以创建订单。
+当前迁移使用文本字段保存受服务层校验的快照 JSON，以兼容项目现有 Goravel Schema 抽象；暂不宣称已完成 PostgreSQL JSONB 索引优化。前端价格只展示服务端返回的活动价格，不提交金额；Free 套餐不依赖支付网关，游客可以访问套餐目录，只有认证会员可以创建订单。`plan_prices` 只保存计划价格版本，不保存或绑定 `gateway_code`；网关选择记录在 PaymentIntent。
+
+管理员网关设置按 Provider 分组。表单要求填写渠道凭证：PayPal 为环境、Client ID、Client Secret、Webhook ID；XCash 为 Appid、HMAC key；NOWPayments 为 API Key、IPN Secret。官方 API 根地址按官方文档预填：PayPal 按环境选择 Sandbox/生产地址，XCash 为 `https://pay.xca.sh`，NOWPayments 为 `https://api.nowpayments.io`；Webhook、成功回跳和取消回跳地址按系统设置中的 `site_url` 预填。所有地址均可在管理端修改，生产环境应改为正式公网 HTTPS 域名；管理员仍需将最终 Webhook/IPN 地址复制到对应渠道后台。
+
+渠道依据官方文档接入：PayPal 使用 OAuth 2.0 Client Credentials、Orders v2 和 Webhook Verification API（[PayPal 官方文档](https://developer.paypal.com/studio/checkout/standard/integrate)）；XCash 使用项目 Appid/HMAC、`POST /v1/invoice` 和项目通知地址（[Xcash 官方文档](https://xca.sh/docs/)）；NOWPayments 使用 `x-api-key`、`POST /v1/invoice` 和 IPN Secret 的 HMAC-SHA512 验签（[NOWPayments API 文档](https://nowpayments.zendesk.com/hc/en-us/articles/21345824322717-API-and-endpoint-description)、[IPN 配置文档](https://nowpayments.zendesk.com/hc/en-us/articles/21395546303389-IPN-and-how-to-setup)）。敏感值使用 `APP_KEY` 派生的 AES-GCM 密文保存，设置列表永不返回明文；没有完整凭证（包括 PayPal Webhook ID）的 Provider 不注册为可用渠道。回跳地址只负责返回订单详情页，订单是否成功必须由已验签的回调或服务端查询确认；本地开发生成的 `127.0.0.1` 地址不能直接接收第三方生产回调。
 
 ## 2. 核心领域关系
 
@@ -231,7 +235,7 @@ POST /api/v1/payment-gateways/{gateway}/notifications
 
 ### 9.1 支付渠道路由
 
-渠道选择由服务端根据站点配置、货币、地区、客户端能力和渠道健康状态决定，前端只能提交允许的 `gateway_code`，不能指定任意 Provider。
+渠道选择由会员在结算页从服务端返回的已注册 Provider 列表中选择；服务端仍会按站点开关、凭据完整性、货币、地区和渠道健康状态过滤列表，并再次校验提交的 `gateway_code`，客户端不能指定未注册 Provider。一个价格可以同时使用多个已启用渠道。
 
 ```text
 请求订单

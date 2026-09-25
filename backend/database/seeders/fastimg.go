@@ -125,6 +125,7 @@ func buildFastImgPaidPlan(code, name, description string, amountMinor, storageGB
 	entitlement.APIRatePerMinute = dailyUploads
 	entitlement.TokenLimit = tokenLimit
 	entitlement.AdsEnabled = adsEnabled
+	entitlement.WatermarkEnabled = true
 	encoded, err := json.Marshal(entitlement)
 	if err != nil {
 		return models.Plan{}, err

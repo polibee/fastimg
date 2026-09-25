@@ -43,6 +43,20 @@ func TestParseFieldAcceptsPermissionModifiers(t *testing.T) {
 	}
 }
 
+func TestParseFieldAcceptsNullableModifier(t *testing.T) {
+	field, err := ParseField("parent_id:integer:nullable:readonly:hidden")
+	if err != nil {
+		t.Fatalf("parse nullable field: %v", err)
+	}
+	if !field.Nullable || field.Required || field.Writable == nil || *field.Writable || field.Visible == nil || *field.Visible {
+		t.Fatalf("nullable field = %+v, want optional hidden readonly field", field)
+	}
+
+	if _, err := ParseField("parent_id:integer:required:nullable"); err == nil {
+		t.Fatal("expected required nullable field to fail")
+	}
+}
+
 func TestNormalizeRejectsUnsafeResourceName(t *testing.T) {
 	_, err := Normalize(Input{Name: "../posts", Fields: []string{"title:text"}})
 	if err == nil {

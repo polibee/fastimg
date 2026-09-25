@@ -10,6 +10,12 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5180,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: process.env.FASTIMG_BACKEND_URL ?? 'http://127.0.0.1:53082',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     host: '0.0.0.0',
@@ -19,6 +25,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'vue-demi': fileURLToPath(new URL('./src/dev-shims/vue-demi.mjs', import.meta.url)),
     },
   },
 })

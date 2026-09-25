@@ -1,0 +1,53 @@
+{
+  "title": "System settings",
+  "description": "Manage SEO, payment gateways, statistics, custom code, and site basics.",
+  "groups": { "seo": "SEO", "gateway": "Payment gateways", "statistics": "Statistics", "code": "Custom code", "other": "Other settings" },
+  "groupDescriptions": {
+    "seo": "Manage the site title, description, keywords, sitemap, and crawler rules.",
+    "gateway": "Configure each provider separately. Enter the required credentials before enabling it; official API, Webhook/IPN, and success/cancel URLs are pre-filled defaults and remain editable. Credentials are encrypted with APP_KEY and the backend must be restarted after saving.",
+    "statistics": "Control access-metric collection and retention.",
+    "code": "Configure site verification, ad verification, and controlled site snippets.",
+    "other": "Manage the site URL, upload limits, discovery switch, image watermark, and failed-image fallback."
+  },
+  "gatewayProviders": {
+    "paypal": { "title": "PayPal", "description": "Fiat payments. Create a PayPal App, enter its Client ID and Client Secret, and configure the Webhook ID." },
+    "xcash": { "title": "XCash", "description": "Crypto payments. The XCash project Appid and HMAC key sign requests and verify webhooks." },
+    "nowpayments": { "title": "NOWPayments", "description": "Crypto payments. The API Key creates invoices and the IPN Secret verifies callbacks." }
+  },
+  "paypalEnvironments": { "sandbox": "Sandbox", "production": "Production" },
+  "gatewayURLsTitle": "Official and callback URLs (defaults are editable)",
+  "fields": {
+    "site_title": "Site title", "site_description": "Site description", "site_keywords": "Keywords", "robots": "Robots rules", "sitemap_enabled": "Enable sitemap", "sitemap_extra_paths": "Additional public sitemap paths",
+    "payment_default_gateway": "Default payment provider", "payment_fake_enabled": "Enable test provider", "payment_paypal_enabled": "Enable PayPal", "payment_paypal_environment": "PayPal environment", "payment_paypal_base_url": "PayPal API URL", "payment_paypal_client_id": "Client ID", "payment_paypal_client_secret": "Client Secret", "payment_paypal_webhook_id": "Webhook ID", "payment_paypal_return_url": "Payment success return URL", "payment_paypal_cancel_url": "Payment cancel return URL",
+    "payment_xcash_enabled": "Enable XCash", "payment_xcash_base_url": "XCash API URL", "payment_xcash_app_id": "Appid", "payment_xcash_hmac_key": "HMAC key", "payment_xcash_callback_url": "Webhook / notification URL", "payment_xcash_return_url": "Payment success return URL",
+    "payment_nowpayments_enabled": "Enable NOWPayments", "payment_nowpayments_base_url": "NOWPayments API URL", "payment_nowpayments_api_url": "NOWPayments API URL", "payment_nowpayments_webhook_url": "NOWPayments IPN URL", "payment_nowpayments_api_key": "API Key", "payment_nowpayments_ipn_secret": "IPN Secret", "payment_nowpayments_callback_url": "IPN callback URL", "payment_nowpayments_success_url": "Payment success return URL", "payment_nowpayments_cancel_url": "Payment cancel return URL",
+    "payment_paypal_api_url": "PayPal API URL", "payment_paypal_webhook_url": "PayPal Webhook URL", "payment_paypal_success_url": "Payment success return URL",
+    "payment_xcash_api_url": "Xcash API URL", "payment_xcash_webhook_url": "Xcash Webhook URL",
+    "stats_enabled": "Enable statistics", "stats_retention_days": "Statistics retention days", "custom_site_verification": "Site verification code", "custom_ad_verification": "Ad verification code", "custom_head": "Custom head code", "custom_body": "Custom body code", "site_url": "Site URL", "upload_max_file_mb": "Max file size (MB)", "discover_enabled": "Enable discovery page", "watermark_text": "Image watermark text", "watermark_domain": "Image watermark domain", "watermark_fallback_image_url": "Failed-image fallback URL"
+  },
+  "hints": {
+    "payment_default_gateway": "Default for new orders only; members can still choose any configured provider.",
+    "payment_paypal_base_url": "Pre-filled with the official PayPal API root for the selected environment; change it only for a compatible gateway.",
+    "payment_paypal_client_id": "Client ID for the selected environment from PayPal Developer > Apps & Credentials.",
+    "payment_paypal_client_secret": "Secret paired with the Client ID; leave blank to keep the saved secret.",
+    "payment_paypal_webhook_id": "Webhook ID created in PayPal Webhooks; used for server-side verification.",
+    "payment_paypal_return_url": "Return to the order detail page after approval, for example https://img.example.com/orders/ORDER_ID?payment=success.",
+    "payment_paypal_cancel_url": "Return to the order detail page after cancellation, for example https://img.example.com/orders/ORDER_ID?payment=cancelled.",
+    "payment_xcash_base_url": "Pre-filled with https://pay.xca.sh; change it only for a compatible gateway, not to the site webhook URL.",
+    "payment_xcash_app_id": "Appid assigned by the XCash project.",
+    "payment_xcash_hmac_key": "HMAC key for the XCash project; the server uses it for XC-Signature.",
+    "payment_xcash_callback_url": "Public HTTPS POST webhook, for example https://img.example.com/api/v1/payment-gateways/xcash/webhook.",
+    "payment_xcash_return_url": "Return to the order detail page after payment; it does not confirm payment.",
+    "payment_nowpayments_base_url": "Pre-filled with https://api.nowpayments.io; change it for a compatible gateway or deployment endpoint.", "payment_nowpayments_api_url": "Pre-filled with the official API URL and editable for the deployment environment.", "payment_nowpayments_webhook_url": "Copy this into NOWPayments Dashboard > Settings > Payments > Instant payment notifications; production requires public HTTPS.",
+    "payment_paypal_api_url": "Pre-filled with the official PayPal API URL for the selected environment and editable for the deployment environment.", "payment_paypal_webhook_url": "Add this URL in PayPal Developer > Webhooks and use the matching Webhook ID; production requires public HTTPS.", "payment_paypal_success_url": "Return to the order detail page after PayPal checkout; final status comes from verified PayPal webhooks.",
+    "payment_xcash_api_url": "Pre-filled with the official Xcash API URL https://pay.xca.sh; change it for a compatible gateway if needed.", "payment_xcash_webhook_url": "Copy this into the Xcash project notification URL; production requires public HTTPS.",
+    "payment_nowpayments_api_key": "NOWPayments account API Key for invoice creation and queries.",
+    "payment_nowpayments_ipn_secret": "NOWPayments IPN Secret used to verify x-nowpayments-sig.",
+    "payment_nowpayments_callback_url": "Pre-filled from the site URL; production requires a public HTTPS callback such as https://img.example.com/api/v1/payment-gateways/nowpayments/webhook.",
+    "payment_nowpayments_success_url": "Return to the order detail page after payment; entitlement follows verified IPN.",
+    "payment_nowpayments_cancel_url": "Return to the order detail page after cancellation.", "watermark_text": "Applied to originals and previews during upload; ASCII letters, digits, and common URL symbols are supported. Leave blank to use FastImg.", "watermark_domain": "Appended to the watermark, for example img.example.com; leave blank to omit it.", "watermark_fallback_image_url": "Shown in the member UI when an image cannot load; use a public HTTPS URL or site-absolute path. Leave blank for the built-in FastImg fallback watermark."
+  },
+  "openProviderRegistration": "Register provider account",
+  "secretConfigured": "Configured (leave blank to keep)",
+  "loadFailed": "Settings could not be loaded", "saveFailed": "Settings could not be saved", "saved": "Settings saved", "saving": "Saving…", "save": "Save"
+}

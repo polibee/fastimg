@@ -26,6 +26,10 @@ func NewMemberController() *MemberController {
 	return &MemberController{orders: billing.NewOrderService(), payments: billing.NewPaymentService(gateways), gateways: gateways, webhooks: billing.NewWebhookService(gateways)}
 }
 
+func (c *MemberController) Gateways(ctx httpcontract.Context) httpcontract.Response {
+	return ctx.Response().Success().Json(httpcontract.Json{"data": c.gateways.Codes()})
+}
+
 func (c *MemberController) CreateOrder(ctx httpcontract.Context) httpcontract.Response {
 	userID, err := memberUserID(ctx)
 	if err != nil {
@@ -40,7 +44,7 @@ func (c *MemberController) CreateOrder(ctx httpcontract.Context) httpcontract.Re
 	if err != nil {
 		return billingError(ctx, err)
 	}
-	return ctx.Response().Status(http.StatusCreated).Json(httpcontract.Json{"data": order})
+	return ctx.Response().Status(http.StatusCreated).Json(httpcontract.Json{"data": publicOrder(order)})
 }
 
 func (c *MemberController) ListOrders(ctx httpcontract.Context) httpcontract.Response {
@@ -54,7 +58,11 @@ func (c *MemberController) ListOrders(ctx httpcontract.Context) httpcontract.Res
 	if err != nil {
 		return ctx.Response().Status(http.StatusInternalServerError).Json(httpcontract.Json{"code": "ORDERS_UNAVAILABLE"})
 	}
-	return ctx.Response().Success().Json(httpcontract.Json{"data": orders, "meta": httpcontract.Json{"page": page, "per_page": perPage, "total": total}})
+	data := make([]map[string]any, 0, len(orders))
+	for _, order := range orders {
+		data = append(data, publicOrder(&order))
+	}
+	return ctx.Response().Success().Json(httpcontract.Json{"data": data, "meta": httpcontract.Json{"page": page, "per_page": perPage, "total": total}})
 }
 
 func (c *MemberController) ShowOrder(ctx httpcontract.Context) httpcontract.Response {
@@ -66,7 +74,7 @@ func (c *MemberController) ShowOrder(ctx httpcontract.Context) httpcontract.Resp
 	if err != nil {
 		return ctx.Response().Status(http.StatusNotFound).Json(httpcontract.Json{"code": "ORDER_NOT_FOUND"})
 	}
-	return ctx.Response().Success().Json(httpcontract.Json{"data": order})
+	return ctx.Response().Success().Json(httpcontract.Json{"data": publicOrder(order)})
 }
 
 func (c *MemberController) StartPayment(ctx httpcontract.Context) httpcontract.Response {
@@ -161,4 +169,8 @@ func billingError(ctx httpcontract.Context, err error) httpcontract.Response {
 	default:
 		return ctx.Response().Status(http.StatusInternalServerError).Json(httpcontract.Json{"code": "BILLING_OPERATION_FAILED"})
 	}
+}
+
+func publicOrder(order *models.Order) map[string]any {
+	return map[string]any{"id": order.ID, "public_order_no": order.PublicOrderNo, "user_id": order.UserID, "status": order.Status, "currency": order.Currency, "total_amount_minor": order.TotalAmountMinor, "expires_at": order.ExpiresAt, "paid_at": order.PaidAt, "fulfilled_at": order.FulfilledAt, "created_at": order.CreatedAt}
 }

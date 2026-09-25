@@ -98,6 +98,31 @@ func TestRenderActionPayloadFields(t *testing.T) {
 	t.Fatal("manifest artifact not found")
 }
 
+func TestRenderNullableFieldsAsNullableMigrationColumns(t *testing.T) {
+	spec, err := Normalize(Input{
+		Name:   "folders",
+		Fields: []string{"name:text:required", "parent_id:integer:nullable:readonly:hidden"},
+	})
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	artifacts, err := Render(spec, "20260923000000")
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	for _, artifact := range artifacts {
+		if !strings.HasPrefix(artifact.Path, "database/migrations/") {
+			continue
+		}
+		content := string(artifact.Content)
+		if !strings.Contains(content, `table.Integer("parent_id").Nullable()`) {
+			t.Fatalf("nullable migration column missing: %s", content)
+		}
+		return
+	}
+	t.Fatal("migration artifact not found")
+}
+
 func artifactPaths(artifacts []Artifact) []string {
 	paths := make([]string, 0, len(artifacts))
 	for _, artifact := range artifacts {

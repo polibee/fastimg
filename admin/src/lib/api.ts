@@ -1,4 +1,7 @@
-const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? 'http://127.0.0.1:3000'
+// The isolated 53083 WSL preview cannot reach a Windows loopback listener via
+// its stale proxy. Keep the normal proxy contract, but use a development-only
+// loopback fallback so the backend remains bound to 127.0.0.1.
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? (import.meta.env?.DEV && globalThis.location?.port === '53083' ? 'http://127.0.0.1:53085' : '')
 
 const LOCALIZED_ERROR_CODES = new Set([
   'VALIDATION_ERROR',
@@ -20,6 +23,9 @@ const LOCALIZED_ERROR_CODES = new Set([
   'SETTINGS_INVALID',
   'SETTINGS_ERROR',
   'INTERNAL_ERROR',
+  'PLAN_NOT_FOUND',
+  'SUBSCRIPTION_UPDATE_FAILED',
+  'SUBSCRIPTION_UNAVAILABLE',
   'AUDIT_CLEANUP_CONFIRMATION_REQUIRED',
   'AUDIT_CLEANUP_SELECTION_REQUIRED',
   'AUDIT_CLEANUP_SELECTION_TOO_LARGE',
@@ -47,7 +53,9 @@ export class ApiError extends Error {
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
   const headers = new Headers(init.headers)
-  headers.set('Content-Type', 'application/json')
+  if (!(typeof FormData !== 'undefined' && init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
@@ -59,6 +67,17 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, token?: 
   }
 
   return (payload?.data ?? payload) as T
+}
+
+export async function apiFetchBlob(path: string, token?: string): Promise<Blob> {
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers, credentials: 'include' })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { code?: string; message?: string } | null
+    throw new ApiError(payload?.message ?? 'Request failed', response.status, payload?.code)
+  }
+  return response.blob()
 }
 
 export async function apiFetchEnvelope<T>(path: string, init: RequestInit = {}, token?: string): Promise<{ data: T; meta?: Record<string, unknown> }> {

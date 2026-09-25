@@ -39,6 +39,25 @@ func TestResourceListCapabilitiesExcludeRestrictedFields(t *testing.T) {
 	}
 }
 
+func TestGenericResourceProjectionDoesNotReturnUndeclaredSecretColumns(t *testing.T) {
+	manifest := resource.Manifest{Fields: []resource.Field{
+		{Name: "name", Type: "text", Visible: true, Readable: true, Writable: false, PolicyConfigured: true},
+		{Name: "status", Type: "select", Visible: true, Readable: true, Writable: false, PolicyConfigured: true},
+	}}
+	record := projectResourceRecordWithPolicies(map[string]any{
+		"id":         int64(3),
+		"name":       "build-token",
+		"status":     "active",
+		"token_hash": "must-not-leak",
+	}, manifest, resourceFieldPolicies(manifest), false)
+	if record["id"] != int64(3) || record["name"] != "build-token" {
+		t.Fatalf("declared fields were not projected: %#v", record)
+	}
+	if _, leaked := record["token_hash"]; leaked {
+		t.Fatalf("undeclared token hash leaked through generic projection: %#v", record)
+	}
+}
+
 func joinFieldNames(fields []resource.Field) string {
 	result := ""
 	for index, field := range fields {

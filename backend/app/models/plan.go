@@ -37,6 +37,6 @@ type UsageLedger struct {
 	Delta          int64  `json:"delta"`
 	SourceType     string `json:"source_type"`
 	SourceID       string `json:"source_id"`
-	IdempotencyKey string `json:"idempotency_key"`
+	IdempotencyKey string `json:"-"`
 	PeriodKey      string `json:"period_key"`
 }

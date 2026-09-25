@@ -11,7 +11,7 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { ApiError, errorMessageKey } from '@/lib/api'
-import { generatedApi } from '@/generated/api'
+import { generatedApi, type AdminPlanSummary } from '@/generated/api'
 import { createResourceForm, serializeResourceForm, type ResourceFormField } from '@/lib/resource-form'
 import { generatePassword } from '@/lib/password-generator'
 import { userStatusLabelKey, type UserStatus } from '@/lib/user-status'
@@ -32,6 +32,11 @@ const fields = ref<ResourceFormField[]>([])
 const form = ref<Record<string, any>>({})
 const showPassword = ref(false)
 const copiedPassword = ref(false)
+const subscriptionLoading = ref(false)
+const subscriptionSaving = ref(false)
+const subscriptionError = ref('')
+const subscriptionPlans = ref<AdminPlanSummary[]>([])
+const selectedPlanID = ref('')
 const visibleFields = computed(() => fields.value.filter((field) => field.name !== 'locale'))
 
 function localizedError(value: unknown) { return value instanceof ApiError ? t(errorMessageKey(value.code)) : t('errors.unknown') }
@@ -64,12 +69,33 @@ onMounted(async () => {
     fields.value = manifest.fields
     const record = editing.value ? await generatedApi.resourceShow<Record<string, unknown>>('users', String(route.params.id), auth.token) : {}
     form.value = createResourceForm(fields.value, record)
+    if (editing.value) {
+      subscriptionLoading.value = true
+      const subscription = await generatedApi.adminSubscription(String(route.params.id), auth.token)
+      subscriptionPlans.value = subscription.plans
+      selectedPlanID.value = String(subscription.subscription.plan_id)
+    }
   } catch (value) {
     error.value = localizedError(value)
   } finally {
+    subscriptionLoading.value = false
     loading.value = false
   }
 })
+
+async function saveSubscription() {
+  if (!auth.token || !editing.value || !selectedPlanID.value) return
+  subscriptionSaving.value = true
+  subscriptionError.value = ''
+  try {
+    const response = await generatedApi.updateAdminSubscription(String(route.params.id), Number(selectedPlanID.value), auth.token)
+    selectedPlanID.value = String(response.subscription.plan_id)
+  } catch (value) {
+    subscriptionError.value = localizedError(value)
+  } finally {
+    subscriptionSaving.value = false
+  }
+}
 
 async function submit() {
   if (!auth.token) return
@@ -121,6 +147,21 @@ async function submit() {
         </FieldGroup>
         <div class="flex gap-2"><Button type="submit" :disabled="saving"><Save data-icon="inline-start" />{{ saving ? t('resource.saving') : t('resource.save') }}</Button><Button type="button" variant="outline" @click="router.push('/users')">{{ t('resource.cancel') }}</Button></div>
       </form></CardContent>
+    </Card>
+    <Card v-if="editing">
+      <CardHeader><CardTitle>{{ t('resource.userPlanTitle') }}</CardTitle><CardDescription>{{ t('resource.userPlanDescription') }}</CardDescription></CardHeader>
+      <CardContent class="grid gap-4 sm:max-w-xl">
+        <Alert v-if="subscriptionError" variant="destructive"><AlertDescription>{{ subscriptionError }}</AlertDescription></Alert>
+        <Field>
+          <FieldLabel for="user-plan">{{ t('resource.userPlanLabel') }}</FieldLabel>
+          <Select v-model="selectedPlanID" :disabled="subscriptionLoading || subscriptionSaving">
+            <SelectTrigger id="user-plan"><SelectValue :placeholder="subscriptionLoading ? t('resource.loading') : t('resource.userPlanPlaceholder')" /></SelectTrigger>
+            <SelectContent><SelectItem v-for="plan in subscriptionPlans" :key="plan.id" :value="String(plan.id)">{{ plan.name }} · {{ plan.code }}</SelectItem></SelectContent>
+          </Select>
+          <p class="text-xs text-muted-foreground">{{ t('resource.userPlanHint') }}</p>
+        </Field>
+        <div><Button type="button" :disabled="subscriptionLoading || subscriptionSaving || !selectedPlanID" @click="saveSubscription">{{ subscriptionSaving ? t('resource.saving') : t('resource.saveUserPlan') }}</Button></div>
+      </CardContent>
     </Card>
   </div>
 </template>

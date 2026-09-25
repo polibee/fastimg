@@ -16,8 +16,10 @@ func TestValidateSetting(t *testing.T) {
 		wantErr   bool
 	}{
 		{name: "string", key: "site.name", value: "Admin", valueType: "string"},
+		{name: "secret value uses string validation", key: "payment.paypal.client_id", value: "", valueType: "secret"},
 		{name: "boolean true", key: "feature.audit", value: "true", valueType: "boolean"},
 		{name: "integer", key: "jobs.retry_limit", value: "3", valueType: "integer"},
+		{name: "optional integer can be empty", key: "stats.retention_days", value: "", valueType: "integer"},
 		{name: "json", key: "ui.theme", value: `{"mode":"dark"}`, valueType: "json"},
 		{name: "invalid key", key: "site name", value: "Admin", valueType: "string", wantErr: true},
 		{name: "invalid type", key: "site.name", value: "Admin", valueType: "url", wantErr: true},

@@ -1,12 +1,12 @@
 /* eslint-disable */
 /* Generated from http://127.0.0.1:3000/api/openapi.json. DO NOT EDIT. */
-/* Contract paths: /admin/audit-logs, /admin/audit-logs/cleanup, /admin/overview, /admin/registry, /admin/search, /admin/settings, /admin/settings/{key}, /admin/{resource}, /admin/{resource}/actions/{action}, /admin/{resource}/export, /admin/{resource}/relations/{relation}/options, /admin/{resource}/{id}, /admin/{resource}/{id}/relations/{relation}, /auth/login, /auth/logout-all, /auth/me, /auth/refresh */
+/* Contract paths: /admin/audit-logs, /admin/audit-logs/cleanup, /admin/media-access-logs, /admin/overview, /admin/registry, /admin/search, /admin/settings, /admin/settings/{key}, /admin/{resource}, /admin/{resource}/actions/{action}, /admin/{resource}/export, /admin/{resource}/relations/{relation}/options, /admin/{resource}/{id}, /admin/{resource}/{id}/relations/{relation}, /auth/login, /auth/logout-all, /auth/me, /auth/refresh */
 
 import { ApiError, apiDownload, apiFetch, apiFetchEnvelope } from '@/lib/api'
 
 export type UserStatus = "active" | "disabled" | "locked"
 export type DataScope = "all" | "own"
-export interface ResourceField { name: string; label: string; type: string; required?: boolean; visible: boolean; readable: boolean; writable: boolean; sensitive: boolean; options?: Array<{ value: string; label: string }> }
+export interface ResourceField { name: string; label: string; type: string; hint?: string; required?: boolean; visible: boolean; readable: boolean; writable: boolean; sensitive: boolean; options?: Array<{ value: string; label: string }> }
 export interface ResourceFilter { name: string; label: string; type: 'select' | 'multi-select' | 'boolean' | 'text' | 'date-range' | 'relation'; options?: Array<{ value: string; label: string }>; relation?: string }
 export interface AuthUser { id: number; name: string; email: string; status: UserStatus; locale: string; permissions: string[] }
 export interface LoginRequest { email: string; password: string }
@@ -26,8 +26,10 @@ export interface ActionSelection { mode: 'ids' | 'query'; ids?: number[]; query?
 export interface ActionRequest { ids?: number[]; selection?: ActionSelection; payload?: Record<string, unknown> }
 export interface ActionFailure { id: number; code: string }
 export interface ActionResponse { action: string; requested: number; succeeded: number; failed: number; skipped: number; failures: ActionFailure[]; skips: ActionFailure[] }
-export interface AdminOverview { users: number; roles: number; permissions: number }
+export interface AdminOverview { users: number; roles: number; permissions: number; media?: number; albums?: number; folders?: number; orders?: number; payment_transactions?: number }
+export interface SystemSetting { id: number; key: string; value: string; value_type: string; group: string; description?: string }
 export interface AuditLog { id: number; user_id: number; action: string; metadata: Record<string, unknown> | string | null; created_at: string }
+export interface MediaAccessLog { id: number; media_asset_id: number; share_link_id?: number | null; variant: string; delivery_mode: string; result: string; referer_host?: string | null; accessed_at: string; created_at?: string | null }
 export type AuditCleanupMode = 'retention' | 'selected' | 'filtered' | 'all'
 export interface AuditCleanupRequest { mode?: AuditCleanupMode; retention_days?: number; ids?: number[]; action?: string; user_id?: string; confirmation?: string }
 export interface AuditCleanupResponse { deleted: number; mode: AuditCleanupMode; retention_days?: number; cutoff?: string | null }
@@ -39,6 +41,9 @@ export interface NotificationMarkAllReadResponse { updated: number }
 export interface GlobalSearchResult { resource: string; label: string; id: string | number; title: string; subtitle?: string; route: string }
 export interface FieldPermissionOverride { readable: boolean; writable: boolean }
 export interface RolePermissionAssignment { id: number; name: string; display_name: string; scope: DataScope; fields?: Record<string, FieldPermissionOverride> }
+export interface AdminPlanSummary { id: number; code: string; name: string; description?: string; entitlements: Record<string, unknown>; price_amount: number; currency: string; billing_period: string }
+export interface AdminSubscription { id: number; user_id: number; plan_id: number; status: string; starts_at?: string | null; ends_at?: string | null }
+export interface AdminSubscriptionResponse { subscription: AdminSubscription; plans: AdminPlanSummary[] }
 
 export const generatedApi = {
   login(request: LoginRequest) { return apiFetch<LoginResponse>('/api/v1/auth/login', { method: 'POST', body: JSON.stringify(request) }) },
@@ -56,7 +61,10 @@ export const generatedApi = {
     return apiFetch<GlobalSearchResult[]>('/api/v1/admin/search?q=' + encodeURIComponent(query), {}, token)
   },
   overview(token: string) { return apiFetch<AdminOverview>('/api/v1/admin/overview', {}, token) },
+  settings(token: string) { return apiFetch<SystemSetting[]>('/api/v1/admin/settings', {}, token) },
+  updateSetting(key: string, payload: { value: string; value_type: string; group: string; description: string }, token: string) { return apiFetch<SystemSetting>('/api/v1/admin/settings/' + encodeURIComponent(key), { method: 'PUT', body: JSON.stringify(payload) }, token) },
   auditLogs(token: string, query: URLSearchParams) { return apiFetchEnvelope<AuditLog[]>('/api/v1/admin/audit-logs?' + query, {}, token) as unknown as Promise<ResourceList<AuditLog>> },
+  mediaAccessLogs(token: string, query: URLSearchParams) { return apiFetchEnvelope<MediaAccessLog[]>('/api/v1/admin/media-access-logs?' + query, {}, token) as unknown as Promise<ResourceList<MediaAccessLog>> },
   cleanupAuditLogs(request: AuditCleanupRequest, token: string) { return apiFetch<AuditCleanupResponse>('/api/v1/admin/audit-logs/cleanup', { method: 'POST', body: JSON.stringify(request) }, token) },
   notifications(token: string, query: URLSearchParams = new URLSearchParams()) { return apiFetchEnvelope<Notification[]>('/api/v1/notifications?' + query, {}, token) as unknown as Promise<NotificationList> },
   notificationUnreadCount(token: string) { return apiFetch<NotificationUnreadCount>('/api/v1/notifications/unread-count', {}, token) },
@@ -72,4 +80,6 @@ export const generatedApi = {
   resourceRelationOptions(resource: string, relation: string, query: URLSearchParams = new URLSearchParams(), token: string) { return apiFetchEnvelope<RelationOption[]>('/api/v1/admin/' + resource + '/relations/' + relation + '/options?' + query, {}, token) },
   resourceRelationRecords(resource: string, id: string | number, relation: string, token: string) { return apiFetchEnvelope<RelationOption[]>('/api/v1/admin/' + resource + '/' + id + '/relations/' + relation, {}, token) },
   replaceRolePermissions(roleID: number, permissionIDs: number[], scopes: Record<string, DataScope>, fields: Record<string, Record<string, FieldPermissionOverride>>, token: string) { return apiFetch<void>('/api/v1/admin/roles/' + roleID + '/permissions', { method: 'PUT', body: JSON.stringify({ permission_ids: permissionIDs, scopes, fields }) }, token) },
+  adminSubscription(userID: string | number, token: string) { return apiFetch<AdminSubscriptionResponse>('/api/v1/admin/users/' + userID + '/subscription', {}, token) },
+  updateAdminSubscription(userID: string | number, planID: number, token: string) { return apiFetch<AdminSubscriptionResponse>('/api/v1/admin/users/' + userID + '/subscription', { method: 'PUT', body: JSON.stringify({ plan_id: planID }) }, token) },
 }

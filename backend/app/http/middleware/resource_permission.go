@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"strings"
-
 	"goravel/app/core/resource"
 	"goravel/app/facades"
 	"goravel/app/modules/admin/registry"
@@ -127,14 +125,5 @@ func resourceViewPermissions(manifests []resource.Manifest) []string {
 }
 
 func resourceNameFromRequest(ctx http.Context) string {
-	if name := ctx.Request().Route("resource"); name != "" {
-		return name
-	}
-	parts := strings.Split(strings.Trim(ctx.Request().Path(), "/"), "/")
-	for index, part := range parts {
-		if part == "admin" && index+1 < len(parts) {
-			return parts[index+1]
-		}
-	}
-	return ""
+	return resource.NameFromPath(ctx.Request().Path(), ctx.Request().Route("resource"))
 }

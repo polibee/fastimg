@@ -26,7 +26,7 @@ func (httpAuditMiddleware) Handle(ctx httpcontract.Context) {
 		Path:        ctx.Request().Path(),
 		Query:       ctx.Request().Queries(),
 		Route:       routeParams(ctx),
-		RequestBody: ctx.Request().All(),
+		RequestBody: auditservices.RequestBodyForAudit(ctx.Request().Header("Content-Type"), ctx.Request().All),
 	}
 	ctx.Request().Next()
 

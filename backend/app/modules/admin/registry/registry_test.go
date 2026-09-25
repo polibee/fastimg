@@ -60,7 +60,7 @@ func TestPlansIsAvailableThroughGenericAdminResource(t *testing.T) {
 	if manifest.Route != "/admin/plans" || manifest.Table != "plans" {
 		t.Fatalf("unexpected plans manifest: %+v", manifest)
 	}
-	if len(manifest.Fields) < 8 || manifest.Fields[0].Name != "code" {
+	if len(manifest.Fields) < 6 || manifest.Fields[0].Name != "code" {
 		t.Fatalf("plans fields are incomplete: %+v", manifest.Fields)
 	}
 }

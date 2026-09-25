@@ -52,7 +52,7 @@ func (p *Provider) CreatePayment(ctx context.Context, request providers.CreatePa
 	if !p.ready() || request.OrderNo == "" || request.AmountMinor <= 0 {
 		return providers.PaymentSession{}, providers.ErrGatewayUnavailable
 	}
-	payload := map[string]any{"intent": "CAPTURE", "purchase_units": []any{map[string]any{"reference_id": request.OrderNo, "invoice_id": request.OrderNo, "description": truncate(request.Description), "amount": map[string]string{"currency_code": request.Currency, "value": formatMinor(request.AmountMinor)}}}, "application_context": map[string]string{"return_url": p.config.ReturnURL, "cancel_url": p.config.CancelURL}}
+	payload := map[string]any{"intent": "CAPTURE", "purchase_units": []any{map[string]any{"reference_id": request.OrderNo, "invoice_id": request.OrderNo, "description": truncate(request.Description), "amount": map[string]string{"currency_code": request.Currency, "value": formatMinor(request.AmountMinor)}}}, "application_context": map[string]string{"return_url": orderReturnURL(p.config.ReturnURL, request.OrderNo), "cancel_url": orderReturnURL(p.config.CancelURL, request.OrderNo)}}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return providers.PaymentSession{}, err
@@ -66,6 +66,10 @@ func (p *Provider) CreatePayment(ctx context.Context, request providers.CreatePa
 		return providers.PaymentSession{}, ErrInvalidResponse
 	}
 	return providers.PaymentSession{GatewayCode: "paypal", ProviderPaymentID: response.ID, ProviderOrderID: response.ID, Status: mapOrderStatus(response.Status), CheckoutURL: response.approvalURL(), OccurredAt: time.Now().Unix()}, nil
+}
+
+func orderReturnURL(template, orderNo string) string {
+	return strings.ReplaceAll(template, "{order_id}", orderNo)
 }
 
 func (p *Provider) QueryPayment(ctx context.Context, request providers.QueryPaymentRequest) (providers.GatewayPayment, error) {

@@ -28,6 +28,7 @@ func Boot() contractsfoundation.Application {
 			routes.Grpc()
 		}).
 		WithMiddleware(func(middleware contractsconfiguration.Middleware) {
+			middleware.Append(adminmiddleware.RequestContext())
 			middleware.Append(adminmiddleware.CORS())
 			middleware.Append(adminmiddleware.HTTPAudit())
 		}).

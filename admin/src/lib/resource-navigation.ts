@@ -1,6 +1,7 @@
 import type { ResourceManifest } from '@/generated/api'
 
-export type ResourceNavigationItem = Pick<ResourceManifest, 'name' | 'label' | 'route' | 'permissions'> & {
+export type ResourceNavigationItem = Pick<ResourceManifest, 'name' | 'label' | 'route' | 'permissions'> & Partial<Pick<ResourceManifest, 'data_scope'>> & {
+  dataScope?: string
   navigation?: {
     group?: string
     order?: number
@@ -21,7 +22,8 @@ function navigationGroup(resource: ResourceNavigationItem) {
 export function visibleResourceNavigation(resources: ResourceNavigationItem[], permissions: string[]) {
   const granted = new Set(permissions)
   return resources
-    .filter((resource) => !resource.navigation?.hidden && resource.permissions.some((permission) => granted.has(permission)))
+    .filter((resource) => resource.data_scope !== 'own' && !resource.navigation?.hidden
+      && resource.permissions.some((permission) => granted.has(permission)))
     .sort((left, right) => {
       const order = (left.navigation?.order ?? 100) - (right.navigation?.order ?? 100)
       return order || left.label.localeCompare(right.label)

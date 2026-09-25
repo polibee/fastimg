@@ -24,7 +24,7 @@ func (m *M20260924000006CreateBillingTables) Up() error {
 			table.String("version", 40)
 			table.String("currency", 3)
 			table.BigInteger("amount_minor")
-			table.String("billing_period", 16)
+			 table.String("billing_period", 16)
 			table.Integer("trial_days").Default(0)
 			table.String("status", 16).Default("draft")
 			table.DateTimeTz("effective_from")

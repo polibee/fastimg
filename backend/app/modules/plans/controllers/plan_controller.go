@@ -12,6 +12,7 @@ import (
 	billing "goravel/app/services/billing"
 	planservices "goravel/app/services/plans"
 	"goravel/app/services/quota"
+	rbacservices "goravel/app/services/rbac"
 )
 
 type PlanController struct{}
@@ -32,6 +33,13 @@ func (p *PlanController) Index(ctx http.Context) http.Response {
 		prices, err := billing.NewPriceCatalog().ActivePricesForPlan(plan.ID)
 		if err != nil {
 			return ctx.Response().Status(500).Json(http.Json{"code": "PLANS_UNAVAILABLE"})
+		}
+		if len(prices) > 0 {
+			// Plan owns identity and entitlements; the first active price is only
+			// a compatibility display summary. Checkout always uses a PlanPrice row.
+			public["price_amount"] = prices[0].AmountMinor
+			public["currency"] = prices[0].Currency
+			public["billing_period"] = prices[0].BillingPeriod
 		}
 		public["prices"] = publicPlanPrices(prices)
 		data = append(data, public)
@@ -111,11 +119,80 @@ func (p *PlanController) Usage(ctx http.Context) http.Response {
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{"code": "SUBSCRIPTION_UNAVAILABLE"})
 	}
+	administrator, err := rbacservices.NewRBACService().IsAdministrator(userID)
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "USAGE_UNAVAILABLE"})
+	}
+	if administrator {
+		// Zero is the existing contract for unlimited member entitlements.
+		entitlements = quota.Entitlement{}
+	}
 	periodKey := time.Now().UTC().Format("2006-01")
 	usage := quota.AggregateUsage(usageEntries, periodKey)
 	return ctx.Response().Success().Json(http.Json{"data": http.Json{
-		"user_id": userID, "period_key": periodKey, "usage": usage, "limits": entitlements,
+		"user_id": userID, "period_key": periodKey, "usage": usage, "limits": entitlements, "administrator": administrator,
+		"bandwidth_metered": true,
 	}})
+}
+
+type adminSubscriptionPayload struct {
+	PlanID uint `json:"plan_id"`
+}
+
+func (p *PlanController) AdminSubscription(ctx http.Context) http.Response {
+	userID := uint(ctx.Request().RouteInt64("id"))
+	if userID == 0 {
+		return ctx.Response().Status(404).Json(http.Json{"code": "RBAC_USER_NOT_FOUND"})
+	}
+	subscription, err := planservices.NewPlanService().SubscriptionForUser(userID)
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "SUBSCRIPTION_UNAVAILABLE"})
+	}
+	plans, err := planservices.NewPlanService().ActivePlans()
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "PLANS_UNAVAILABLE"})
+	}
+	return ctx.Response().Success().Json(http.Json{"data": adminSubscriptionData(subscription, plans)})
+}
+
+func (p *PlanController) UpdateAdminSubscription(ctx http.Context) http.Response {
+	userID := uint(ctx.Request().RouteInt64("id"))
+	if userID == 0 {
+		return ctx.Response().Status(404).Json(http.Json{"code": "RBAC_USER_NOT_FOUND"})
+	}
+	var payload adminSubscriptionPayload
+	if err := ctx.Request().Bind(&payload); err != nil || payload.PlanID == 0 {
+		return ctx.Response().Status(422).Json(http.Json{"code": "VALIDATION_ERROR"})
+	}
+	subscription, err := planservices.NewPlanService().AssignPlan(userID, payload.PlanID)
+	if errors.Is(err, planservices.ErrPlanNotFound) {
+		return ctx.Response().Status(422).Json(http.Json{"code": "PLAN_NOT_FOUND"})
+	}
+	if errors.Is(err, planservices.ErrInvalidSubscriptionOwner) {
+		return ctx.Response().Status(404).Json(http.Json{"code": "RBAC_USER_NOT_FOUND"})
+	}
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "SUBSCRIPTION_UPDATE_FAILED"})
+	}
+	plans, err := planservices.NewPlanService().ActivePlans()
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{"code": "PLANS_UNAVAILABLE"})
+	}
+	return ctx.Response().Success().Json(http.Json{"data": adminSubscriptionData(subscription, plans)})
+}
+
+func adminSubscriptionData(subscription *models.Subscription, plans []models.Plan) map[string]any {
+	items := make([]map[string]any, 0, len(plans))
+	for _, plan := range plans {
+		public, err := publicPlan(plan)
+		if err == nil {
+			items = append(items, public)
+		}
+	}
+	return map[string]any{
+		"subscription": map[string]any{"id": subscription.ID, "user_id": subscription.UserID, "plan_id": subscription.PlanID, "status": subscription.Status, "starts_at": subscription.StartsAt, "ends_at": subscription.EndsAt},
+		"plans":        items,
+	}
 }
 
 func (p *PlanController) UsageLedger(ctx http.Context) http.Response {

@@ -2,6 +2,7 @@ package resource
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 )
 
@@ -9,6 +10,7 @@ var (
 	ErrInvalidManifest = errors.New("invalid resource manifest")
 	ErrDuplicate       = errors.New("resource already registered")
 	ErrNotFound        = errors.New("resource not found")
+	ErrWriteValidation = errors.New("resource write validation failed")
 )
 
 type DataScope string
@@ -29,6 +31,7 @@ type Field struct {
 	Name             string   `json:"name"`
 	Label            string   `json:"label"`
 	Type             string   `json:"type"`
+	Hint             string   `json:"hint,omitempty"`
 	Required         bool     `json:"required,omitempty"`
 	Options          []Option `json:"options,omitempty"`
 	Visible          bool     `json:"visible"`
@@ -107,6 +110,10 @@ type ActionPayloadField struct {
 	Options  []Option `json:"options,omitempty"`
 }
 
+// WritePreparer validates and may canonicalize resource-specific values after
+// generic field and permission checks but before a create, update, or bulk update.
+type WritePreparer func(operation string, payload map[string]any) error
+
 type Navigation struct {
 	Group  string `json:"group"`
 	Order  int    `json:"order"`
@@ -114,27 +121,62 @@ type Navigation struct {
 }
 
 type Manifest struct {
-	Name         string            `json:"name"`
-	Label        string            `json:"label"`
-	Route        string            `json:"route"`
-	PageMode     PageMode          `json:"page_mode,omitempty"`
-	Table        string            `json:"table,omitempty"`
-	Permissions  []string          `json:"permissions"`
-	Fields       []Field           `json:"fields"`
-	Columns      []Column          `json:"columns"`
-	Actions      []Action          `json:"actions,omitempty"`
-	Filters      []Filter          `json:"filters,omitempty"`
-	Relations    []Relation        `json:"relations,omitempty"`
-	FormGroups   []FormGroup       `json:"form_groups,omitempty"`
-	Details      []DetailSection   `json:"details,omitempty"`
-	Dependencies []FieldDependency `json:"dependencies,omitempty"`
-	DataScope    DataScope         `json:"data_scope,omitempty"`
-	OwnerField   string            `json:"owner_field,omitempty"`
-	SoftDelete   bool              `json:"soft_delete,omitempty"`
-	Navigation   Navigation        `json:"navigation"`
+	Name          string            `json:"name"`
+	Label         string            `json:"label"`
+	Route         string            `json:"route"`
+	PageMode      PageMode          `json:"page_mode,omitempty"`
+	Table         string            `json:"table,omitempty"`
+	Permissions   []string          `json:"permissions"`
+	Fields        []Field           `json:"fields"`
+	Columns       []Column          `json:"columns"`
+	Actions       []Action          `json:"actions,omitempty"`
+	Filters       []Filter          `json:"filters,omitempty"`
+	Relations     []Relation        `json:"relations,omitempty"`
+	FormGroups    []FormGroup       `json:"form_groups,omitempty"`
+	Details       []DetailSection   `json:"details,omitempty"`
+	Dependencies  []FieldDependency `json:"dependencies,omitempty"`
+	DataScope     DataScope         `json:"data_scope,omitempty"`
+	OwnerField    string            `json:"owner_field,omitempty"`
+	SoftDelete    bool              `json:"soft_delete,omitempty"`
+	WritePreparer WritePreparer     `json:"-"`
+	Navigation    Navigation        `json:"navigation"`
 }
 
 type Registry struct{ manifests map[string]Manifest }
+
+// PrepareWrite applies an optional manifest hook to an independent copy of the
+// supplied JSON-shaped values so normalization cannot mutate caller-owned input.
+func PrepareWrite(manifest Manifest, operation string, payload map[string]any) (map[string]any, error) {
+	prepared := make(map[string]any, len(payload))
+	for key, value := range payload {
+		prepared[key] = cloneWriteValue(value)
+	}
+	if manifest.WritePreparer != nil {
+		if err := manifest.WritePreparer(operation, prepared); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrWriteValidation, err)
+		}
+	}
+	return prepared, nil
+}
+
+func cloneWriteValue(value any) any {
+	switch value := value.(type) {
+	case map[string]any:
+		cloned := make(map[string]any, len(value))
+		for key, nested := range value {
+			cloned[key] = cloneWriteValue(nested)
+		}
+		return cloned
+	case []any:
+		cloned := make([]any, len(value))
+		for index, nested := range value {
+			cloned[index] = cloneWriteValue(nested)
+		}
+		return cloned
+	default:
+		return value
+	}
+}
 
 func NewRegistry() *Registry { return &Registry{manifests: make(map[string]Manifest)} }
 

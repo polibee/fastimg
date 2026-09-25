@@ -9,7 +9,8 @@
 | 业务模块 | `backend/app/modules/<name>` | 放资源、模型、Controller、Manifest、权限、菜单和模块路由边界 |
 | 业务 Service | `backend/app/services/<domain>` | 放跨资源的配额、媒体、存储、审核和统计规则 |
 | 通用资源 Registry | `backend/app/modules/admin/registry` | 通过生成专属 discovery 注册标准资源 |
-| 资源生成器 | `backend/app/console` | 用 `admin:make-resource` 生成套餐、文件夹、相册等 CRUD 骨架 |
+| 资源生成器 | `backend/app/console` | 用 `admin:make-resource` 生成尚不存在的标准 CRUD 骨架；不要覆盖已手写的 plans 模块 |
+| 资源写入扩展点 | `backend/app/core/resource/registry.go`、`backend/app/core/admin/controllers` | Manifest 可选 `WritePreparer` 在通用 create/update/bulk-update 落库前校验并规范化；领域规则仍放在对应 `services/<domain>` |
 | 迁移 | `backend/database/migrations` | 新表统一写入此目录，人工审阅后执行 |
 | Web 路由 | `backend/routes/web.go` | 注册认证后的自定义上传、分享、统计和开发者 API |
 | 队列配置 | `backend/config/queue.go` | 复用 Redis queue，不实现内存降级 |
@@ -90,6 +91,21 @@ Custom Page 仍然必须使用框架的认证、权限、API 错误、通知、�
 - 当前队列默认连接 Redis；图片处理、审核、清理和统计必须通过队列，不能在 HTTP 请求内同步完成。
 - 当前项目的资源 Registry 更适合后台管理资源；用户媒体库和上传器不能强行套用通用 CRUD 页面。
 
+### 5.1 当前 FastImg 管理资源
+
+- `/admin/media`：跨用户媒体库，只读上传者、文件元数据和访问状态，管理员按 `admin.media.*` 权限执行查看、审核和删除。
+- `/admin/folders`、`/admin/albums`：跨用户文件夹、相册管理；会员端 `/folders`、`/albums` 只操作当前登录用户自己的集合。
+- `/admin/plans`：后台只管理计划权益和产品信息；结算内部使用 `plan_prices` 价格版本表，价格版本不绑定唯一支付网关，订单保存价格快照后不可被后续改价影响。开发阶段不注册独立价格版本后台页面。
+- `/admin/orders`、`/admin/payment-transactions`、`/admin/payment-events`、`/admin/refunds`：订单、支付流水、网关事件和退款分别查询，履约与支付状态不混用。
+- `/admin/settings`、`/admin/statistics`、`/admin/media-access-logs`：站点配置、聚合指标和访问记录后台页面。设置中的渠道开关不保存密钥，密钥只在服务端环境变量边界内使用。
+
+### 5.2 开发者 API 与公开 SEO
+
+- Personal API Token 的最小权限固定为 `upload:write`、`media:read`、`media:delete`；Token 只允许当前用户的上传、图片列表/详情/链接和删除，不能调用会员结算或管理员 API。
+- `/api/v1/*` 是版本化 API；`/api/upload`、`/api/images`、`/api/image/{id}` 是同一最小能力的客户端兼容别名，不复制业务逻辑。
+- `plan_prices` 是结算使用的价格版本，不绑定唯一网关；结算页从已注册 Provider 列表中选择渠道，Provider 密钥只来自服务端设置的加密字段。开发阶段不暴露独立后台路由或 `admin.plan_prices.*` 权限，旧地址也不提供兼容入口，避免和“会员计划”形成重复菜单。
+- `/sitemap.xml`、`/robots.txt` 和前端 `build:ssg` 为公开会员首页、套餐和发现页提供 SEO 首屏；公开相册必须在真实公开路由、访问策略和审核接口完成后再加入预渲染；私有媒体、Token、订单和后台路径不进入站点地图。
+
 ## 6. 第一阶段允许修改的基础文件
 
 只允许为注册和契约扩展修改以下基础入口：
@@ -99,7 +115,70 @@ Custom Page 仍然必须使用框架的认证、权限、API 错误、通知、�
 - `backend/bootstrap/schedule.go`
 - `backend/config/filesystems.go`
 - `backend/app/openapi/*`
+- `backend/app/core/resource/registry.go` 与 `backend/app/core/admin/controllers/*`：只允许添加通用 opt-in 扩展和调用边界，不放 FastImg 套餐/媒体业务规则
 - 生成器维护的 discovery 文件
 - `admin/src/generated/api.ts` 的生成结果
 
-禁止把图床领域规则写入 `backend/app/core`、通用 Resource 页面、RBAC Service 或通用文件系统实现。
+禁止把图床领域规则写入 `backend/app/core`、通用 Resource 页面、RBAC Service 或通用文件系统实现；可在通用 Resource Engine 增加中立的 opt-in 扩展接口，具体规则由业务 Service 提供。
+
+## 7. 本地预览与端口隔离
+
+- 前端 API 默认使用同源路径；Vite 开发服务器将 `/api` 代理到 `FASTIMG_BACKEND_URL`，未指定时使用 `http://127.0.0.1:3000`。需要独立端口时，在启动 Vite 前通过进程环境设置该变量。
+- 每个工作区启动前分别检查前端与后端候选端口，并显式传入两个不同的空闲端口；Vite 使用 `--strictPort`，端口被占用时应停止并重新选择，不能自动递增后误连其他项目。
+- 后端使用进程级 `APP_HOST=0.0.0.0` 和 `APP_PORT=<backend-port>`；不要为方便预览覆盖或提交 `.env`，PostgreSQL/Redis 仍按用户配置管理。
+- 开发服务需后台持有、日志落盘并记录 PID。WSL 环境向用户提供地址前，必须运行 `wslnet url <frontend-port>` 验证 Windows 侧访问；后端需同样验证其独立端口。
+- `VITE_API_BASE_URL` 仅用于明确需要跨源 API 的部署；生产构建与部署必须显式验证 API 来源和 CORS/凭证策略。
+
+## 8. 本地基线快照（2026-09-23）
+
+以下只记录本次开发环境的观察结果，不是对其他部署环境的要求；检查期间没有启动服务、修改 `.env`、执行迁移或更改 Laragon 配置。
+
+- `backend/.env` 当前缺失，仓库提供 `.env.example`；不能据此连接本机数据库或 Redis。
+- Windows Laragon 主机的 PostgreSQL `5432`、Redis `6379` 均无监听；未发现可用于本次验收的 PostgreSQL/Redis 日志，因此未运行数据库集成或迁移。
+- `go test ./...` 的非 Feature 包通过；`goravel/tests/feature` 在启动时因 `database.redis.default.host` 未配置导致 Schedule 初始化 panic，故全量 Go 测试未通过。
+- 计划指定的 `pnpm exec vue-tsc --noEmit` 被 TypeScript 6.0.2 的 `TS5101` 阻断（`baseUrl` 弃用诊断）；项目现有 `pnpm run build` 中的 `vue-tsc -b` 与 Vite 构建通过。未为消除基线诊断擅自改动 TypeScript 配置。
+- admin Node 测试基线为 19/20；唯一失败为 `resource-actions.test.ts` 中 `kind: unknown` 的既有预期与实现不一致，代码和测试相对 HEAD 均未修改。i18n 专项测试为 3/3 通过。
+
+## 9. 当前开发态（2026-09-23）
+
+本节是基线之后的开发快照；第 8 节保留为开发开始时的历史记录。
+
+- `backend/.env` 已在本机配置并被 Git 忽略；已核对非敏感字段 `DB_CONNECTION=postgres`、`DB_DATABASE=fastimg_dev`。不要读取、打印或提交密钥字段。
+- Windows 侧 PostgreSQL `5432`、Redis `6379` 可连接。WSL 内的 CLI 启动会把 Redis `127.0.0.1:6379` 当作 WSL 自身地址并收到拒绝；不得据此修改 Laragon 服务或代理配置。WSL Redis 接入需要使用项目认可的 WSL 网络配置另行处理。
+- `fastimg_dev` 只读 `migrate:status` 显示 plans、media、advertising、folders、albums 迁移均为 Ran；本轮用户明确授权的新迁移只覆盖 advertising、folders、albums 和对应管理权限。
+- 本地开发预览采用不同端口：Vite 前端 `53081`，Go API 后端 `53082`；Windows 访问后端使用 WSL 可达地址，浏览器请求经 Vite `/api` 代理。`wslnet url 53081` 返回 Windows 侧 HTTP 200。
+- 管理员登录已在浏览器会话验证；管理资源位于 `/admin/**`。会员端由独立 `MemberShell` 承载，`/`、`/media`、`/media/:id`、`/folders`、`/albums`、`/plans` 均为平铺会员 URL；会员上传、个人中心、Token、套餐用量和发现瀑布流按阶段继续交付。
+- 最新验证：`go test ./... -count=1` 全通过；`pnpm run build` 通过；`node --test tests/fastimg-i18n.test.mjs` 4/4 通过；完整 admin Node 测试 23/24，唯一失败是通用 `resource-actions` 对未知 action kind 的既有行为/测试不一致。
+
+## 10. 前端应用边界与 SSR 演进
+
+当前 `admin/` 是一个 Vue/Vite 工程，历史上同时承载 C 端和管理员页面。运行时已经通过 `/` 与 `/admin/**`、`MemberShell` 与 `AdminShell`、会员权限与管理员权限完成隔离，但代码入口容易让人误以为 C 端属于后台。
+
+本阶段先做逻辑边界抽取，不直接搬迁目录：
+
+```text
+admin/src/
+├─ apps/
+│  ├─ member/routes.ts   # C 端和公开路由入口
+│  └─ admin/routes.ts     # 管理员路由入口
+├─ core/                  # 共享布局基础、Resource Engine、基础页面
+├─ components/            # 共享 UI
+├─ lib/、stores/、i18n/   # 共享基础设施
+└─ modules/               # 领域页面和 API 模块
+```
+
+边界抽取的要求：
+
+- `apps/member` 不得导入 `AdminShell`、管理员导航、管理员 Resource 页面或后台权限页面。
+- `apps/admin` 不得把管理员页面挂到平铺会员 URL；后台页面必须位于 `/admin/**` 并继续执行管理员权限守卫。
+- API、认证基础设施、i18n、shadcn-vue 组件和设计令牌可共享；业务页面和应用 Shell 不共享。
+- 当前阶段不改变 URL、不复制 API 客户端、不增加第二套后端入口。
+
+该边界是独立 `web/` 和 SSR/SSG 的前置条件，但不会自动产生 SSR：
+
+- 当前 `build:ssg` 服务于已注册的公开首页、套餐和发现页静态预渲染；公开相册尚未注册真实访问路由，因此不能提前生成伪静态 SEO 页面。
+- 真正 SSR 还需要独立 Web 入口、服务端渲染运行时、请求级数据加载、head/SEO 处理和部署适配。
+- `admin/` 继续作为 SPA，不参与公开页面服务端渲染。
+- 私有媒体、Token、订单和 `/admin/**` 不得进入公开预渲染、站点地图或公共缓存。
+
+当公开页面需要独立缓存、CDN、SSR 或独立发布时，再将 `apps/member` 抽取为同层 `web/`，并把稳定共享能力迁移到 `packages/`；禁止直接复制整个 `admin/src`。

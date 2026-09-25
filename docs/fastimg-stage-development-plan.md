@@ -163,10 +163,10 @@ POST   /api/v1/media/{id}/restore
 - 恢复规则：processing 会话的 `updated_at` 已超过 10 分钟才可被恢复请求接管；接管会在用户行锁内刷新更新时间。逐个核验登记对象的 MIME、大小和 SHA-256，全部匹配才确认用量并标 ready；对象缺失/损坏则删除可清理对象、释放预占并标记 failed，要求用户重新上传。
 - 已实现后台资源：plans、广告位、文件夹、相册进入后台资源导航；文件夹/相册启用 `user_id` own scope，广告位使用后台权限。Generated Resource Engine、RBAC 与审计复用框架，不复制实现。
 - 已实现套餐快照：新订阅在现有快照列写入套餐条款、权益和 SHA-256 内容版本；配额读取兼容新 envelope 与旧纯权益 JSON，订阅 API 优先显示快照并校验版本。旧订阅缺失历史价格/名称，只能兼容显示当前套餐并返回 `snapshot_available: false`。该变更未新增或运行数据库迁移。
-- 已实现用量摘要/上传入账切片：`GET /api/v1/me/usage` 按认证用户读取套餐快照额度；存储汇总为生命周期余额，API/上传/流量/处理等按 UTC 月周期汇总。上传完成在同一事务内通过 quota Service 记录 SHA-256 幂等存储流水、月度 `upload` 次数流水和 `transform` 流水，并兼容读取旧 `storage_bytes` 名称；一次成功的媒体处理作业（生成原图、缩略图和中图）计为一次 transform，处理中的上传会话预占一次，失败会话不计数。月度上传和处理流水按上传会话创建时所属 UTC 月记账，与并发预占统计周期一致，缺失创建时间的历史会话回退到完成时间。上传在图像解码前进行额度预检，拒绝已知超额请求；`BeginUpload` 在用户行锁事务中复核并原子预占实际 Variant 字节，避免并发请求仅凭预检越额。`GET /api/v1/me/usage/ledger` 仅按认证用户范围分页返回流水，不暴露幂等键。上传配额检查在用户行锁事务内为历史缺少活动订阅的用户补建 Free 快照；原因是 Goravel `Query.First` 对 0 行返回 nil，不能用来判定不存在，需使用 `Exists()`。每日上传限制已接入；月度 API 上传限制按 UTC 月统计本人 `ready` 与 `processing` 上传会话，失败会话不计数，用户行锁串行化并发预占；月度转换限制合计已完成 transform 流水和本人 `processing` 会话，同样串行化预占。额度耗尽分别返回 HTTP 429 / `MONTHLY_API_UPLOAD_LIMIT_REACHED` 或 `MONTHLY_TRANSFORM_LIMIT_REACHED`。本轮补入所有者专属永久删除 API：回收站图片先进入 `cleanup_pending`，Local/未来 Provider 删除所有唯一 Variant 对象成功后才在同一事务标记对象、Variant、媒体 tombstone 并写负向 storage ledger；删除失败可重试且不提前释放额度。带宽流水与限制、订阅状态迁移仍未完成；软删除不得提前释放。
+- 已实现用量摘要/上传入账切片：`GET /api/v1/me/usage` 按认证用户读取套餐快照额度；存储汇总为生命周期余额，API/上传/流量/处理等按 UTC 月周期汇总。上传完成在同一事务内通过 quota Service 记录 SHA-256 幂等存储流水、月度 `upload` 次数流水和 `transform` 流水，并兼容读取旧 `storage_bytes` 名称；一次成功的媒体处理作业（生成原图、缩略图和中图）计为一次 transform，处理中的上传会话预占一次，失败会话不计数。月度上传和处理流水按上传会话创建时所属 UTC 月记账，与并发预占统计周期一致，缺失创建时间的历史会话回退到完成时间。上传在图像解码前进行额度预检，拒绝已知超额请求；`BeginUpload` 在用户行锁事务中复核并原子预占实际 Variant 字节，避免并发请求仅凭预检越额。`GET /api/v1/me/usage/ledger` 仅按认证用户范围分页返回流水，不暴露幂等键。上传配额检查在用户行锁事务内为历史缺少活动订阅的用户补建 Free 快照；原因是 Goravel `Query.First` 对 0 行返回 nil，不能用来判定不存在，需使用 `Exists()`。每日上传限制已接入；月度 API 上传限制按 UTC 月统计本人 `ready` 与 `processing` 上传会话，失败会话不计数，用户行锁串行化并发预占；月度转换限制合计已完成 transform 流水和本人 `processing` 会话，同样串行化预占。额度耗尽分别返回 HTTP 429 / `MONTHLY_API_UPLOAD_LIMIT_REACHED` 或 `MONTHLY_TRANSFORM_LIMIT_REACHED`。本轮补入所有者专属永久删除 API：回收站图片先进入 `cleanup_pending`，Local/未来 Provider 删除所有唯一 Variant 对象成功后才在同一事务标记对象、Variant、媒体 tombstone 并写负向 storage ledger；删除失败可重试且不提前释放额度。带宽流水与限制已在后续 M3 切片完成；软删除不得提前释放。
 - 多语言约束：`docs/i18n.md` 是各阶段强制开发与验收规则；媒体库页面和后台导航使用 vue-i18n 的 `media.*` Key，注册中英文 JSON 语言包。i18n 专项测试覆盖语言文件路径/嵌套 Key 及页面/导航 Key 使用。
-- 当前前端形态：会员端使用 `/`、`/media`、`/plans` 和 `MemberShell`；管理端页面统一在 `/admin/**` 和 `AdminShell`。`/admin/media` 尚未提供跨用户媒体管理 API/RBAC/审计支撑，因此不注册；文件夹/相册为 own-scope，不作为全站管理资源。
-- 会员首页 `/` 提供上传入口、最近本人媒体及套餐/存储摘要；`/media` 调用认证后的 `/api/v1/uploads` 与 own-scope `/api/v1/media`，首页和媒体页共用上传队列、处理状态轮询、配额/大小错误与重试反馈。本人媒体页支持受保护缩略图预览、文件名搜索、服务端分页（48 条/页）、软删除和回收站恢复；搜索/回收站切换回到第一页，删除当前页最后一张后自动回退到有效页。会员媒体详情现返回并可复制认证内容端点的 URL、Markdown、HTML、BBCode；这些不是公开稳定分享链接。`/tokens` 已提供 Personal API Token 的创建、一次性展示、撤销和轮换界面，后端已加入 hash、Scope 和会员认证源码。订阅及用量仍从公开套餐目录、当前认证用户订阅和 `/me/usage` 读取，流量未计量时不伪报 0，不下单、不升级、不更改订阅。分页、链接和 Token 文案通过 `member` namespace 同步中英文；会员前端不传 `user_id`，所有权由服务端认证身份决定。会员端防盗链、详情编辑、批量管理、相册关联、订单中心和 `/discover` 尚未完整实现；Token 迁移、运行进程重启以及 API 上传/链接/删除真实验收尚未执行。
+- 当前前端形态：会员端使用 `/`、`/media`、`/plans` 和 `MemberShell`；管理端页面统一在 `/admin/**` 和 `AdminShell`。`/admin/media` 已提供跨用户媒体管理 API/RBAC/审计支撑；文件夹/相册仍是 own-scope，不能替代管理员媒体运营入口。
+- 会员首页 `/` 提供上传入口、最近本人媒体及套餐/存储摘要；`/media` 调用认证后的 `/api/v1/uploads` 与 own-scope `/api/v1/media`，首页和媒体页共用上传队列、处理状态轮询、配额/大小错误与重试反馈。本人媒体页支持受保护缩略图预览、文件名搜索、服务端分页（48 条/页）、软删除、回收站恢复和带二次确认的清空回收站；搜索/回收站切换回到第一页，删除当前页最后一张后自动回退到有效页。会员上传结果和媒体详情现在返回带 `APP_URL` 域名的稳定公开 URL、Markdown、HTML、BBCode 以及 Variant 地址；`/tokens` 已提供 Personal API Token 的创建、一次性展示、撤销和轮换界面，后端已加入 hash、Scope 和会员认证源码。订阅及用量仍从公开套餐目录、当前认证用户订阅和 `/me/usage` 读取，流量按真实返回字节计量，不伪报 0，不下单、不升级、不更改订阅。分页、链接和 Token 文案通过 `member` namespace 同步中英文；会员前端不传 `user_id`，所有权由服务端认证身份决定。会员端已接入文件夹归档和相册批量关联基础操作；防盗链、详情编辑、完整批量管理、订单中心和 `/discover` 尚未完整实现；Token 迁移、运行进程重启以及 API 上传/链接/删除真实验收尚未执行。
 - 本轮验证：`go test ./... -count=1` 全部 Go 包通过（含 Feature）；`pnpm run build` 通过；`node --test tests/fastimg-i18n.test.mjs` 4/4 通过。完整 admin Node 测试为 23/24，唯一失败仍是 `tests/resource-actions.test.ts`：测试要求过滤未知 action kind，但通用实现返回 `unknown`；该文件与对应实现不属于本轮改动。
 - 会员媒体页本轮专项 RED/GREEN 与 i18n/member-plan 回归测试在 Windows Node fallback 中通过 15/15。构建尚未验证：WSL 初始化返回 `E_ACCESSDENIED`；Windows pnpm 尝试在线解析/重装 pnpm 后因无交互终端中止，未能进入 TypeScript/Vite 构建。现有 Vite 53081 仍可服务旧应用，但其 `/src/router/index.ts` 和 `MemberShell` 热服务内容不含新路由/导航键，故浏览器验收未通过；未杀停工作中的服务，等 WSL 可用后只重启本项目 dev server 再验收。没有提交真实图片上传、执行迁移或变更数据库/服务配置。
 - `fastimg_dev` 的只读迁移状态确认 plans、media、advertising、folders、albums 迁移均为 Ran；本轮明确授权应用的仅为广告位、文件夹、相册及其管理权限。没有修改 Laragon PostgreSQL/Redis 配置。Windows 侧 5432/6379 可连接，但 WSL 内启动的后端命令仍尝试访问 `127.0.0.1:6379` 并出现连接拒绝警告；Redis 的 WSL 访问路径和队列运行验收仍未完成。
@@ -176,7 +176,7 @@ POST   /api/v1/media/{id}/restore
 - 会员媒体详情切片（2026-09-24）：新增认证后 `GET /api/v1/media/{id}`，Service/Repository 先按当前用户验证归属，再返回本人 ready 媒体元数据与已就绪的原图/缩略图/中图；越权与不存在统一返回 `MEDIA_NOT_FOUND`。会员端新增 `/media/:id` 只读详情页、从媒体卡片进入的入口和 zh-CN/en-US 文案；图片预览继续经认证内容端点读取，不生成公开或稳定链接。同步 OpenAPI 契约及 Service/API 路由/i18n 测试。验证：Go 媒体 Service 与 OpenAPI 测试通过，前端媒体/路由/i18n 专项 15/15 通过。生产构建未能启动：Windows pnpm 检查试图移除 modules 并要求交互确认，本轮未确认、未更改依赖或锁文件；Vue 类型检查/构建仍待可用工具环境验证。未执行迁移、数据库写入或重启开发服务。
 - 会员文件夹/相册基础切片（2026-09-24）：新增认证后的 `/api/v1/me/folders` 与 `/api/v1/me/albums` 列表、创建、更新、删除接口，复用业务 Service/Repository；所有写入强制使用认证用户，父文件夹和相册封面媒体必须属于当前用户，名称限制为非空且不超过 120 个字符，相册访问策略限制为 `private`/`unlisted`/`public`。新增会员 `/folders`、`/albums` 页面及 MemberShell 导航，中英文文案与 OpenAPI 契约同步。当前只完成容器 CRUD，尚未新增媒体关联表，因此页面明确提示媒体整理关联将在后续切片接入；后台 `/admin/folders`、`/admin/albums` 仍是管理员资源，不与会员页面重合。验证：`go test ./... -count=1` 全部通过；前端会员集合/媒体/路由/i18n 专项 18/18 通过。未执行迁移、数据库写入或生产构建；WSL 当前返回 `E_ACCESSDENIED`，无法启动或用 `wslnet url` 做浏览器运行态验收。
 - 会员文件夹/相册运行态修复（2026-09-24）：发现生成资源的旧版平铺重定向会抢占 `/folders`、`/albums`，导致会员页提示无匹配路由。已同步修复 `index.ts` 与 Vite 实际解析的 `index.js`：旧后台重定向排除这两个会员路径，管理员资源继续固定在 `/admin/folders`、`/admin/albums`。重启并确认仅本仓库的 Vite 会话后，浏览器已加载 `/folders` 和 `/albums`，导航、空状态、创建表单均正常，无新增控制台错误。当前 Vite 使用项目专属 tmux 会话 `fastimg-vite53081`、WSL PID 1552，后端为 Windows PID 20848、端口 53082；`wslnet url 53081` 验证 WSL/Windows 均 HTTP 200。`go test ./... -count=1` 与前端专项 18/18 仍通过；生产构建仍未验证，未执行迁移或数据库写入。
-- 未完成：S3 Provider、真正异步处理/恢复队列、批量和分片上传、媒体与相册关联及批量整理、管理员跨用户媒体运营工作台、Token 迁移与真实 API 上传/链接/删除验收、WebP/AVIF、自动清理和后台失败任务中心。
+- 未完成：S3 Provider、真正异步处理/恢复队列、分片上传、完整批量整理、管理员跨用户媒体运营增强工作台、Token 迁移与生产客户端矩阵、WebP/AVIF、自动清理和后台失败任务中心。
 - 重要限制：数据库最终确认失败会保留 `202 processing` 会话/对象；10 分钟后可由用户手动调用恢复接口，但自动队列扫描、失败任务后台、管理员重试与定期清理仍未实现。新增的永久删除由所有者同步触发，并支持同请求重试；它不等于 Task 7 的异步回收站/孤儿对象调度。租约阈值针对当前 10 MB 同步 Local 上传；扩展到远程或长时间 Provider 前必须改为可续期 lease/Job ownership。
 
 ## 六、M3：稳定链接、分享与防盗链
@@ -218,8 +218,8 @@ POST   /api/v1/media/{id}/signed-url
 
 1. Token 只保存 hash，完整 Token 创建时只显示一次。
 2. 支持创建、列表、撤销、禁用、轮换、过期和最后使用信息。
-3. 基础能力固定为：`upload:write`、`links:read`、`media:delete`。
-4. 可选能力为：`media:read`、`usage:read`、`webhook:manage`。
+3. 当前实现固定为：`upload:write`、`media:read`、`media:delete`；不再提供可选 Scope 表单。
+4. 订单、用量、文件夹、相册、分享、防盗链、批量/分片上传和 Webhook 均不是 Personal API Token 的开放面。
 5. API 上传复用网页上传、媒体、配额、审核和用量 Service。
 6. 支持单文件、批量、分片和断点续传。
 7. 支持 `Authorization: Bearer`、`Idempotency-Key`、API 限流和配额响应头。
@@ -396,11 +396,11 @@ POST   /api/v1/media/{id}/signed-url
 ## 十七、2026-09-24 开发进度：Personal API Token 基础能力
 
 - 新增 `api_tokens` 模型和迁移草案；只保存 SHA-256 token hash、非敏感前缀、Scope、状态、过期时间、最近使用时间/IP 和调用次数，完整值只在创建或轮换响应中返回一次。
-- 新增会话认证的 `POST /api/v1/tokens`、`GET /api/v1/tokens`、`DELETE /api/v1/tokens/{id}`、`POST /api/v1/tokens/{id}/rotate`；基础 Scope 固定为 `upload:write`、`links:read`、`media:delete`，可选 `media:read`、`usage:read`、`webhook:manage`。
+- 新增会话认证的 `POST /api/v1/tokens`、`GET /api/v1/tokens`、`DELETE /api/v1/tokens/{id}`、`POST /api/v1/tokens/{id}/rotate`；新 Token 固定为 `upload:write`、`media:read`、`media:delete`。
 - 会员资源认证中间件支持登录会话或 `Authorization: Bearer fst_...` Personal API Token；管理员 `/api/v1/admin/**` 仍只接受框架会话认证，Token 不能进入后台 RBAC。
 - 会员 `/tokens` 页面支持创建、一次性复制、撤销、轮换和中英文 Scope 展示；不把完整 Token 写入 URL、LocalStorage 或日志。
 - `go test ./... -count=1` 通过；前端全量 `.mjs` 合约测试通过 39/39，包含 i18n、路由、Token 页面、媒体、集合和计划边界。
-- 迁移尚未执行，当前运行后端未重启；真实数据库 Token 创建、Token 上传、链接读取、自己媒体删除和撤销即时失效仍待下一次集成验收。生产环境还需要按用户/IP/Token 限流、审计脱敏和批量/分片上传。
+- `fastimg_dev` 已执行 Token/媒体相关迁移并重启当前开发后端；代码级验收覆盖 Token 创建 Scope 固定、own-scope 路由和会话专属路由拒绝。生产环境还需要按用户/IP/Token 限流、审计脱敏和真实客户端矩阵验收。
 
 ## 十八、2026-09-24 开发进度：管理端 Token 运营边界
 
@@ -643,3 +643,225 @@ POST   /api/v1/media/{id}/signed-url
 - 已执行 `go run . artisan db:seed --no-ansi`；`db:table plan_prices`、`db:table orders` 和再次查询迁移状态确认支付表、价格目录和 migration batch `[7] Ran`。
 - 后端已由本项目独立进程运行在 `http://127.0.0.1:53082`，`GET /api/v1/plans` 返回 Free、Creator、Pro 及月付/年付 CNY 价格；支付渠道仍保持默认关闭。
 - 常规 Vite 运行被当前共享 `node_modules` 缺少 Windows `@tailwindcss/oxide-win32-x64-msvc` 原生绑定阻断；没有修改依赖或锁文件。开发阶段临时使用静态 `dist` 预览和 `/api` 代理运行在 `http://127.0.0.1:5181`，该预览不替代源码构建，待恢复同版本 Windows 依赖后再做源码热更新验收。
+
+## 三十六、2026-09-24：M8 管理端运营闭环与运行态修复
+
+### 本轮完成
+
+- 广告位的 `starts_at` / `ends_at` 使用管理端 shadcn-vue 日期弹层、日历和时间输入组合，不再让运营人员直接填写 RFC3339；保存时仍由资源表单统一转换为 API 时间格式。
+- 套餐的 `entitlements_json` 使用面向运营人员的权益表单，覆盖存储、单文件、上传、API、带宽、图片处理、Token 和广告开关；同时保留 JSON 作为后端持久化格式。结算内部使用 `plan_prices` 维护月/年周期、币种、金额、价格版本和生效区间；价格不再绑定单一网关。开发阶段不注册独立的 `/admin/plan-prices` 页面，也不创建 `admin.plan_prices.*` 权限；旧地址不提供兼容入口，价格目录由 Seeder/结算 Service 提供。
+- 订单、支付流水、支付事件、退款记录在管理端注册为独立资源菜单；订单创建时保存价格快照，支付意图保存会员本次选择的 Provider。会员端仍只能查看自己的订单和支付状态。
+- 新增系统设置页面 `/admin/settings`：SEO、网关开关、统计、站点验证/广告验证/自定义代码、站点基础设置；支付密钥不进入数据库表单，只从后端环境变量读取。新增统计页面 `/admin/statistics`，展示用户、媒体、相册、文件夹、订单和支付流水汇总。
+- 后台补齐跨用户媒体库 `/admin/media`、相册和文件夹资源注册；上传写入的媒体记录可以在后台按用户查看。媒体访问记录 `/admin/media-access-logs` 修复为可读页面，并验证可显示访问条数、类型、签名和放行状态。
+- 注册遗漏的系统设置迁移，并修复 PostgreSQL 保留字 `group` 导致设置列表 500 的排序问题。开发环境前端 53083 通过明确的开发 API 基址访问本项目后端 53085，避免误连其他项目；不修改共享 `.env` 或 Laragon 服务配置。
+- 所有新增管理资源、设置页面和权益表单补齐中英文 locale；会员端和管理端的职责、权限、own-scope/all-scope 边界保持分离。
+
+### 验证与边界
+
+- `go test ./app/services/billing ./app/modules/billing/controllers ./app/modules/admin/registry ./database/seeders ./database/migrations -count=1` 通过。
+- `node node_modules/vue-tsc/bin/vue-tsc.js -b --pretty false` 通过；前端专项测试 `9/9` 通过，包含资源表单、广告、支付管理、媒体访问记录和管理页面契约。
+- `fastimg_dev` 已应用系统设置和计划价格迁移并重新执行 seed；运行态确认 `/api/v1/admin/orders`、`/api/v1/admin/payment-transactions`、`/api/v1/admin/media`、`/api/v1/admin/media-access-logs`、`/api/v1/admin/settings` 返回 200。
+- Vite 生产构建仍受共享 `node_modules` 缺少 `@tailwindcss/oxide-win32-x64-msvc` 原生可选绑定阻断；没有改动依赖或锁文件。真实 PayPal、XCash、NOWPayments 仍默认关闭，未宣称外部沙盒或生产收款已验证。
+
+## 三十七、2026-09-24：M8 Personal API 最小权限、支付渠道选择与 SEO
+
+### 本轮完成
+
+- Personal API Token 固定为 `upload:write`、`media:read`、`media:delete`，移除会员端可选 Scope 表单；Token 只允许上传、读取本人图片列表/信息/链接和删除本人图片。订单、支付、用量、文件夹、相册、分享、防盗链、Webhook、批量上传、重试和管理员 API 均要求会员会话或管理员 RBAC。
+- 增加 `X-API-Key` 认证，并提供 `/api/upload`、`/api/images`、`/api/image/{id}` 兼容别名；别名复用现有上传/媒体 Service，不形成第二套 API 业务逻辑。
+- `plan` 管理表单不再编辑旧的价格字段；计划只维护权益和产品信息，`plan_prices` 维护版本化金额/币种/周期。价格不再强制绑定单个网关，会员结算页读取当前已注册 Provider 并选择支付渠道。
+- 支付设置补充 PayPal、XCash、NOWPayments 的环境、API 地址、回调/跳转地址等非敏感配置；密钥仍只从服务端环境变量读取。启用开关会参与 Provider 注册，多个渠道可以同时启用。
+- 后端新增 `/sitemap.xml`、`/robots.txt`；会员首页、套餐页和发现页动态设置 SEO meta；前端 `build:ssg` 生成已注册公开首页、套餐页和发现页的静态 SEO 首屏，公开相册需等真实公开路由、访问策略和审核接口完成后加入，私有内容不会进入静态 HTML。
+
+### 验证与边界
+
+- 路由和 Scope 代码已完成，并已在本地运行态通过 Personal Token 请求允许接口与被拒绝接口，验收 `200/201` 与 `403 TOKEN_ENDPOINT_NOT_ALLOWED`。
+- `plan_prices` 已移除 `gateway_code` 列；价格与支付渠道完全解耦，历史订单仍使用自己的 PaymentIntent Provider，不回写旧价格。
+- SEO 设置包含站点地图启用开关和额外公开路径；`/sitemap.xml` 只接受公开路径，自动拒绝 `/admin`、`/api`、查询串和锚点，`robots.txt` 与开关同步。
+- 当前真实渠道仍需各自服务端环境变量、Webhook 配置和沙盒验证；默认只有 Fake Provider 可用，不宣称真实收款已完成。
+
+## 三十八、2026-09-25：M4 Personal API Token 运行态闭环验收
+
+### 本轮完成
+
+- 使用 `fastimg_dev` 的开发账号创建一次 Personal API Token；服务端忽略客户端提交的非法 Scope，固定授予 `upload:write`、`media:read`、`media:delete`。
+- 使用 `Authorization: Bearer fst_...` 验证本人媒体列表和兼容列表接口；使用 `X-API-Key: fst_...` 验证单文件 multipart 上传、本人媒体详情、链接返回和软删除。
+- 上传 `admin/src/assets/hero.png` 返回 `201`、`ready` 和 `original`/`thumbnail`/`medium`/Markdown/HTML/BBCode 等链接；详情返回 200，删除后返回 `deleted`。
+- 使用同一 Token 请求 `/api/v1/me/usage` 和 `/api/v1/orders` 均返回 `403 TOKEN_ENDPOINT_NOT_ALLOWED`，确认订单和用量没有被 Personal API Token 放开。
+- 验收 Token 在完成测试后立即撤销，明文 Token 未保留在数据库、仓库或运行日志中。
+
+### 验证与边界
+
+- 运行态后端：`http://127.0.0.1:53085`；Personal API Token 允许面返回 200/201，受限面返回 403。
+- 应用级 Token/IP 限流已实现并在本地运行态验证 429、`Retry-After` 和限流响应头；生产压测、客户端矩阵测试和真实 Provider 沙盒验收仍属于 M4/M7/M8 后续门禁，不能以本地闭环替代。
+
+## 三十九、2026-09-25：M4 Personal API 统一错误契约与请求追踪
+
+### 本轮完成
+
+- 新增全局请求上下文中间件：统一处理安全的 `X-Request-ID`，缺失或非法时生成 `req_...`，并始终通过响应头返回最终请求 ID。
+- Personal API 的 Token 认证、上传、媒体列表/详情/内容/删除/恢复/归档错误统一返回 `code`、`request_id`、`retryable`；限流响应额外保留 `retry_after_seconds` 和 `Retry-After`。
+- `retryable` 由 HTTP 状态统一推导：429、500、502、503、504 为可退避重试，其余认证、权限、参数、资源和业务冲突错误为不可盲目重试。
+- 保持会员会话和管理员后台的职责边界；本轮没有扩大 Personal API 的接口范围，也没有把管理员 API 暴露给 Token。
+
+### 验证与边界
+
+- 请求 ID 规范化、非法 ID 替换和可重试状态测试通过；媒体、上传、Token 认证及开发者限流定向 Go 测试通过。
+- 已重建并重启当前项目后端 `53085`，真实 HTTP 验收确认未认证媒体请求会生成并回显 `X-Request-ID`，Token 调用被拒绝时会返回带同一请求 ID 的标准错误体；临时验收 Token 已撤销。
+- 生产级日志关联、跨服务 trace、负载压测、客户端兼容矩阵以及真实支付 Provider 沙盒仍未完成；本轮不宣称生产观测体系已达标。
+
+## 四十、2026-09-25：M2 会员媒体与相册关联基础操作
+
+### 本轮完成
+
+- 新增 `album_media` 多对多关系表，保留 `user_id`、唯一 `(album_id, media_asset_id)`、排序字段和查询索引；文件夹仍使用 `media_assets.folder_id` 单归档，不把两种整理方式混成一张表。
+- 新增会员 own-scope 接口：
+  - `GET /api/v1/me/albums/{id}/media` 查询当前用户相册中的媒体 ID；
+  - `POST /api/v1/me/albums/{id}/media` 批量加入媒体，最多 100 个 ID，重复加入返回 `skipped_ids`，不会产生重复关系；
+  - `DELETE /api/v1/me/albums/{id}/media/{media_id}` 移除单个相册关系。
+- 服务端同时校验相册归属、媒体归属、媒体 `ready` 状态和批次大小；跨用户媒体、已删除媒体、不存在相册不会被关联。Personal API Token 仍不能调用相册和整理接口。
+- 相册列表返回 `media_count`；会员图片库增加“加入相册”操作，相册页显示图片数量；中英文 locale、OpenAPI 和错误码同步更新。
+- 修复相册创建/更新读取 map 时使用 `First` 导致“数据已写入但接口返回不存在”的运行态问题，统一改为可可靠读取的 `Get` 结果检查。
+
+### 验证与边界
+
+- `fastimg_dev` 已应用 `20260925000004_create_album_media_table`；全量 `go test ./... -count=1`、前端 `vue-tsc`、路由测试 7/7、i18n 测试 4/4 通过。
+- 重启 `53085` 后真实验收通过：相册创建、图片上传、重复 ID 批量关联、列表读取和移除关系均成功；临时相册和临时媒体已清理。
+- 当前已实现基础关联、单图加入、相册内容网格和批量移除；拖拽排序、批量跨相册移动、公开相册 SEO 和发现页仍按后续媒体整理与 M3/M8 计划推进。
+
+## 四十一、2026-09-25：M2 相册内容网格与批量整理
+
+### 本轮完成
+
+- 相册内容页新增会员路由 `/albums/:id`，从相册列表进入后加载 own-scope 媒体详情和认证缩略图，支持跳转图片详情。
+- 新增 `DELETE /api/v1/me/albums/{id}/media` 批量移除接口，复用最多 100 个媒体 ID 的校验；响应使用明确的 `removed_ids`/`skipped_ids` 字段，不存在的关系进入 `skipped_ids`，不会影响同批次其他关系。
+- 相册页面支持全选、部分选择和批量移除；图片库继续提供单图加入相册入口，文件夹仍保持单归档关系。
+- 同步中英文 locale、路由、OpenAPI、错误处理和阶段进度；没有开放给 Personal API Token，也没有改变管理员全站媒体权限模型。
+
+### 验证与边界
+
+- 后端集合服务、控制器、OpenAPI 定向测试与全量 Go 测试通过；前端 `vue-tsc`、路由 7/7、i18n 4/4 通过。真实 HTTP 验收覆盖相册创建、ready 图片上传、重复 ID 加入、列表读取、批量移除、移除后空列表和临时数据清理；批量移除响应已修正为 `removed_ids`/`skipped_ids`，避免客户端误判。
+- 当前后端仍运行在 `53085`，前端预览仍运行在 `53083`；生产构建继续受 Windows Tailwind 原生可选依赖限制。
+- 拖拽排序、批量跨相册移动、公开相册访问/SEO、发现页和 CDN 缓存策略仍未实现。
+
+## 四十二、2026-09-25：M2 相册排序
+
+### 本轮完成
+
+- 新增会员 own-scope `PATCH /api/v1/me/albums/{id}/media/order`，要求提交相册当前全部媒体 ID 的唯一顺序；缺项、越权媒体、重复 ID 或超过 100 个 ID 会拒绝，避免只更新部分关系造成顺序漂移。
+- 复用 `album_media.sort_order`，在事务内锁定相册关系并按请求顺序保存 `sort_order`；查询接口继续按排序字段返回媒体 ID。
+- 相册内容页支持拖拽调整顺序，也提供键盘/按钮上移、下移；只有点击“保存排序”才提交，未保存状态和失败提示均有中英文文案。
+- 更新 OpenAPI、路由和 Service 测试；排序接口不开放给 Personal API Token，仍严格使用会员会话 own-scope。
+
+### 验证与边界
+
+- 全量 `go test ./... -count=1`、前端 `vue-tsc`、路由 7/7、i18n 4/4 通过。
+- 后端重建并重启在 `53085`；真实 HTTP 验收创建临时相册并上传两张 ready 图片，确认默认顺序为 `[51,50]`，提交 `[50,51]` 后响应和再次查询均为 `[50,51]`，随后完成临时数据清理。
+- 批量跨相册移动、公开相册访问/SEO、发现页和 CDN 缓存策略仍未实现。
+
+## 四十三、2026-09-25：M3 真实发现页与公开 API
+
+### 本轮完成
+
+- 新增公开发现状态接口 `GET /api/v1/discovery/status`、分页接口 `GET /api/v1/discovery/feed` 和公开内容接口 `GET /api/v1/discovery/media/{id}/content?variant=thumbnail|medium|original`。发现页只返回 `ready`、未删除、`visibility=public` 且 `moderation_status=approved` 的媒体；空数据也返回稳定 JSON 分页结构。
+- 新增会员投稿接口 `POST /api/v1/media/{id}/discovery-submit`。投稿只允许当前用户自己的 ready 媒体，写入公开意图和 `pending` 审核状态，不自动通过；发现功能或投稿开关关闭时返回稳定错误码。
+- 新增迁移 `20260925000005_add_discovery_state_to_media`，已在用户授权的 `fastimg_dev` 执行；上传默认写入 `private + pending`，避免新图片未经审核出现在公开发现页。
+- 会员端新增公开 `/discover` 页面：游客可访问，使用真实发现 API 加载图片瀑布流、分页加载、图片内容链接和登录后举报入口；导航、SEO 元数据和 SSG 公开页面清单已同步中英文。
+- 管理员通过 `/admin/media` 的 `visibility`、`moderation_status` 和投稿时间字段管理发现候选；用户举报继续进入 `/admin/reports`，管理员的全站媒体视角与会员 own-scope 保持分离。
+
+### 验证与边界
+
+- 后端目标测试、迁移测试、OpenAPI 测试通过；迁移实际应用到 `fastimg_dev`。重建并重启后端 `http://127.0.0.1:53085` 后，真实请求确认 status `200`、feed 空结果 `200`、不存在媒体内容 `404 DISCOVERY_MEDIA_NOT_FOUND`；前端 `/discover` 入口返回 `200`。
+- `vue-tsc`、路由 `8/8`、i18n `4/4`、会员导航专项测试通过。完整 Go 测试的所有包（含 `goravel/tests/feature`）输出均为 `ok`，命令最后仅因磁盘空间不足清理自定义 GOCACHE 返回非零码，不能把该命令表述为干净退出。
+- 本轮完成的是公开发现页，不等同于真实 SSR；当前仍是 Vue SPA + SSG 首屏。后续再实现独立 Web SSR 入口、请求级数据加载和服务端部署适配；公开相册、自动审核、申诉和独立发现审核工作台仍未完成。
+
+## 四十四、2026-09-25：M3 上传公开链接与套餐流量闭环
+
+### 本轮完成
+
+- 上传完成响应和会员媒体详情的 `links` 改为使用 `APP_URL` 生成带 APP_KEY 签名的绝对公开地址，不再返回只能在登录态使用的相对 `/api/v1/media/.../content` 地址。链接包含原图、缩略图、中图以及 URL、Markdown、HTML、BBCode 格式，可直接复制到论坛、博客和 Markdown 内容。
+- 稳定公开地址使用 `/i/{media_id}?variant=...&signature=...`，不保存明文分享 Token、不暴露对象存储路径；删除媒体、热链策略拒绝和 APP_KEY 轮换都会使地址失效。原有有时效签名 URL 继续兼容。
+- 实际返回内容的字节数接入 `bandwidth/download` 流水：稳定链接、限时签名链接、分享链接、发现页内容和会员自己的媒体内容都会在响应前按媒体所属用户的当前 UTC 月套餐限额计量；重复访问使用幂等来源键，超额返回 `429 BANDWIDTH_QUOTA_EXCEEDED`，计量不可用返回 `503 BANDWIDTH_METERING_UNAVAILABLE`。
+- `/api/v1/me/usage` 返回 `bandwidth_metered: true`，会员套餐页按服务端 `usage.bandwidth` 和 `monthly_bandwidth_bytes` 展示真实用量，不再把未接入的流量显示成零。
+- 保持原有套餐限制的服务端校验：存储空间、单文件大小、每日上传数、月上传数、月处理次数、Token 数量和流量均由实际业务服务读取订阅快照并拒绝超限请求；套餐权益不是仅用于展示。
+
+### 验证与边界
+
+- Go 定向测试、后端构建、前端 `vue-tsc` 和上传/套餐静态契约测试通过；完整 Go 测试仍有工作树中支付网关配置测试引用未实现 `MissingGatewaySettings`/`GatewayURLs` 的独立失败，需要在支付网关切片补齐。
+- 运行态后端已重建并重启在 `http://127.0.0.1:53085`；真实登录上传 `hero.png` 返回 `ready` 和带域名的稳定链接，匿名请求该链接返回 `200 image/png`，随后 `/api/v1/me/usage` 的 bandwidth 用量实际增加。
+- 本地 `.env` 已固定使用后端 `53085`，避免占用其他项目的 `53082`；生产环境应将 `APP_URL` 设置为反向代理后的真实站点域名。Windows Tailwind 原生可选依赖仍缺失，因此当前不能用 Vite 生产构建刷新 `admin/dist`，源代码和后端已完成，构建依赖恢复后需重新构建前端并刷新预览。
+
+## 四十五、2026-09-25：M3 媒体卡片紧凑化与管理员套餐豁免
+
+### 本轮完成
+
+- 会员 `/media` 媒体库改为紧凑单图卡片：固定预览高度、移除卡片默认上下留白、文件夹/相册选择器并排且使用紧凑控件，保留详情、回收站和归档操作；一张上传图片仍只对应一张卡片。
+- 管理员身份由 RBAC 核心管理权限判定，包含 `admin.users.view`、`admin.users.manage`、`admin.roles.manage`、`admin.permissions.manage`。管理员上传、媒体处理和访问不再被订阅快照中的 Free/付费会员额度拦截，但仍保留 10 MB 请求和图片处理器等系统级技术上限，并继续写入媒体、用量和审计记录。
+- 后台用户编辑页 `/admin/users/{id}/edit` 新增“套餐与额度”选择器；管理员可以为用户（包括自己）指定当前生效套餐，服务端更新订阅权益快照。会员 `/plans` 对管理员显示“管理员额度”和“不限量”，同时保留当前套餐档位展示。
+
+### 验证与边界
+
+- Go 定向测试：RBAC、套餐、媒体和套餐控制器通过；后端使用最新源码重建并重启在 `http://127.0.0.1:53085`。
+- 前端媒体、首页、套餐、i18n 测试通过；Vite 构建和 `vue-tsc -b --pretty false` 通过；浏览器实测 `/plans` 显示管理员额度和存储/流量“不限量”，`/admin/users/1/edit` 显示套餐选择器，`/media` 卡片实际高度由约 567 px 降至约 272 px（当前预览视口下）。
+- 管理员“套餐档位”与“管理员额度豁免”是两个独立概念；不会自动替当前账户切换到付费计划，也不会绕过系统级上传安全限制。
+
+## 四十六、2026-09-25：支付网关官方地址自动生成
+
+### 本轮完成
+
+- `/admin/settings` 的支付网关表单按官方渠道要求收敛为凭证输入：PayPal 输入环境、Client ID、Client Secret、Webhook ID；Xcash 输入 Appid、HMAC 密钥；NOWPayments 输入 API Key、IPN Secret。
+- API 根地址、Webhook/IPN 地址、成功回跳和取消回跳不再让管理员手工填写，表单按站点 URL和渠道环境生成只读值；PayPal 的 Webhook 地址用于 Developer 后台创建 Webhook，Xcash 的通知地址用于项目管理，NOWPayments 的 IPN 地址用于 Dashboard 的 IPN 设置。
+- 后端 Provider 注册以官方 API、回调和回跳地址为默认值，同时读取管理员保存的自定义 URL；PayPal 缺少 Webhook ID 时也不会注册为可用渠道。
+- 自动地址统一读取系统设置 `site_url`；前端管理表单与后端 Provider 注册不再使用旧的 `site.url` 键，避免管理员配置的正式域名被当前开发端口覆盖。
+
+### 官方依据与边界
+
+- PayPal：OAuth 2.0 Client Credentials、Orders v2、Webhook Verification API；Xcash：官方 `https://pay.xca.sh` `/v1/invoice`、Appid/HMAC 和通知地址；NOWPayments：官方 `https://api.nowpayments.io/v1/invoice`、API Key、IPN Secret 和 `ipn_callback_url`。
+- 成功/取消回跳只用于把用户带回订单详情页，不能改变订单状态；权益仍由验签 Webhook/IPN 驱动。开发环境显示的 `127.0.0.1` 地址只能用于本地观察，第三方支付回调必须使用公网 HTTPS 站点 URL。
+
+## 四十七、2026-09-25：按套餐控制图片水印
+
+### 本轮完成
+
+- `Entitlement` 新增 `watermark_enabled`。Free 默认关闭；FastImg 初始 Creator/Pro 种子套餐开启，管理员可以在 `/admin/plans/{id}/edit` 的权益表单中单独切换每个计划，保存后新订阅和管理员手动分配的订阅快照立即生效。
+- 上传服务端在配额校验后读取当前用户的订阅快照，而不是相信前端传入的开关；开启水印时在原图编码前处理 PNG/JPEG，GIF 的每一帧也处理，然后再生成 thumbnail/medium，避免通过原图或预览 Variant 绕过套餐能力。
+- `/admin/settings` 的“其他设置”增加 `watermark.text`、`watermark.domain` 和 `watermark.fallback_image_url`：文字默认使用 `FastImg`，域名可选追加到水印，加载失败时会员端使用配置图片或内置 FastImg 兜底图；内置处理器支持 ASCII 字母、数字和常用网址符号，不引入新的字体或图片处理框架依赖。
+- 修复套餐权益编辑器的广告和水印开关：使用显式 `model-value`/更新回调同步到 `entitlements_json`，保存后由服务端规范化并在新上传时生效。新增公开 `GET /api/v1/site/presentation`，只提供经过 URL 安全校验的加载失败兜底图地址；会员首页、上传结果、媒体库、相册、详情和发现页均在图片加载失败时显示兜底水印图。
+- 会员 `/plans` 展示当前公开套餐是否在上传时添加水印；旧订阅快照缺少新字段时兼容为关闭，计划写入会规范化输出 `watermark_enabled`。
+
+### 验证与边界
+
+- 已先写入并观察水印处理器和权益解析的失败测试，再实现代码；水印测试确认原图、缩略图和中图字节均发生变化，旧快照兼容测试通过。
+- 已执行迁移 `20260925000006_add_watermark_entitlement_defaults` 到用户授权的 `fastimg_dev`：只为旧计划补入缺失字段，Free 为关闭，内置 Creator/Pro 为开启，已有明确值不覆盖；不修改订阅历史快照。后端已重建并重启在 `53085`，前端构建、`vue-tsc`、i18n 和 `/admin/plans/1/edit` 浏览器验收通过。
+- 水印只在上传时生成并固化到 Variant；已存在的媒体不会被套餐切换回溯重写。后续如需“按访问时动态水印”必须另行设计缓存、原图保护和重新生成策略。
+- 本轮新增测试先验证计划开关绑定、域名水印差异、公开兜底图 URL 安全过滤，再实现代码；前端构建和类型检查通过。水印设置保存后不需要数据库迁移，动态系统设置由现有设置服务加密/持久化策略管理。
+- 同时补充了订阅快照兼容：水印字段加入前生成的旧版本哈希仍可读取，避免管理员编辑计划后旧订阅被错误判定为不可用；本地浏览器验收确认 Creator 水印开关可关闭、保存、刷新后恢复开启，会员 `/plans` 订阅接口保持 200。
+
+## 四十八、2026-09-25：计划开关可见性与系统设置完整保存
+
+### 本轮修复
+
+- 套餐权益表单的“显示广告”和“启用图片水印”不再只显示一个无文字状态的开关：开关使用显式 `model-value`/更新回调，带有可访问名称，并同步显示“已启用/未启用”；管理员可以在 `/admin/plans/{id}/edit` 修改后点击保存，服务端更新 `entitlements_json`。
+- 修复 `/admin/settings` 保存中断：网关凭证字段使用 `value_type=secret`，设置服务现在按字符串规则校验并继续使用 `APP_KEY` 加密保存；可选整数设置为空时合法，消费者按自身安全默认值处理。这样统计保留天数、上传大小等未填写字段不会阻断后续水印设置提交。
+- 设置保存改为完整字段链路验收：管理员保存后必须出现“设置已保存”，后端日志中全部设置 PUT 请求返回 200；前端仍不回显任何密钥明文。
+
+### 验证与边界
+
+- RED/GREEN：先验证 `secret` 和空可选整数会失败，再补充设置校验测试和实现；前端专项测试 `17/17`、`vue-tsc`、Vite 生产构建均通过。
+- 本地后端已重建并重启在 `http://127.0.0.1:53085`，前端静态预览使用 `http://127.0.0.1:53084`；浏览器确认设置页出现“设置已保存”，计划 1 的广告显示“已启用”、水印显示“未启用”，并可实际切换。
+- 53084/53085 仅为当前开发进程端口；生产部署必须通过正式域名/HTTPS 配置 `APP_URL` 或 `site_url`，支付回调地址不能使用本地回环地址。
+
+## 四十九、2026-09-25：举报闭环与 C 端个人举报记录
+
+### 本轮实现
+
+- C 端发现页继续使用 `POST /api/v1/media/{id}/reports`，服务端只接受 `ready`、公开、审核通过且不属于当前用户的媒体，避免举报私有资源、未审核资源和自举报。
+- 登录用户新增 `GET /api/v1/me/reports`，只返回自己的举报记录和处理结果；新增 `/reports` 页面与会员导航入口，支持中英文状态、处理说明和时间展示。
+- 管理员 `/admin/reports` 保持资源引擎统一列表，举报状态和处理说明改为只读；通过 `report-resolve` 批量动作处理：`dismiss`（驳回举报）、`hide_media`（转私有并标记违规）、`restore_media`（恢复公开并标记通过）。动作在事务内同时更新举报和媒体，并写入 `moderation.report.resolve` 审计记录。
+- 举报处理使用管理员权限和资源范围校验，不向 C 端开放全量举报、举报人信息或管理员 API；C 端只看自己的举报状态。
+
+### 验证与边界
+
+- 后端定向测试覆盖举报动作 payload、资源动作注册、控制器和管理员动作控制器；前端举报页面、导航、双语文案、账单/计划回归测试共 `19/19` 通过，`vue-tsc` 与 Vite 构建通过。
+- 后端已重建并重启在 `http://127.0.0.1:53085`，前端静态预览在 `http://127.0.0.1:53084`；未登录访问 `/api/v1/me/reports` 返回 `401 AUTH_UNAUTHORIZED`，公开站点接口返回 `200`。
+- 举报记录表继续作为审核证据队列，不与媒体表、审计表或支付流水重复；下一步可补充管理员筛选统计和通知，但不改变当前 C/Admin 边界。

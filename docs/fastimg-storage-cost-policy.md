@@ -85,8 +85,9 @@ active -> trash -> cleanup_pending -> physically_deleted
 - Free 回收站保留时间由站点配置。
 - Creator/Pro 可以拥有更长保留时间。
 - 清理任务按批次运行，避免一次删除造成存储和数据库压力。
-- 删除失败保留 `cleanup_pending` 和错误原因。
+- 永久删除先进入 `cleanup_pending` 并阻止恢复；对象删除失败保留此状态，允许同一清理操作幂等重试。
 - 清理完成后才写入释放存储的用量流水。
+- 多个 Variant 引用同一对象时只删除一次；被其他媒体引用的对象在引用计费/清理策略实现前拒绝删除。
 
 ## 7. CDN 和自定义域名
 

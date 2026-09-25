@@ -12,6 +12,7 @@ import (
 	"goravel/app/facades"
 	adminactionregistry "goravel/app/modules/admin/actions"
 	"goravel/app/modules/admin/registry"
+	developeractions "goravel/app/modules/developer/actions"
 	useractions "goravel/app/modules/users/actions"
 	notificationservices "goravel/app/services/notifications"
 	rbacservices "goravel/app/services/rbac"
@@ -172,6 +173,10 @@ func executeBuiltinUpdate(ctx http.Context, manifest resource.Manifest, request 
 	if err != nil {
 		return result, err
 	}
+	values, err = resource.PrepareWrite(manifest, "update", values)
+	if err != nil {
+		return result, err
+	}
 	for _, id := range request.IDs {
 		allowed, accessErr := resourceCanAccess(ctx, manifest, "update", id)
 		if accessErr != nil {
@@ -298,7 +303,7 @@ func actionValidationError(ctx http.Context, err error) http.Response {
 }
 
 func actionHandlerError(ctx http.Context, err error) http.Response {
-	if errors.Is(err, useractions.ErrInvalidStatus) || errors.Is(err, useractions.ErrUnknownParameter) || errors.Is(err, rbacservices.ErrFieldPermissionDenied) || errors.Is(err, rbacservices.ErrFieldPolicyExpansion) || errors.Is(err, rbacservices.ErrFieldNotFound) || errors.Is(err, adminactions.ErrPayloadContract) {
+	if errors.Is(err, useractions.ErrInvalidStatus) || errors.Is(err, useractions.ErrUnknownParameter) || errors.Is(err, developeractions.ErrInvalidStatus) || errors.Is(err, developeractions.ErrUnknownParameter) || errors.Is(err, adminactionregistry.ErrInvalidResolvePayload) || errors.Is(err, rbacservices.ErrFieldPermissionDenied) || errors.Is(err, rbacservices.ErrFieldPolicyExpansion) || errors.Is(err, rbacservices.ErrFieldNotFound) || errors.Is(err, adminactions.ErrPayloadContract) || errors.Is(err, resource.ErrWriteValidation) {
 		return ctx.Response().Status(422).Json(http.Json{"code": "VALIDATION_ERROR"})
 	}
 	return ctx.Response().Status(500).Json(http.Json{"code": "INTERNAL_ERROR"})

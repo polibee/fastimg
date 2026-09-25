@@ -2,7 +2,7 @@
 
 ## 目标与启用边界
 
-FastImg 通过统一 `PaymentGateway` 接口接入 Xcash 账单收款，不把 Xcash 字段直接泄漏到套餐、订单或会员页面。Free 套餐和 Fake Provider 不依赖 Xcash；Provider 只有在 `XCASH_ENABLED=true` 且 AppID、HMAC 密钥和 API 地址完整时才注册。
+FastImg 通过统一 `PaymentGateway` 接口接入 Xcash 账单收款，不把 Xcash 字段直接泄漏到套餐、订单或会员页面。Free 套餐和 Fake Provider 不依赖 Xcash；Provider 只有在 `XCASH_ENABLED=true` 且 AppID、HMAC 密钥完整时才注册，官方 API 地址默认使用官方地址。
 
 当前实现是离线可测试的 Provider 适配，已覆盖签名、账单创建、公开状态查询、Webhook 验签和状态映射；没有使用真实商户凭据，也不宣称已经完成 Xcash 生产收款验收。
 
@@ -15,10 +15,12 @@ XCASH_APP_ID=
 XCASH_HMAC_KEY=
 XCASH_TIMEOUT=10s
 XCASH_CALLBACK_URL=https://img.example.com/api/v1/payment-gateways/xcash/webhook
-XCASH_RETURN_URL=https://img.example.com/plans
+XCASH_RETURN_URL=https://img.example.com/orders/{order_id}?payment=success
 ```
 
-自部署 Xcash 时，`XCASH_API_BASE_URL` 改为网关的 HTTPS 地址。开发环境可以使用本地 HTTP stub 验证协议，但真实 Xcash 通知地址必须使用公网 HTTPS，并按 Xcash 项目配置 IP 白名单和通知地址。
+管理端会预填 `https://pay.xca.sh`，也允许改为兼容网关地址；开发环境的本地 HTTP stub 只用于离线 Provider 测试。真实 Xcash 通知地址必须使用公网 HTTPS，并按 Xcash 项目配置 IP 白名单和通知地址。
+
+管理员在“系统设置 > 支付网关 > XCash”填写 Appid 和 HMAC key；官方 API 根地址默认是 `https://pay.xca.sh`，Webhook/通知地址和成功回跳由系统根据 `site_url` 预填，均可修改，敏感值会加密保存。`{order_id}` 会在创建账单时替换为 FastImg 订单号，返回地址只负责回到订单页，不能代替 Webhook 验签。
 
 ## 签名协议
 
@@ -81,4 +83,3 @@ go test ./app/services/billing/providers/xcash ./app/services/billing ./app/modu
 ```
 
 测试使用本地 HTTP stub，不访问真实 Xcash。启用前必须补齐真实沙盒/小额生产前验证、Webhook 重复投递、过期报价、少付、多付、风险复核、错误网络和失败重试证据，并保持 `XCASH_ENABLED=false` 直到这些门禁通过。
-

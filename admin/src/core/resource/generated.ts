@@ -3,8 +3,14 @@ import type { RouteRecordRaw } from 'vue-router'
 import ResourceListPage from '@/core/resource/pages/ResourceListPage.vue'
 import ResourceFormPage from '@/core/resource/pages/ResourceFormPage.vue'
 import ResourceDetailPage from '@/core/resource/pages/ResourceDetailPage.vue'
+import { resourceDefinition as advertisingResource } from '@/modules/advertising/resource'
+import { resourceDefinition as albumsResource } from '@/modules/albums/resource'
 import { resourceDefinition as announcementsResource } from '@/modules/announcements/resource'
 import { resourceDefinition as departmentsResource } from '@/modules/departments/resource'
+import { resourceDefinition as apiTokensResource } from '@/modules/api_tokens/resource'
+import { resourceDefinition as foldersResource } from '@/modules/folders/resource'
+import { resourceDefinition as mediaResource } from '@/modules/media/resource'
+import { resourceDefinition as reportsResource } from '@/modules/moderation/resource'
 
 export interface GeneratedResourceDefinition {
   name: string
@@ -17,11 +23,25 @@ export interface GeneratedResourceDefinition {
 }
 
 export const generatedResourceDefinitions = [
+  advertisingResource,
+  albumsResource,
   announcementsResource,
   departmentsResource,
+  apiTokensResource,
+  foldersResource,
+  mediaResource,
+  reportsResource,
 ] as const
 
 export const generatedResourceRoutes: RouteRecordRaw[] = [
+  { path: advertisingResource.route, name: "advertising-resource-list", props: { resource: advertisingResource.name }, meta: { permission: advertisingResource.permission }, component: ResourceListPage },
+  { path: advertisingResource.route + '/new', name: "advertising-resource-create", props: { resource: advertisingResource.name }, meta: { permission: advertisingResource.permission }, component: ResourceFormPage },
+  { path: advertisingResource.route + '/:id/edit', name: "advertising-resource-edit", props: { resource: advertisingResource.name }, meta: { permission: advertisingResource.permission }, component: ResourceFormPage },
+  { path: advertisingResource.route + '/:id', name: "advertising-resource-detail", props: { resource: advertisingResource.name }, meta: { permission: advertisingResource.permission }, component: ResourceDetailPage },
+  { path: albumsResource.route, name: "albums-resource-list", props: { resource: albumsResource.name }, meta: { permission: albumsResource.permission }, component: ResourceListPage },
+  { path: albumsResource.route + '/new', name: "albums-resource-create", props: { resource: albumsResource.name }, meta: { permission: albumsResource.permission }, component: ResourceFormPage },
+  { path: albumsResource.route + '/:id/edit', name: "albums-resource-edit", props: { resource: albumsResource.name }, meta: { permission: albumsResource.permission }, component: ResourceFormPage },
+  { path: albumsResource.route + '/:id', name: "albums-resource-detail", props: { resource: albumsResource.name }, meta: { permission: albumsResource.permission }, component: ResourceDetailPage },
   { path: announcementsResource.route, name: "announcements-resource-list", props: { resource: announcementsResource.name }, meta: { permission: announcementsResource.permission }, component: ResourceListPage },
   { path: announcementsResource.route + '/new', name: "announcements-resource-create", props: { resource: announcementsResource.name }, meta: { permission: announcementsResource.permission }, component: ResourceFormPage },
   { path: announcementsResource.route + '/:id/edit', name: "announcements-resource-edit", props: { resource: announcementsResource.name }, meta: { permission: announcementsResource.permission }, component: ResourceFormPage },
@@ -30,4 +50,18 @@ export const generatedResourceRoutes: RouteRecordRaw[] = [
   { path: departmentsResource.route + '/new', name: "departments-resource-create", props: { resource: departmentsResource.name }, meta: { permission: departmentsResource.permission }, component: ResourceFormPage },
   { path: departmentsResource.route + '/:id/edit', name: "departments-resource-edit", props: { resource: departmentsResource.name }, meta: { permission: departmentsResource.permission }, component: ResourceFormPage },
   { path: departmentsResource.route + '/:id', name: "departments-resource-detail", props: { resource: departmentsResource.name }, meta: { permission: departmentsResource.permission }, component: ResourceDetailPage },
+  { path: apiTokensResource.route, name: "api_tokens-resource-list", props: { resource: apiTokensResource.name }, meta: { permission: apiTokensResource.permission }, component: ResourceListPage },
+  { path: apiTokensResource.route + '/new', name: "api_tokens-resource-create", props: { resource: apiTokensResource.name }, meta: { permission: apiTokensResource.permission }, component: ResourceFormPage },
+  { path: apiTokensResource.route + '/:id/edit', name: "api_tokens-resource-edit", props: { resource: apiTokensResource.name }, meta: { permission: apiTokensResource.permission }, component: ResourceFormPage },
+  { path: apiTokensResource.route + '/:id', name: "api_tokens-resource-detail", props: { resource: apiTokensResource.name }, meta: { permission: apiTokensResource.permission }, component: ResourceDetailPage },
+  { path: foldersResource.route, name: "folders-resource-list", props: { resource: foldersResource.name }, meta: { permission: foldersResource.permission }, component: ResourceListPage },
+  { path: foldersResource.route + '/new', name: "folders-resource-create", props: { resource: foldersResource.name }, meta: { permission: foldersResource.permission }, component: ResourceFormPage },
+  { path: foldersResource.route + '/:id/edit', name: "folders-resource-edit", props: { resource: foldersResource.name }, meta: { permission: foldersResource.permission }, component: ResourceFormPage },
+  { path: foldersResource.route + '/:id', name: "folders-resource-detail", props: { resource: foldersResource.name }, meta: { permission: foldersResource.permission }, component: ResourceDetailPage },
+  { path: mediaResource.route, name: "media-resource-list", props: { resource: mediaResource.name }, meta: { permission: mediaResource.permission }, component: ResourceListPage },
+  { path: mediaResource.route + '/:id/edit', name: "media-resource-edit", props: { resource: mediaResource.name }, meta: { permission: 'admin.media.update' }, component: ResourceFormPage },
+  { path: mediaResource.route + '/:id', name: "media-resource-detail", props: { resource: mediaResource.name }, meta: { permission: mediaResource.permission }, component: ResourceDetailPage },
+  { path: reportsResource.route, name: "reports-resource-list", props: { resource: reportsResource.name }, meta: { permission: reportsResource.permission }, component: ResourceListPage },
+  { path: reportsResource.route + '/:id/edit', name: "reports-resource-edit", props: { resource: reportsResource.name }, meta: { permission: 'admin.reports.update' }, component: ResourceFormPage },
+  { path: reportsResource.route + '/:id', name: "reports-resource-detail", props: { resource: reportsResource.name }, meta: { permission: reportsResource.permission }, component: ResourceDetailPage },
 ]

@@ -64,6 +64,10 @@ func (r *ResourceController) Create(ctx http.Context) http.Response {
 	if err := validateResourceRelations(ctx, manifest, values); err != nil {
 		return relationWriteError(ctx, err)
 	}
+	values, err = resource.PrepareWrite(manifest, "create", values)
+	if err != nil {
+		return ctx.Response().Status(422).Json(http.Json{"code": "VALIDATION_ERROR"})
+	}
 	createdID, err := insertGeneratedResource(manifest, values)
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{"code": "INTERNAL_ERROR"})
@@ -147,6 +151,10 @@ func (r *ResourceController) Update(ctx http.Context) http.Response {
 	}
 	if err := validateResourceRelations(ctx, manifest, values); err != nil {
 		return relationWriteError(ctx, err)
+	}
+	values, err = resource.PrepareWrite(manifest, "update", values)
+	if err != nil {
+		return ctx.Response().Status(422).Json(http.Json{"code": "VALIDATION_ERROR"})
 	}
 	if _, err := facades.Orm().Query().Table(manifest.Table).Where("id = ?", id).Update(values); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{"code": "INTERNAL_ERROR"})

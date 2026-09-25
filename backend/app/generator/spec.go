@@ -93,6 +93,7 @@ type FieldSpec struct {
 	GoName           string
 	Type             string
 	Required         bool
+	Nullable         bool
 	Options          []FieldOption
 	Visible          *bool
 	Readable         *bool
@@ -109,7 +110,7 @@ type FieldOption struct {
 func ParseField(value string) (FieldSpec, error) {
 	parts := strings.Split(value, ":")
 	if len(parts) < 2 || len(parts) > 5 || !fieldNamePattern.MatchString(parts[0]) {
-		return FieldSpec{}, fmt.Errorf("invalid field %q: expected name:type[:required[:value=Label|value=Label]]", value)
+		return FieldSpec{}, fmt.Errorf("invalid field %q: expected name:type[:modifiers[:value=Label|value=Label]]", value)
 	}
 	if _, ok := supportedFieldTypes[parts[1]]; !ok {
 		return FieldSpec{}, fmt.Errorf("unsupported field type %q", parts[1])
@@ -138,6 +139,8 @@ func ParseField(value string) (FieldSpec, error) {
 		switch modifier {
 		case "required":
 			field.Required = true
+		case "nullable":
+			field.Nullable = true
 		case "sensitive":
 			field.Sensitive = true
 			field.PolicyConfigured = true
@@ -152,6 +155,9 @@ func ParseField(value string) (FieldSpec, error) {
 		default:
 			return FieldSpec{}, fmt.Errorf("invalid field modifier %q", modifier)
 		}
+	}
+	if field.Required && field.Nullable {
+		return FieldSpec{}, fmt.Errorf("field %q cannot be both required and nullable", field.Name)
 	}
 	return field, nil
 }

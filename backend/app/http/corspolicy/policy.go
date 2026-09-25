@@ -12,6 +12,7 @@ var allowedOrigins = map[string]struct{}{
 	"http://127.0.0.1:5180": {},
 	"http://127.0.0.1:5181": {},
 	"http://127.0.0.1:5182": {},
+	"http://127.0.0.1:53083": {},
 }
 
 func AllowedOrigin(origin string) bool {

@@ -3,11 +3,25 @@ package registry
 
 import (
 	"goravel/app/core/resource"
+	advertisingresource "goravel/app/modules/advertising/resource"
+	albumsresource "goravel/app/modules/albums/resource"
 	announcementsresource "goravel/app/modules/announcements/resource"
 	departmentsresource "goravel/app/modules/departments/resource"
+	developerresource "goravel/app/modules/developer/resource"
+	foldersresource "goravel/app/modules/folders/resource"
+	mediaresource "goravel/app/modules/media/resource"
+	moderationresource "goravel/app/modules/moderation/resource"
+	plansresource "goravel/app/modules/plans/resource"
 )
 
 func registerGenerated(registry *resource.Registry) {
+	_ = registry.Register(advertisingresource.Manifest())
+	_ = registry.Register(albumsresource.Manifest())
 	_ = registry.Register(announcementsresource.Manifest())
 	_ = registry.Register(departmentsresource.Manifest())
+	_ = registry.Register(developerresource.Manifest())
+	_ = registry.Register(foldersresource.Manifest())
+	_ = registry.Register(mediaresource.Manifest())
+	_ = registry.Register(moderationresource.Manifest())
+	_ = registry.Register(plansresource.Manifest())
 }

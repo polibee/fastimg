@@ -13,10 +13,16 @@ func (m *M20260921000001ReplaceUserActiveWithStatus) Signature() string {
 }
 
 func (m *M20260921000001ReplaceUserActiveWithStatus) Up() error {
-	if err := facades.Schema().Table("users", func(table schema.Blueprint) {
-		table.String("status").Default("active")
-	}); err != nil {
-		return err
+	addStatus, migrateLegacyActive := userStatusMigrationActions(facades.Schema().HasColumn)
+	if addStatus {
+		if err := facades.Schema().Table("users", func(table schema.Blueprint) {
+			table.String("status").Default("active")
+		}); err != nil {
+			return err
+		}
+	}
+	if !migrateLegacyActive {
+		return nil
 	}
 	if _, err := facades.Orm().Query().Table("users").Where("is_active = ?", false).Update("status", "disabled"); err != nil {
 		return err
@@ -26,16 +32,12 @@ func (m *M20260921000001ReplaceUserActiveWithStatus) Up() error {
 	})
 }
 
+func userStatusMigrationActions(hasColumn func(string, string) bool) (addStatus, migrateLegacyActive bool) {
+	return !hasColumn("users", "status"), hasColumn("users", "is_active")
+}
+
 func (m *M20260921000001ReplaceUserActiveWithStatus) Down() error {
-	if err := facades.Schema().Table("users", func(table schema.Blueprint) {
-		table.Boolean("is_active").Default(true)
-	}); err != nil {
-		return err
-	}
-	if _, err := facades.Orm().Query().Table("users").Where("status <> ?", "active").Update("is_active", false); err != nil {
-		return err
-	}
-	return facades.Schema().Table("users", func(table schema.Blueprint) {
-		table.DropColumn("status")
-	})
+	// The base users migration also creates status, so this migration cannot
+	// safely infer whether dropping it would remove pre-existing application data.
+	return nil
 }

@@ -14,11 +14,13 @@ PAYPAL_CLIENT_ID=
 PAYPAL_CLIENT_SECRET=
 PAYPAL_WEBHOOK_ID=
 PAYPAL_TIMEOUT=10s
-PAYPAL_RETURN_URL=https://img.example.com/plans
-PAYPAL_CANCEL_URL=https://img.example.com/plans
+PAYPAL_RETURN_URL=https://img.example.com/orders/{order_id}?payment=success
+PAYPAL_CANCEL_URL=https://img.example.com/orders/{order_id}?payment=cancelled
 ```
 
 生产环境使用 PayPal Live base URL 和独立 Live Client ID/Secret/Webhook ID；sandbox 与 live 凭据不能混用。OAuth token 只在进程内缓存并提前过期，不写入数据库、日志或前端。
+
+管理员在“系统设置 > 支付网关 > PayPal”填写环境、Client ID、Client Secret 和 Webhook ID；PayPal 官方 API 根地址按环境预填且可修改，Webhook、成功/取消回跳由系统根据 `site_url` 预填且可修改，敏感值会加密保存。`{order_id}` 在创建 PayPal Order 时替换为真实订单号，回跳只负责返回订单页，不能直接把订单标记为已支付。
 
 ## 交易流程
 

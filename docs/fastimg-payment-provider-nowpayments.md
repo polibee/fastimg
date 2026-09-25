@@ -13,11 +13,13 @@ NOWPAYMENTS_API_KEY=
 NOWPAYMENTS_IPN_SECRET=
 NOWPAYMENTS_TIMEOUT=10s
 NOWPAYMENTS_CALLBACK_URL=https://img.example.com/api/v1/payment-gateways/nowpayments/webhook
-NOWPAYMENTS_SUCCESS_URL=https://img.example.com/plans
-NOWPAYMENTS_CANCEL_URL=https://img.example.com/plans
+NOWPAYMENTS_SUCCESS_URL=https://img.example.com/orders/{order_id}?payment=success
+NOWPAYMENTS_CANCEL_URL=https://img.example.com/orders/{order_id}?payment=cancelled
 ```
 
 API Key 只由服务端通过 `x-api-key` 请求头发送；IPN Secret 只用于校验 `x-nowpayments-sig`，两者不能写入前端、URL、普通日志或订单响应。
+
+管理员在“系统设置 > 支付网关 > NOWPayments”填写 API Key 和 IPN Secret；官方 API 根地址默认是 `https://api.nowpayments.io`，IPN Callback、成功/取消回跳由系统根据 `site_url` 预填，均可修改，敏感值会加密保存。`{order_id}` 在创建发票时替换为真实订单号，成功/取消回跳只用于展示订单状态，权益以验签 IPN 为准。
 
 ## 交易流程
 
@@ -45,4 +47,3 @@ go test ./app/services/billing/providers/nowpayments ./app/services/billing ./ap
 ```
 
 上线前必须使用官方当前 API 文档和沙盒/小额环境验证支付币种、网络、最小金额、过期、少付、IPN 重复投递、错误签名、状态查询和对账。`NOWPAYMENTS_ENABLED` 在门禁完成前保持 `false`。
-

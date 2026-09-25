@@ -27,6 +27,7 @@ export interface MemberPlanPrice {
   billing_period: 'monthly' | 'yearly'
   trial_days: number
   status: string
+  gateway_code?: string
 }
 
 export interface MemberOrder {
@@ -40,6 +41,7 @@ export interface MemberOrder {
   paid_at: string | null
   fulfilled_at: string | null
   created_at: string
+  gateway_code?: string
 }
 
 export async function createMemberOrder(input: { plan_id: number; price_id: number; currency: string; billing_period: string }, token: string) {
@@ -58,6 +60,10 @@ export async function listMemberOrders(token: string) {
 export async function startMemberPayment(id: string, gatewayCode: string, token: string) {
   const key = globalThis.crypto?.randomUUID?.() ?? `payment-${id}-${Date.now()}`
   return apiFetch<{ id: number; status: string; checkout_url: string; provider_payment_id: string }>(`/api/v1/orders/${id}/payments`, { method: 'POST', headers: { 'Idempotency-Key': key }, body: JSON.stringify({ gateway_code: gatewayCode }) }, token)
+}
+
+export async function listMemberPaymentGateways(token: string) {
+  return apiFetch<string[]>('/api/v1/payment-gateways', {}, token)
 }
 
 export async function cancelMemberOrder(id: string, token: string) {

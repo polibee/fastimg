@@ -17,6 +17,10 @@ import enUSMember from '@/locales/en-US/member.json';
 import zhCNMember from '@/locales/zh-CN/member.json';
 import enUSBilling from '@/locales/en-US/billing.json';
 import zhCNBilling from '@/locales/zh-CN/billing.json';
+import enUSSettings from '@/locales/en-US/settings.json';
+import zhCNSettings from '@/locales/zh-CN/settings.json';
+import enUSStatistics from '@/locales/en-US/statistics.json';
+import zhCNStatistics from '@/locales/zh-CN/statistics.json';
 export const SUPPORTED_LOCALES = ['zh-CN', 'en-US'];
 const initialLocale = localStorage.getItem('locale') === 'en-US' ? 'en-US' : 'zh-CN';
 const i18n = createI18n({
@@ -24,8 +28,8 @@ const i18n = createI18n({
     locale: initialLocale,
     fallbackLocale: 'en-US',
     messages: {
-        'zh-CN': { core: zhCNCcore, auth: zhCNAuth, errors: zhCNErrors, states: zhCNStates, rbac: zhCNRbac, resource: zhCNResource, media: zhCNMedia, member: zhCNMember, billing: zhCNBilling },
-        'en-US': { core: enUSCore, auth: enUSAuth, errors: enUSErrors, states: enUSStates, rbac: enUSRbac, resource: enUSResource, media: enUSMedia, member: enUSMember, billing: enUSBilling },
+        'zh-CN': { core: zhCNCcore, auth: zhCNAuth, errors: zhCNErrors, states: zhCNStates, rbac: zhCNRbac, resource: zhCNResource, media: zhCNMedia, member: zhCNMember, billing: zhCNBilling, settings: zhCNSettings, statistics: zhCNStatistics },
+        'en-US': { core: enUSCore, auth: enUSAuth, errors: enUSErrors, states: enUSStates, rbac: enUSRbac, resource: enUSResource, media: enUSMedia, member: enUSMember, billing: enUSBilling, settings: enUSSettings, statistics: enUSStatistics },
     },
 });
 export default i18n;

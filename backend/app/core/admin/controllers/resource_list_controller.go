@@ -86,7 +86,8 @@ func (r *ResourceController) List(ctx http.Context) http.Response {
 		q = applyResourceSearch(q, query.Search, fieldNames(resourceSearchFieldsWithPolicies(manifest, fieldPolicies))...)
 		query.Sort = allowedSort(query.Sort, map[string]bool{"id": true, "name": true, "display_name": true}, "id")
 	default:
-		rows = &[]map[string]any{}
+		genericRows := make([]map[string]any, 0)
+		rows = &genericRows
 		q = facades.Orm().Query().Table(manifest.Table)
 		q, manifestErr = applyResourceScope(ctx, q, manifest, "view")
 		if manifestErr != nil {
@@ -118,7 +119,7 @@ func (r *ResourceController) List(ctx http.Context) http.Response {
 		if err := q.Paginate(query.Page, query.PerPage, rows, &total); err != nil {
 			return ctx.Response().Status(500).Json(http.Json{"code": "INTERNAL_ERROR"})
 		}
-		return resourceListResponse(ctx, rows, query, total)
+		return resourceListResponse(ctx, projectResourceRowsWithPolicies(genericRows, manifest, fieldPolicies, false), query, total)
 	}
 
 	q = q.OrderBy(query.Sort, query.Dir)

@@ -5,10 +5,14 @@
   "navigation": "Navigation",
   "searchResources": "Search resources",
   "noSearchResults": "No matching resources or data",
-  "searchData": "Data results"
+  "searchData": "Data results",
+  "memberFrontend": "Member site"
+  ,"resourceGroups": {"system": "System", "business": "Business", "developer": "Developer tools"}
   ,"notifications": "Notifications"
   ,"markAllRead": "Mark all as read"
   ,"notificationsLoading": "Loading notifications…"
   ,"notificationsEmpty": "No notifications"
-  ,"notificationsError": "Notifications are temporarily unavailable"
+  ,"notificationsError": "Notifications are temporarily unavailable",
+  "settings": { "title": "System settings" },
+  "statistics": { "title": "Statistics" }
 }

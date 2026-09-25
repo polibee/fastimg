@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/goravel/framework/contracts/database/orm"
 	"github.com/goravel/framework/contracts/http"
 
 	"goravel/app/facades"
@@ -12,6 +13,8 @@ import (
 var ErrInvalidIdentity = errors.New("invalid authenticated user identity")
 
 const activeUserStatus = "active"
+
+var administratorPermissions = []string{"admin.users.view", "admin.users.manage", "admin.roles.manage", "admin.permissions.manage"}
 
 type RBACService struct{}
 
@@ -68,6 +71,25 @@ func (s *RBACService) PermissionsForUser(userID uint) ([]string, error) {
 	return permissions, nil
 }
 
+// IsAdministratorWithQuery identifies the platform administrators that own
+// the core user/RBAC permissions. Domain modules can use this check without
+// parsing JWT claims or duplicating role joins.
+func IsAdministratorWithQuery(query orm.Query, userID uint) (bool, error) {
+	if userID == 0 {
+		return false, nil
+	}
+	return query.Table("role_user").
+		Join("JOIN roles ON roles.id = role_user.role_id").
+		Join("JOIN permission_role ON permission_role.role_id = roles.id").
+		Join("JOIN permissions ON permissions.id = permission_role.permission_id").
+		Where("role_user.user_id = ? AND permissions.name IN (?, ?, ?, ?)", userID, administratorPermissions[0], administratorPermissions[1], administratorPermissions[2], administratorPermissions[3]).
+		Exists()
+}
+
+func (s *RBACService) IsAdministrator(userID uint) (bool, error) {
+	return IsAdministratorWithQuery(facades.Orm().Query(), userID)
+}
+
 func (s *RBACService) IsLastActiveAdmin(userID int64) (bool, error) {
 	var activeAdmins []struct {
 		UserID int64 `db:"user_id"`
@@ -78,7 +100,7 @@ func (s *RBACService) IsLastActiveAdmin(userID int64) (bool, error) {
 		Join("JOIN users ON users.id = role_user.user_id").
 		Join("JOIN permission_role ON permission_role.role_id = role_user.role_id").
 		Join("JOIN permissions ON permissions.id = permission_role.permission_id").
-		Where("users.status = ? AND permissions.name IN (?, ?, ?)", activeUserStatus, "admin.users.view", "admin.roles.manage", "admin.permissions.manage").
+		Where("users.status = ? AND permissions.name IN (?, ?, ?, ?)", activeUserStatus, "admin.users.view", "admin.users.manage", "admin.roles.manage", "admin.permissions.manage").
 		Get(&activeAdmins); err != nil {
 		return false, err
 	}

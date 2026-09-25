@@ -1,0 +1,23 @@
+[
+  {
+    "path": "/",
+    "title": "FastImg — Upload and manage images",
+    "description": "Fast, stable image hosting for developers, site owners, and content creators.",
+    "heading": "Upload and manage your images",
+    "body": "FastImg provides stable media links, image processing, API uploads, and personal media management."
+  },
+  {
+    "path": "/plans",
+    "title": "Plans and usage — FastImg",
+    "description": "Compare FastImg free and paid media hosting plans, limits, and usage.",
+    "heading": "Plans and usage",
+    "body": "Start with the free plan and choose a paid plan when you need more storage, API capacity, or bandwidth."
+  },
+  {
+    "path": "/discover",
+    "title": "Discover images — FastImg",
+    "description": "Explore public images shared by the FastImg community.",
+    "heading": "Discover public images",
+    "body": "Browse media that has been approved for public discovery."
+  }
+]

@@ -5,10 +5,14 @@
   "navigation": "导航",
   "searchResources": "搜索资源",
   "noSearchResults": "没有匹配的资源或数据",
-  "searchData": "数据结果"
+  "searchData": "数据结果",
+  "memberFrontend": "前往用户端"
+  ,"resourceGroups": {"system": "系统管理", "business": "业务管理", "developer": "开发者工具"}
   ,"notifications": "通知"
   ,"markAllRead": "全部标记已读"
   ,"notificationsLoading": "正在加载通知…"
   ,"notificationsEmpty": "暂无通知"
-  ,"notificationsError": "通知暂时无法加载"
+  ,"notificationsError": "通知暂时无法加载",
+  "settings": { "title": "系统设置" },
+  "statistics": { "title": "统计分析" }
 }

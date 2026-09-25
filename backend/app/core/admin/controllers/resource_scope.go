@@ -28,16 +28,7 @@ func resourceID(ctx http.Context) int64 {
 }
 
 func resourceName(ctx http.Context) string {
-	if name := ctx.Request().Route("resource"); name != "" {
-		return name
-	}
-	parts := strings.Split(strings.Trim(ctx.Request().Path(), "/"), "/")
-	for index, part := range parts {
-		if part == "admin" && index+1 < len(parts) {
-			return parts[index+1]
-		}
-	}
-	return ""
+	return resource.NameFromPath(ctx.Request().Path(), ctx.Request().Route("resource"))
 }
 
 func applyResourceScope(ctx http.Context, query orm.Query, manifest resource.Manifest, action string) (orm.Query, error) {

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Activity, ArrowRight, ClipboardList, Languages, LayoutDashboard, LogOut, Search, ShieldCheck, Unplug, WalletCards } from '@lucide/vue'
+import { Activity, ArrowRight, BarChart3, ClipboardList, Languages, LayoutDashboard, LogOut, Search, Settings2, ShieldCheck, Unplug, WalletCards } from '@lucide/vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
@@ -49,6 +49,8 @@ const breadcrumbLabel = computed(() => {
   if (route.name === 'admin-payment-transactions') return t('billing.admin.transactions')
   if (route.name === 'admin-payment-events') return t('billing.admin.events')
   if (route.name === 'admin-refunds') return t('billing.admin.refunds')
+  if (route.name === 'admin-settings') return t('settings.title')
+  if (route.name === 'admin-statistics') return t('statistics.title')
   const resource = resourceManifests.value.find((item) => item.name === breadcrumbResource.value)
   return resource ? localizedResourceLabel(t, te, resource.name, resource.label) : breadcrumbResource.value || t('auth.dashboard')
 })
@@ -173,11 +175,12 @@ onBeforeUnmount(() => {
                   <RouterLink to="/admin/media-access-logs"><Activity /><span>{{ t('auth.mediaAccessLogs') }}</span></RouterLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem v-if="auth.canAny(['admin.orders.view', 'admin.payment_transactions.view', 'admin.payment_events.view', 'admin.refunds.view'])">
-                <SidebarMenuButton as-child :is-active="$route.path.startsWith('/admin/orders') || $route.path.startsWith('/admin/payment-') || $route.path.startsWith('/admin/refunds')" :tooltip="t('billing.admin.orders')">
-                  <RouterLink to="/admin/orders"><WalletCards /><span>{{ t('billing.admin.orders') }}</span></RouterLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.orders.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-orders'" :tooltip="t('billing.admin.orders')"><RouterLink to="/admin/orders"><WalletCards /><span>{{ t('billing.admin.orders') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.payment_transactions.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-payment-transactions'" :tooltip="t('billing.admin.transactions')"><RouterLink to="/admin/payment-transactions"><WalletCards /><span>{{ t('billing.admin.transactions') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.payment_events.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-payment-events'" :tooltip="t('billing.admin.events')"><RouterLink to="/admin/payment-events"><WalletCards /><span>{{ t('billing.admin.events') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.refunds.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-refunds'" :tooltip="t('billing.admin.refunds')"><RouterLink to="/admin/refunds"><WalletCards /><span>{{ t('billing.admin.refunds') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.users.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-statistics'" :tooltip="t('statistics.title')"><RouterLink to="/admin/statistics"><BarChart3 /><span>{{ t('statistics.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.settings.manage')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-settings'" :tooltip="t('settings.title')"><RouterLink to="/admin/settings"><Settings2 /><span>{{ t('settings.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

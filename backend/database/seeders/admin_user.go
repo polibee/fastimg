@@ -67,13 +67,15 @@ func (s *AdminUser) Run() error {
 		}
 	}
 
-	for _, permission := range []models.Permission{
+	permissions := []models.Permission{
 		{Name: "admin.users.view", DisplayName: "View users"},
 		{Name: "admin.users.manage", DisplayName: "Manage users"},
 		{Name: "admin.roles.manage", DisplayName: "Manage roles"},
 		{Name: "admin.permissions.manage", DisplayName: "Manage permissions"},
 		{Name: "admin.settings.manage", DisplayName: "Manage system settings"},
-	} {
+	}
+	permissions = append(permissions, fastImgAdminPermissions()...)
+	for _, permission := range permissions {
 		var permissionExists []models.Permission
 		if err := facades.Orm().Query().Where("name = ?", permission.Name).Get(&permissionExists); err != nil {
 			return err
@@ -95,4 +97,25 @@ func (s *AdminUser) Run() error {
 		}
 	}
 	return nil
+}
+
+func fastImgAdminPermissions() []models.Permission {
+	permissions := make([]models.Permission, 0, 32)
+	for _, module := range []string{"plans", "advertising", "folders", "albums"} {
+		for _, action := range []string{"view", "create", "update", "delete"} {
+			permissions = append(permissions, models.Permission{
+				Name:        "admin." + module + "." + action,
+				DisplayName: module + "." + action,
+			})
+		}
+	}
+	for _, permission := range []string{"orders.view", "payment_transactions.view", "payment_events.view", "refunds.view", "billing.fulfill", "media.view", "media.update", "media.delete", "reports.view", "reports.update"} {
+		permissions = append(permissions, models.Permission{Name: "admin." + permission, DisplayName: permission})
+	}
+	permissions = append(permissions,
+		models.Permission{Name: "admin.api_tokens.view", DisplayName: "api_tokens.view"},
+		models.Permission{Name: "admin.api_tokens.update", DisplayName: "api_tokens.update"},
+		models.Permission{Name: "admin.media_access_logs.view", DisplayName: "media_access_logs.view"},
+	)
+	return permissions
 }

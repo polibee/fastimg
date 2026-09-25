@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	ErrPaymentNotAllowed     = errors.New("payment is not allowed for this order")
-	ErrPaymentIntentNotFound = errors.New("payment intent not found")
+	ErrPaymentNotAllowed      = errors.New("payment is not allowed for this order")
+	ErrPaymentIntentNotFound  = errors.New("payment intent not found")
 )
 
 type StartPaymentRequest struct {

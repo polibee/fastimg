@@ -36,7 +36,7 @@ func (ResourceGeneratorCommand) Extend() command.Extend {
 			&command.StringSliceFlag{Name: "action-field", Usage: "action payload field action:name:label:type:required[:value=Label|value=Label]"},
 			&command.StringFlag{Name: "scope", Usage: "data scope: all or own"},
 			&command.StringFlag{Name: "owner-field", Usage: "integer field used by own data scope"},
-			&command.StringSliceFlag{Name: "field", Usage: "field definition name:type[:required[:value=Label|value=Label]]", Required: true},
+			&command.StringSliceFlag{Name: "field", Usage: "field definition name:type[:required|nullable|readonly|hidden|sensitive[:value=Label|value=Label]]", Required: true},
 			&command.StringSliceFlag{Name: "relation", Usage: "relation name:kind:resource:field:foreign_field:label_field[:selectable]"},
 			&command.StringSliceFlag{Name: "form-group", Usage: "form group name:label:columns:field|field"},
 			&command.StringSliceFlag{Name: "detail-section", Usage: "detail section name:label:field|field"},

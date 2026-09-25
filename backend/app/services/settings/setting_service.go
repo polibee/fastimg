@@ -36,13 +36,18 @@ func validateSetting(key, value, valueType string) error {
 		return ErrInvalidSetting
 	}
 	switch valueType {
-	case "string":
+	case "string", "secret":
 		return nil
 	case "boolean":
 		if value == "true" || value == "false" {
 			return nil
 		}
 	case "integer":
+		// Optional numeric settings (for example statistics retention) may be
+		// left blank in the admin form. Consumers apply their own safe default.
+		if strings.TrimSpace(value) == "" {
+			return nil
+		}
 		if _, err := strconv.ParseInt(value, 10, 64); err == nil {
 			return nil
 		}
@@ -56,10 +61,37 @@ func validateSetting(key, value, valueType string) error {
 
 func (s *SettingService) List() ([]models.SystemSetting, error) {
 	var settings []models.SystemSetting
-	if err := facades.Orm().Query().OrderBy("group").OrderBy("key").Get(&settings); err != nil {
+	// `group` is a PostgreSQL reserved keyword; ordering by it unquoted makes
+	// the otherwise valid settings endpoint fail with a generic 500.
+	if err := facades.Orm().Query().OrderBy("key").Get(&settings); err != nil {
 		return nil, err
 	}
+	for index := range settings {
+		if IsSecretKey(settings[index].Key) && strings.TrimSpace(settings[index].Value) != "" {
+			settings[index].Value = secretPlaceholder
+		}
+	}
 	return settings, nil
+}
+
+// Resolve returns a setting value for trusted backend consumers. Provider
+// credentials are decrypted here and are never returned by List or Upsert.
+func (s *SettingService) Resolve(key, fallback string) string {
+	var setting models.SystemSetting
+	if !facades.Schema().HasTable("system_settings") {
+		return fallback
+	}
+	if err := facades.Orm().Query().Where("key = ?", key).First(&setting); err != nil || strings.TrimSpace(setting.Value) == "" {
+		return fallback
+	}
+	if IsSecretKey(key) {
+		value, err := decryptSecret(setting.Value)
+		if err != nil {
+			return fallback
+		}
+		return value
+	}
+	return strings.TrimSpace(setting.Value)
 }
 
 func (s *SettingService) Upsert(key, value, valueType, group, description string) (*models.SystemSetting, error) {
@@ -77,9 +109,21 @@ func (s *SettingService) Upsert(key, value, valueType, group, description string
 	if err := facades.Orm().Query().Where("key = ?", key).Get(&existing); err != nil {
 		return nil, err
 	}
+	storedValue := value
+	if IsSecretKey(key) {
+		if value == secretPlaceholder && len(existing) > 0 && strings.TrimSpace(existing[0].Value) != "" {
+			storedValue = existing[0].Value
+		} else if value != "" {
+			var err error
+			storedValue, err = encryptSecret(value)
+			if err != nil {
+				return nil, ErrInvalidSetting
+			}
+		}
+	}
 	values := map[string]any{
 		"key":         key,
-		"value":       value,
+		"value":       storedValue,
 		"value_type":  valueType,
 		"group":       group,
 		"description": strings.TrimSpace(description),
@@ -95,6 +139,9 @@ func (s *SettingService) Upsert(key, value, valueType, group, description string
 	var setting models.SystemSetting
 	if err := facades.Orm().Query().Where("key = ?", key).First(&setting); err != nil {
 		return nil, err
+	}
+	if IsSecretKey(setting.Key) && strings.TrimSpace(setting.Value) != "" {
+		setting.Value = secretPlaceholder
 	}
 	return &setting, nil
 }

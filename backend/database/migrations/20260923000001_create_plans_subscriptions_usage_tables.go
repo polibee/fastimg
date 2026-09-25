@@ -1,13 +1,9 @@
 package migrations
 
 import (
-	"encoding/json"
-
 	"github.com/goravel/framework/contracts/database/schema"
 
 	"goravel/app/facades"
-	"goravel/app/models"
-	"goravel/app/services/quota"
 )
 
 type M20260923000001CreatePlansSubscriptionsUsageTables struct{}
@@ -74,36 +70,6 @@ func (m *M20260923000001CreatePlansSubscriptionsUsageTables) Up() error {
 		}
 	}
 
-	var plan models.Plan
-	if err := facades.Orm().Query().Where("code = ?", "free").First(&plan); err != nil {
-		encoded, encodeErr := json.Marshal(quota.DefaultFreeEntitlement())
-		if encodeErr != nil {
-			return encodeErr
-		}
-		if err := facades.Orm().Query().Create(&models.Plan{
-			Code: "free", Name: "Free", Description: "Free media hosting baseline",
-			PriceAmount: 0, Currency: "CNY", BillingPeriod: "monthly",
-			EntitlementsJSON: string(encoded), Status: "active", SortOrder: 10,
-		}); err != nil {
-			return err
-		}
-	}
-	for _, permission := range []models.Permission{
-		{Name: "admin.plans.view", DisplayName: "Plans.view"},
-		{Name: "admin.plans.create", DisplayName: "Plans.create"},
-		{Name: "admin.plans.update", DisplayName: "Plans.update"},
-		{Name: "admin.plans.delete", DisplayName: "Plans.delete"},
-	} {
-		exists, err := facades.Orm().Query().Model(&models.Permission{}).Where("name = ?", permission.Name).Exists()
-		if err != nil {
-			return err
-		}
-		if !exists {
-			if err := facades.Orm().Query().Create(&permission); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
