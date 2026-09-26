@@ -30,6 +30,15 @@ test('settings page uses shadcn selects and aligned boolean controls', () => {
   assert.match(page, /Switch|Checkbox/)
   assert.doesNotMatch(page, /<select\b/)
   assert.doesNotMatch(page, /<input[^>]+type="checkbox"/)
+  assert.match(page, /min-h-9[^\n]*border-input[^\n]*bg-background/)
+})
+
+test('settings page exposes direct public sitemap and robots links', () => {
+  const page = read('src/modules/settings/pages/AdminSettingsPage.vue')
+  assert.match(page, /publicSiteURL\('\/sitemap\.xml'\)/)
+  assert.match(page, /publicSiteURL\('\/robots\.txt'\)/)
+  assert.match(page, /settings\.openSitemap/)
+  assert.match(page, /settings\.openRobots/)
 })
 
 test('development email defaults remain saveable instead of being snapshotted as persisted values', () => {

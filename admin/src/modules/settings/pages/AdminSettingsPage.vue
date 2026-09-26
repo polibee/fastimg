@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
-import { Save, Settings2 } from '@lucide/vue'
+import { ExternalLink, Save, Settings2 } from '@lucide/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -60,6 +60,9 @@ function selectOptions(key: string) {
 const gatewayGeneralKeys = ['payment.default_gateway', 'payment.fake.enabled']
 function siteOrigin() {
   return String(values.site_url || window.location.origin).replace(/\/+$/, '')
+}
+function publicSiteURL(path: string) {
+  return `${siteOrigin()}${path}`
 }
 type GatewayURLKind = 'api' | 'webhook' | 'return' | 'cancel'
 function gatewayURL(provider: string, kind: GatewayURLKind) {
@@ -156,7 +159,8 @@ async function save() {
       <Card v-if="group.fields.length">
         <CardHeader><CardTitle>{{ t(`settings.groups.${group.key}`) }}</CardTitle><CardDescription>{{ t(`settings.groupDescriptions.${group.key}`) }}</CardDescription></CardHeader>
         <CardContent>
-          <FieldGroup v-if="group.key !== 'gateway'" class="grid min-w-0 gap-4 md:grid-cols-2">
+          <template v-if="group.key !== 'gateway'">
+          <FieldGroup class="grid min-w-0 gap-4 md:grid-cols-2">
             <Field v-for="definition in group.fields" v-show="fieldVisible(definition.key)" :key="definition.key" :class="definition.span === 'full' ? 'min-w-0 md:col-span-2' : 'min-w-0'">
               <template v-if="definition.type === 'boolean'">
                 <div class="flex min-h-9 items-start gap-3 rounded-md border border-transparent py-1">
@@ -167,7 +171,7 @@ async function save() {
               <template v-else>
                 <FieldLabel :for="`setting-${definition.key}`">{{ fieldLabel(definition.key) }}</FieldLabel>
                 <Select v-if="definition.type === 'select'" :model-value="values[definition.key] || undefined" @update:model-value="setSelectValue(definition.key, String($event))">
-                  <SelectTrigger :id="`setting-${definition.key}`" class="w-full"><SelectValue :placeholder="fieldLabel(definition.key)" /></SelectTrigger>
+                  <SelectTrigger :id="`setting-${definition.key}`" class="min-h-9 w-full border-input bg-background"><SelectValue :placeholder="fieldLabel(definition.key)" /></SelectTrigger>
                   <SelectContent><SelectItem v-for="option in selectOptions(definition.key)" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</SelectItem></SelectContent>
                 </Select>
                 <Textarea v-else-if="definition.type === 'textarea'" :id="`setting-${definition.key}`" :model-value="values[definition.key] || ''" class="min-h-24 w-full" @update:model-value="setValue(definition.key, $event)" />
@@ -176,6 +180,12 @@ async function save() {
               </template>
             </Field>
           </FieldGroup>
+          <div v-if="group.key === 'seo'" class="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
+            <span class="mr-2 text-sm text-muted-foreground">{{ t('settings.publicFilesTitle') }}</span>
+            <Button as-child variant="outline" size="sm"><a :href="publicSiteURL('/sitemap.xml')" target="_blank" rel="noopener noreferrer"><ExternalLink data-icon="inline-start" />{{ t('settings.openSitemap') }}</a></Button>
+            <Button as-child variant="outline" size="sm"><a :href="publicSiteURL('/robots.txt')" target="_blank" rel="noopener noreferrer"><ExternalLink data-icon="inline-start" />{{ t('settings.openRobots') }}</a></Button>
+          </div>
+          </template>
 
           <template v-else>
             <FieldGroup class="mb-6 grid min-w-0 gap-4 md:grid-cols-2">
@@ -185,7 +195,7 @@ async function save() {
                 </template>
                 <template v-else>
                   <FieldLabel :for="`setting-${key}`">{{ fieldLabel(key) }}</FieldLabel>
-                  <Select :model-value="values[key] || undefined" @update:model-value="setSelectValue(key, String($event))"><SelectTrigger :id="`setting-${key}`" class="w-full"><SelectValue :placeholder="fieldLabel(key)" /></SelectTrigger><SelectContent><SelectItem v-for="option in selectOptions(key)" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</SelectItem></SelectContent></Select>
+                  <Select :model-value="values[key] || undefined" @update:model-value="setSelectValue(key, String($event))"><SelectTrigger :id="`setting-${key}`" class="min-h-9 w-full border-input bg-background"><SelectValue :placeholder="fieldLabel(key)" /></SelectTrigger><SelectContent><SelectItem v-for="option in selectOptions(key)" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</SelectItem></SelectContent></Select>
                   <FieldDescription v-if="fieldHint(key)">{{ fieldHint(key) }}</FieldDescription>
                 </template>
               </Field>

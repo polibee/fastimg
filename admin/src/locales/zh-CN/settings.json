@@ -23,6 +23,9 @@
   "gatewayOptions": { "paypal": "PayPal", "xcash": "XCash", "nowpayments": "NOWPayments", "fake": "测试渠道" },
   "paypalEnvironments": { "sandbox": "Sandbox 沙盒", "production": "Production 生产" },
   "gatewayURLsTitle": "官方地址与回调地址（已填入默认值，可修改）",
+  "publicFilesTitle": "公开 SEO 文件",
+  "openSitemap": "打开 sitemap.xml",
+  "openRobots": "打开 robots.txt",
   "fields": {
     "auth_registration_enabled": "开放注册", "auth_turnstile_enabled": "启用 Cloudflare Turnstile", "auth_turnstile_site_key": "Turnstile Site Key", "auth_turnstile_secret_key": "Turnstile Secret Key", "auth_login_turnstile_enabled": "登录启用安全验证", "auth_registration_turnstile_enabled": "注册启用安全验证", "auth_registration_email_verification_enabled": "注册需要邮箱验证", "auth_registration_email_whitelist_enabled": "启用邮箱域名白名单", "auth_registration_email_whitelist_domains": "允许的邮箱域名", "auth_registration_verification_expiry_minutes": "验证链接有效期（分钟）",
     "email_enabled": "启用邮件服务", "email_provider": "邮件服务类型", "email_from_address": "发件邮箱", "email_from_name": "发件人名称", "email_reply_to": "回复邮箱（可选）", "email_smtp_host": "SMTP 服务器", "email_smtp_port": "SMTP 端口", "email_smtp_username": "SMTP 用户名", "email_smtp_password": "SMTP 密码", "email_smtp_encryption": "SMTP 加密方式", "email_aliyun_endpoint": "阿里云 API 地址", "email_aliyun_access_key_id": "阿里云 AccessKey ID", "email_aliyun_access_key_secret": "阿里云 AccessKey Secret", "email_aliyun_account_name": "阿里云发件地址", "email_aliyun_reply_to_address": "使用阿里云控制台回复地址", "email_resend_endpoint": "Resend API 地址", "email_resend_api_key": "Resend API Key",

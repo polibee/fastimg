@@ -23,6 +23,9 @@
   "gatewayOptions": { "paypal": "PayPal", "xcash": "XCash", "nowpayments": "NOWPayments", "fake": "Test provider" },
   "paypalEnvironments": { "sandbox": "Sandbox", "production": "Production" },
   "gatewayURLsTitle": "Official and callback URLs (defaults are editable)",
+  "publicFilesTitle": "Public SEO files",
+  "openSitemap": "Open sitemap.xml",
+  "openRobots": "Open robots.txt",
   "fields": {
     "auth_registration_enabled": "Allow registration", "auth_turnstile_enabled": "Enable Cloudflare Turnstile", "auth_turnstile_site_key": "Turnstile Site Key", "auth_turnstile_secret_key": "Turnstile Secret Key", "auth_login_turnstile_enabled": "Require security check on login", "auth_registration_turnstile_enabled": "Require security check on registration", "auth_registration_email_verification_enabled": "Require email verification", "auth_registration_email_whitelist_enabled": "Enable email-domain allow-list", "auth_registration_email_whitelist_domains": "Allowed email domains", "auth_registration_verification_expiry_minutes": "Verification link lifetime (minutes)",
     "email_enabled": "Enable email service", "email_provider": "Email service type", "email_from_address": "From address", "email_from_name": "From name", "email_reply_to": "Reply-to address (optional)", "email_smtp_host": "SMTP host", "email_smtp_port": "SMTP port", "email_smtp_username": "SMTP username", "email_smtp_password": "SMTP password", "email_smtp_encryption": "SMTP encryption", "email_aliyun_endpoint": "Alibaba Cloud API endpoint", "email_aliyun_access_key_id": "Alibaba Cloud AccessKey ID", "email_aliyun_access_key_secret": "Alibaba Cloud AccessKey Secret", "email_aliyun_account_name": "Alibaba Cloud sender address", "email_aliyun_reply_to_address": "Use Alibaba Cloud console reply address", "email_resend_endpoint": "Resend API endpoint", "email_resend_api_key": "Resend API key",
