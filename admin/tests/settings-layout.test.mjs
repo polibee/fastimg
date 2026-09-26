@@ -32,6 +32,12 @@ test('settings page uses shadcn selects and aligned boolean controls', () => {
   assert.doesNotMatch(page, /<input[^>]+type="checkbox"/)
 })
 
+test('development email defaults remain saveable instead of being snapshotted as persisted values', () => {
+  const page = read('src/modules/settings/pages/AdminSettingsPage.vue')
+  const mounted = page.slice(page.indexOf('onMounted(async'))
+  assert.match(mounted, /snapshotInitialValues\(\)[\s\S]*applyEmailDefaults\(\)/)
+})
+
 test('settings locales contain the layout copy in both languages', () => {
   const zh = JSON.parse(read('src/locales/zh-CN/settings.json'))
   const en = JSON.parse(read('src/locales/en-US/settings.json'))
@@ -41,4 +47,3 @@ test('settings locales contain the layout copy in both languages', () => {
   }
   assert.notEqual(zh.fields.email_from_address, en.fields.email_from_address)
 })
-

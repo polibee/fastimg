@@ -116,9 +116,12 @@ onMounted(async () => {
   try {
     const settings = await generatedApi.settings(auth.token)
     for (const item of settings as SystemSetting[]) values[item.key] = item.value
+    // Snapshot only persisted values first. Development defaults (including
+    // the sender address) must remain dirty so Save can write them to the
+    // settings store instead of merely displaying an unsaved placeholder.
+    snapshotInitialValues()
     applyEmailDefaults()
     applyGatewayDefaults()
-    snapshotInitialValues()
   } catch { error.value = t('settings.loadFailed') } finally { loading.value = false }
 })
 watch(() => [values.site_url, values['payment.paypal.environment']], () => applyGatewayDefaults())
