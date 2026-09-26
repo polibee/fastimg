@@ -10,6 +10,8 @@ import (
 	adminmiddleware "goravel/app/http/middleware"
 	"goravel/app/modules/admin/registry"
 	advertisingcontrollers "goravel/app/modules/advertising/controllers"
+	albumscontrollers "goravel/app/modules/albums/controllers"
+	backupcontrollers "goravel/app/modules/backups/controllers"
 	billingcontrollers "goravel/app/modules/billing/controllers"
 	collectioncontrollers "goravel/app/modules/collections/controllers"
 	developercontrollers "goravel/app/modules/developer/controllers"
@@ -66,6 +68,12 @@ func Web() {
 	facades.Route().Get("/api/v1/discovery/status", discoveryController.Status)
 	facades.Route().Get("/api/v1/discovery/feed", discoveryController.Feed)
 	facades.Route().Get("/api/v1/discovery/media/{id}/content", discoveryController.Content)
+	// The former member submission endpoint is intentionally retired. Keep a
+	// tombstone so old clients receive an explicit error instead of a silent
+	// success from the framework's unmatched-route fallback.
+	facades.Route().Post("/api/v1/media/{id}/discovery-submit", func(ctx http.Context) http.Response {
+		return adminmiddleware.APIError(ctx, 410, "DISCOVERY_SUBMISSIONS_DISABLED")
+	})
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Post("/api/v1/orders", billingMemberController.CreateOrder)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Get("/api/v1/orders", billingMemberController.ListOrders)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Get("/api/v1/orders/{id}", billingMemberController.ShowOrder)
@@ -76,6 +84,10 @@ func Web() {
 	facades.Route().Post("/api/v1/payment-gateways/{gateway}/webhook", billingWebhookController.Receive)
 
 	authController := authcontrollers.NewAuthController()
+	facades.Route().Get("/api/v1/auth/registration-policy", authController.RegistrationPolicy)
+	facades.Route().Post("/api/v1/auth/register", authController.Register)
+	facades.Route().Get("/api/v1/auth/verify-email", authController.VerifyEmail)
+	facades.Route().Post("/api/v1/auth/resend-verification", authController.ResendVerification)
 	facades.Route().Post("/api/v1/auth/login", authController.Login)
 	facades.Route().Get("/api/v1/auth/me", authController.Me)
 	facades.Route().Post("/api/v1/auth/refresh", authController.Refresh)
@@ -106,6 +118,7 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Delete("/api/v1/me/albums/{id}/media/{media_id}", albumMediaController.Remove)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberScope("media:read")).Get("/api/v1/media/{id}", mediaController.Show)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberScope("media:read")).Get("/api/v1/media/{id}/content", mediaController.Content)
+	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Patch("/api/v1/media/{id}/visibility", mediaController.UpdateVisibility)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberScope("media:delete")).Delete("/api/v1/media/{id}", mediaController.Delete)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Delete("/api/v1/media/trash", mediaController.EmptyTrash)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Delete("/api/v1/media/{id}/permanent", mediaController.PermanentDelete)
@@ -114,7 +127,6 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Post("/api/v1/media/{id}/share-links", shareController.Create)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Post("/api/v1/media/{id}/reports", reportController.Create)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Get("/api/v1/me/reports", reportController.Mine)
-	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Post("/api/v1/media/{id}/discovery-submit", discoveryController.Submit)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Post("/api/v1/media/{id}/signed-url", shareController.SignedURL)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Get("/api/v1/media/{id}/hotlink-policy", shareController.HotlinkPolicy)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Put("/api/v1/media/{id}/hotlink-policy", shareController.UpdateHotlinkPolicy)
@@ -132,18 +144,21 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberScope("media:delete")).Delete("/api/image/{id}", mediaController.Delete)
 	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Get("/api/v1/tokens", tokenController.Index)
 	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Post("/api/v1/tokens", tokenController.Create)
-	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Delete("/api/v1/tokens/{id}", tokenController.Revoke)
+	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Delete("/api/v1/tokens/{id}", tokenController.Delete)
 	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Post("/api/v1/tokens/{id}/rotate", tokenController.Rotate)
 	facades.Route().Get("/s/{token}", shareController.Public)
 	facades.Route().Get("/i/{id}", shareController.PublicSigned)
 
 	rbacController := admincontrollers.NewRBACController()
 	overviewController := admincontrollers.NewOverviewController()
+	statisticsController := admincontrollers.NewStatisticsController()
 	auditController := admincontrollers.NewAuditController()
 	mediaAccessController := admincontrollers.NewMediaAccessController()
+	adminAlbumMediaController := albumscontrollers.NewAdminMediaController()
 	resourceController := admincontrollers.NewResourceController()
 	globalSearchController := admincontrollers.NewGlobalSearchController()
 	settingsController := admincontrollers.NewSettingsController()
+	backupController := backupcontrollers.NewBackupController()
 	notificationController := admincontrollers.NewNotificationController()
 	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Get("/api/v1/notifications", notificationController.Index)
 	facades.Route().Middleware(adminmiddleware.RequireAuthentication()).Get("/api/v1/notifications/unread-count", notificationController.UnreadCount)
@@ -152,10 +167,15 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequireAnyResourcePermission()).Get("/api/v1/admin/registry", resourceController.Index)
 	facades.Route().Middleware(adminmiddleware.RequireAnyResourcePermission()).Get("/api/v1/admin/search", globalSearchController.Index)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.users.view")).Get("/api/v1/admin/overview", overviewController.Index)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.users.view")).Get("/api/v1/admin/statistics/trends", statisticsController.Trends)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.users.manage")).Get("/api/v1/admin/users/{id}/subscription", planController.AdminSubscription)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.users.manage")).Put("/api/v1/admin/users/{id}/subscription", planController.UpdateAdminSubscription)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.users.view")).Get("/api/v1/admin/audit-logs", auditController.Index)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.media_access_logs.view")).Get("/api/v1/admin/media-access-logs", mediaAccessController.Index)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.albums.view")).Get("/api/v1/admin/albums/{id}/media", adminAlbumMediaController.Index)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.albums.update")).Post("/api/v1/admin/albums/{id}/media", adminAlbumMediaController.Add)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.albums.update")).Delete("/api/v1/admin/albums/{id}/media", adminAlbumMediaController.Remove)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.media.view")).Get("/api/v1/admin/media/{id}/content", mediaController.AdminContent)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.orders.view")).Get("/api/v1/admin/orders", adminFinanceController.Orders)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.payment_transactions.view")).Get("/api/v1/admin/payment-transactions", adminFinanceController.Transactions)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.payment_events.view")).Get("/api/v1/admin/payment-webhook-events", adminFinanceController.WebhookEvents)
@@ -164,6 +184,13 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.settings.manage")).Post("/api/v1/admin/audit-logs/cleanup", auditController.Cleanup)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.settings.manage")).Get("/api/v1/admin/settings", settingsController.Index)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.settings.manage")).Put("/api/v1/admin/settings/{key}", settingsController.Upsert)
+	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Get("/api/v1/admin/backups", backupController.List)
+	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Post("/api/v1/admin/backups", backupController.Create)
+	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Get("/api/v1/admin/backups/{id}", backupController.Show)
+	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupDownloadPermission)).Get("/api/v1/admin/backups/{id}/download", backupController.Download)
+	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Delete("/api/v1/admin/backups/{id}", backupController.Delete)
+	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Post("/api/v1/admin/backups/validate", backupController.Validate)
+	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Post("/api/v1/admin/backups/restore", backupController.Restore)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.roles.manage")).Put("/api/v1/admin/roles/{id}/permissions", rbacController.ReplaceRolePermissions)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.roles.manage")).Get("/api/v1/admin/users/{id}/roles", rbacController.UserRoles)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.roles.manage")).Put("/api/v1/admin/users/{id}/roles", rbacController.ReplaceUserRoles)

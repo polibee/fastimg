@@ -42,5 +42,10 @@ func Migrations() []schema.Migration {
 		&migrations.M20260925000004CreateAlbumMediaTable{},
 		&migrations.M20260925000005AddDiscoveryStateToMedia{},
 		&migrations.M20260925000006AddWatermarkEntitlementDefaults{},
+		&migrations.M20260925000007AddAPITokenDeletePermission{},
+		&migrations.M20260926000001DefaultUploadedMediaApproved{},
+		&migrations.M20260926000002AddEmailVerifiedAtToUsers{},
+		&migrations.M20260926000003CreateEmailVerificationTokensTable{},
+		&migrations.M20260926000004CreateBackupJobsTable{},
 	}
 }

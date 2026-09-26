@@ -17,6 +17,9 @@ func TestFastImgAdminPermissionsIncludeBillingAndMediaManagement(t *testing.T) {
 		"admin.media.view",
 		"admin.media.update",
 		"admin.media.delete",
+		"admin.api_tokens.delete",
+		"admin.backups.manage",
+		"admin.backups.download",
 	} {
 		if !seen[required] {
 			t.Fatalf("missing admin permission %q", required)

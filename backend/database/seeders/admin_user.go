@@ -115,7 +115,10 @@ func fastImgAdminPermissions() []models.Permission {
 	permissions = append(permissions,
 		models.Permission{Name: "admin.api_tokens.view", DisplayName: "api_tokens.view"},
 		models.Permission{Name: "admin.api_tokens.update", DisplayName: "api_tokens.update"},
+		models.Permission{Name: "admin.api_tokens.delete", DisplayName: "api_tokens.delete"},
 		models.Permission{Name: "admin.media_access_logs.view", DisplayName: "media_access_logs.view"},
+		models.Permission{Name: "admin.backups.manage", DisplayName: "backups.manage"},
+		models.Permission{Name: "admin.backups.download", DisplayName: "backups.download"},
 	)
 	return permissions
 }
