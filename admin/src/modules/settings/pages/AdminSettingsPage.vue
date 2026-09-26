@@ -4,10 +4,10 @@ import { ExternalLink, Save, Settings2 } from '@lucide/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { generatedApi, type SystemSetting } from '@/generated/api'
 import { ApiError, errorMessageKey } from '@/lib/api'
@@ -164,7 +164,7 @@ async function save() {
             <Field v-for="definition in group.fields" v-show="fieldVisible(definition.key)" :key="definition.key" :class="definition.span === 'full' ? 'min-w-0 md:col-span-2' : 'min-w-0'">
               <template v-if="definition.type === 'boolean'">
                 <div class="flex min-h-9 items-start gap-3 rounded-md border border-transparent py-1">
-                  <Switch :id="`setting-${definition.key}`" :model-value="values[definition.key] === 'true'" @update:model-value="setBoolean(definition.key, Boolean($event))" />
+                  <Checkbox :id="`setting-${definition.key}`" class="mt-0.5" :model-value="values[definition.key] === 'true'" @update:model-value="setBoolean(definition.key, Boolean($event))" />
                   <div class="min-w-0"><FieldLabel :for="`setting-${definition.key}`" class="cursor-pointer">{{ fieldLabel(definition.key) }}</FieldLabel><FieldDescription v-if="fieldHint(definition.key)">{{ fieldHint(definition.key) }}</FieldDescription></div>
                 </div>
               </template>
@@ -191,7 +191,7 @@ async function save() {
             <FieldGroup class="mb-6 grid min-w-0 gap-4 md:grid-cols-2">
               <Field v-for="key in gatewayGeneralKeys" :key="key" class="min-w-0">
                 <template v-if="definitions[key].type === 'boolean'">
-                  <div class="flex min-h-9 items-start gap-3 rounded-md border border-transparent py-1"><Switch :id="`setting-${key}`" :model-value="values[key] === 'true'" @update:model-value="setBoolean(key, Boolean($event))" /><div class="min-w-0"><FieldLabel :for="`setting-${key}`" class="cursor-pointer">{{ fieldLabel(key) }}</FieldLabel><FieldDescription v-if="fieldHint(key)">{{ fieldHint(key) }}</FieldDescription></div></div>
+                  <div class="flex min-h-9 items-start gap-3 rounded-md border border-transparent py-1"><Checkbox :id="`setting-${key}`" class="mt-0.5" :model-value="values[key] === 'true'" @update:model-value="setBoolean(key, Boolean($event))" /><div class="min-w-0"><FieldLabel :for="`setting-${key}`" class="cursor-pointer">{{ fieldLabel(key) }}</FieldLabel><FieldDescription v-if="fieldHint(key)">{{ fieldHint(key) }}</FieldDescription></div></div>
                 </template>
                 <template v-else>
                   <FieldLabel :for="`setting-${key}`">{{ fieldLabel(key) }}</FieldLabel>
@@ -205,7 +205,7 @@ async function save() {
                 <div class="mb-4 flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-medium">{{ t(`settings.gatewayProviders.${section.key}.title`) }}</h3><p class="mt-1 text-xs text-muted-foreground">{{ t(`settings.gatewayProviders.${section.key}.description`) }}</p></div><a v-if="gatewayRegistrationLinks[section.key]" :href="gatewayRegistrationLinks[section.key]" target="_blank" rel="noopener noreferrer" class="shrink-0 text-xs text-primary underline-offset-4 hover:underline">{{ t('settings.openProviderRegistration') }}</a></div>
                 <FieldGroup class="grid min-w-0 gap-4">
                   <Field v-for="key in section.fields" :key="key" class="min-w-0">
-                    <template v-if="definitions[key].type === 'boolean'"><div class="flex min-h-9 items-start gap-3 rounded-md border border-transparent py-1"><Switch :id="`setting-${key}`" :model-value="values[key] === 'true'" @update:model-value="setBoolean(key, Boolean($event))" /><div class="min-w-0"><FieldLabel :for="`setting-${key}`" class="cursor-pointer">{{ fieldLabel(key) }}</FieldLabel><FieldDescription v-if="fieldHint(key)">{{ fieldHint(key) }}</FieldDescription></div></div></template>
+                    <template v-if="definitions[key].type === 'boolean'"><div class="flex min-h-9 items-start gap-3 rounded-md border border-transparent py-1"><Checkbox :id="`setting-${key}`" class="mt-0.5" :model-value="values[key] === 'true'" @update:model-value="setBoolean(key, Boolean($event))" /><div class="min-w-0"><FieldLabel :for="`setting-${key}`" class="cursor-pointer">{{ fieldLabel(key) }}</FieldLabel><FieldDescription v-if="fieldHint(key)">{{ fieldHint(key) }}</FieldDescription></div></div></template>
                     <template v-else><FieldLabel :for="`setting-${key}`">{{ fieldLabel(key) }}</FieldLabel><Select v-if="definitions[key].type === 'select'" :model-value="values[key] || undefined" @update:model-value="setSelectValue(key, String($event))"><SelectTrigger :id="`setting-${key}`" class="w-full"><SelectValue :placeholder="fieldLabel(key)" /></SelectTrigger><SelectContent><SelectItem v-for="option in selectOptions(key)" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</SelectItem></SelectContent></Select><Input v-else :id="`setting-${key}`" :model-value="fieldValue(key)" class="w-full" :type="isSecret(key) ? 'password' : 'text'" :placeholder="isSecret(key) && values[key] === '__configured__' ? t('settings.secretConfigured') : ''" @update:model-value="setValue(key, $event)" /><FieldDescription v-if="fieldHint(key)">{{ fieldHint(key) }}</FieldDescription></template>
                   </Field>
                 </FieldGroup>

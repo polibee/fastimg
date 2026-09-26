@@ -28,6 +28,8 @@ test('settings page uses shadcn selects and aligned boolean controls', () => {
   assert.match(page, /SelectContent/)
   assert.match(page, /SelectItem/)
   assert.match(page, /Switch|Checkbox/)
+  assert.match(page, /@\/components\/ui\/checkbox/)
+  assert.doesNotMatch(page, /@\/components\/ui\/switch/)
   assert.doesNotMatch(page, /<select\b/)
   assert.doesNotMatch(page, /<input[^>]+type="checkbox"/)
   assert.match(page, /min-h-9[^\n]*border-input[^\n]*bg-background/)
