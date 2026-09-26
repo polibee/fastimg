@@ -57,4 +57,6 @@ test('settings locales contain the layout copy in both languages', () => {
     assert.equal(typeof en.groups?.[key], 'string', `en-US missing group ${key}`)
   }
   assert.notEqual(zh.fields.email_from_address, en.fields.email_from_address)
+  assert.match(zh.groupDescriptions.gateway, /多个支付渠道.*同时启用/)
+  assert.match(en.groupDescriptions.gateway, /Multiple payment providers/)
 })

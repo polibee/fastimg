@@ -8,7 +8,7 @@
     "email": "选择注册验证邮件的发送服务。开发阶段可以关闭并留空密钥；生产阶段启用一个服务并填写对应凭证。密码、API Key 和 AccessKey 会使用 APP_KEY 加密保存。",
     "media": "管理上传大小和图片水印。开发阶段可以使用默认示例发件地址；生产前必须替换为已验证的邮箱。",
     "seo": "管理站点描述、关键词、站点地图、爬虫规则和发现页公开开关。",
-    "gateway": "每个渠道独立配置。启用前填写该渠道要求的凭证；官方 API、Webhook/IPN 和成功/取消回跳地址会预填默认值并允许修改，凭证会使用 APP_KEY 加密后保存。保存后需重启后端加载渠道。",
+    "gateway": "多个支付渠道可以同时启用并行提供给用户选择。每个渠道独立配置；启用前填写该渠道要求的凭证。官方 API、Webhook/IPN 和成功/取消回跳地址会预填默认值并允许修改，凭证会使用 APP_KEY 加密后保存。",
     "statistics": "控制访问统计的采集和保留周期。",
     "code": "配置站点验证、广告验证和受控的站点代码。",
     "other": "管理站点地址、上传限制、发现页开关，以及图片水印和加载失败兜底图。"
@@ -49,7 +49,7 @@
     "auth_registration_email_whitelist_domains": "例如 example.com、company.org。不要填写邮箱地址，不会公开给前端。",
     "auth_registration_verification_expiry_minutes": "建议 5–1440 分钟，默认 30 分钟；过期链接只能重新发送。",
     "email_enabled": "关闭时不会发送注册验证邮件；只有启用注册邮箱验证后，注册流程才会调用邮件服务。开发阶段可以保持关闭。", "email_provider": "三选一：通用 SMTP、阿里云 DirectMail API 或 Resend API。只会调用当前选择的服务。", "email_from_address": "SMTP/Resend 使用的发件地址；阿里云 API 也会作为默认发件地址，必须先在对应服务商验证。", "email_from_name": "邮件中显示的发件人名称。", "email_reply_to": "可选的回复地址；阿里云需要在控制台验证该地址。", "email_smtp_host": "例如 smtpdm.aliyun.com、smtp.gmail.com 或你的企业邮箱 SMTP 地址。", "email_smtp_port": "STARTTLS 常用 587，SSL/TLS 常用 465；阿里云 ECS 不建议使用 25 端口。", "email_smtp_username": "通常填写完整发件邮箱地址。", "email_smtp_password": "SMTP 密码或服务商生成的 SMTP 专用密码；留空保持已保存密码。", "email_smtp_encryption": "生产环境使用 STARTTLS 或 SSL/TLS；无加密仅用于本地测试。", "email_aliyun_endpoint": "阿里云 DirectMail 官方 API 地址，默认 https://dm.aliyuncs.com。", "email_aliyun_access_key_id": "建议使用仅授予 DirectMail 发信权限的 RAM 用户 AccessKey ID。", "email_aliyun_access_key_secret": "对应的 AccessKey Secret；不要使用拥有全部云资源权限的主账号密钥。", "email_aliyun_account_name": "阿里云 DirectMail 控制台已验证的发件地址，必须与发信地址一致。", "email_aliyun_reply_to_address": "启用前请先在阿里云 DirectMail 控制台验证回复地址。", "email_resend_endpoint": "Resend 官方 API 地址，默认 https://api.resend.com。", "email_resend_api_key": "Resend 控制台创建的 API Key，通常以 re_ 开头。",
-    "payment_default_gateway": "仅用于新订单的默认选择；用户仍可在已配置且可用的渠道中选择。",
+    "payment_default_gateway": "仅用于新订单的默认推荐；其他已启用且配置完整的渠道仍会同时展示，用户可自行选择。",
     "payment_paypal_base_url": "默认按环境填入 PayPal 官方 API 地址；如使用兼容网关，可改为对应 API 根地址。",
     "payment_paypal_client_id": "PayPal Developer > Apps & Credentials 中对应环境的 Client ID。",
     "payment_paypal_client_secret": "对应 Client ID 的 Client Secret；留空不会清除已保存密钥。",
