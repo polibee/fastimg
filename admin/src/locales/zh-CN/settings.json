@@ -1,9 +1,13 @@
 {
   "title": "系统设置",
   "description": "集中管理 SEO、支付网关、统计、自定义代码和站点基础配置。",
-  "groups": { "seo": "SEO", "gateway": "支付网关", "statistics": "统计", "code": "自定义代码", "other": "其他设置" },
+  "groups": { "site": "站点基础", "auth": "注册与登录", "email": "邮件服务", "media": "上传与媒体", "seo": "SEO 与发现页", "gateway": "支付与订单", "statistics": "统计", "code": "自定义代码", "other": "其他设置" },
   "groupDescriptions": {
-    "seo": "管理站点标题、描述、关键词、站点地图和爬虫规则。",
+    "site": "设置站点名称和对外访问地址；发件地址、支付回调和图片链接会基于站点地址生成默认值。",
+    "auth": "控制注册开关、Cloudflare Turnstile、安全登录、邮箱验证和邮箱域名白名单。Secret Key 会使用 APP_KEY 加密保存，接口不会返回明文。",
+    "email": "选择注册验证邮件的发送服务。开发阶段可以关闭并留空密钥；生产阶段启用一个服务并填写对应凭证。密码、API Key 和 AccessKey 会使用 APP_KEY 加密保存。",
+    "media": "管理上传大小和图片水印。开发阶段可以使用默认示例发件地址；生产前必须替换为已验证的邮箱。",
+    "seo": "管理站点描述、关键词、站点地图、爬虫规则和发现页公开开关。",
     "gateway": "每个渠道独立配置。启用前填写该渠道要求的凭证；官方 API、Webhook/IPN 和成功/取消回跳地址会预填默认值并允许修改，凭证会使用 APP_KEY 加密后保存。保存后需重启后端加载渠道。",
     "statistics": "控制访问统计的采集和保留周期。",
     "code": "配置站点验证、广告验证和受控的站点代码。",
@@ -14,9 +18,14 @@
     "xcash": { "title": "XCash", "description": "加密支付。XCash 项目中的 Appid 和 HMAC 密钥用于请求签名与回调验签。" },
     "nowpayments": { "title": "NOWPayments", "description": "加密支付。API Key 用于创建发票，IPN Secret 用于验证支付回调。" }
   },
+  "emailProviders": { "smtp": "通用 SMTP", "aliyun": "阿里云 DirectMail API", "resend": "Resend API" },
+  "smtpEncryption": { "starttls": "STARTTLS", "ssl": "SSL/TLS", "none": "无加密（仅开发测试）" },
+  "gatewayOptions": { "paypal": "PayPal", "xcash": "XCash", "nowpayments": "NOWPayments", "fake": "测试渠道" },
   "paypalEnvironments": { "sandbox": "Sandbox 沙盒", "production": "Production 生产" },
   "gatewayURLsTitle": "官方地址与回调地址（已填入默认值，可修改）",
   "fields": {
+    "auth_registration_enabled": "开放注册", "auth_turnstile_enabled": "启用 Cloudflare Turnstile", "auth_turnstile_site_key": "Turnstile Site Key", "auth_turnstile_secret_key": "Turnstile Secret Key", "auth_login_turnstile_enabled": "登录启用安全验证", "auth_registration_turnstile_enabled": "注册启用安全验证", "auth_registration_email_verification_enabled": "注册需要邮箱验证", "auth_registration_email_whitelist_enabled": "启用邮箱域名白名单", "auth_registration_email_whitelist_domains": "允许的邮箱域名", "auth_registration_verification_expiry_minutes": "验证链接有效期（分钟）",
+    "email_enabled": "启用邮件服务", "email_provider": "邮件服务类型", "email_from_address": "发件邮箱", "email_from_name": "发件人名称", "email_reply_to": "回复邮箱（可选）", "email_smtp_host": "SMTP 服务器", "email_smtp_port": "SMTP 端口", "email_smtp_username": "SMTP 用户名", "email_smtp_password": "SMTP 密码", "email_smtp_encryption": "SMTP 加密方式", "email_aliyun_endpoint": "阿里云 API 地址", "email_aliyun_access_key_id": "阿里云 AccessKey ID", "email_aliyun_access_key_secret": "阿里云 AccessKey Secret", "email_aliyun_account_name": "阿里云发件地址", "email_aliyun_reply_to_address": "使用阿里云控制台回复地址", "email_resend_endpoint": "Resend API 地址", "email_resend_api_key": "Resend API Key",
     "site_title": "站点标题", "site_description": "站点描述", "site_keywords": "关键词", "robots": "Robots 规则", "sitemap_enabled": "启用站点地图", "sitemap_extra_paths": "站点地图额外公开路径",
     "payment_default_gateway": "默认支付渠道", "payment_fake_enabled": "启用测试渠道", "payment_paypal_enabled": "启用 PayPal", "payment_paypal_environment": "PayPal 环境", "payment_paypal_base_url": "PayPal API 地址", "payment_paypal_client_id": "Client ID", "payment_paypal_client_secret": "Client Secret", "payment_paypal_webhook_id": "Webhook ID", "payment_paypal_return_url": "支付成功回跳地址", "payment_paypal_cancel_url": "取消支付回跳地址",
     "payment_xcash_enabled": "启用 XCash", "payment_xcash_base_url": "XCash API 地址", "payment_xcash_app_id": "Appid", "payment_xcash_hmac_key": "HMAC 密钥", "payment_xcash_callback_url": "Webhook/通知地址", "payment_xcash_return_url": "支付成功回跳地址",
@@ -26,6 +35,17 @@
     "stats_enabled": "启用统计", "stats_retention_days": "统计保留天数", "custom_site_verification": "站点验证代码", "custom_ad_verification": "广告验证代码", "custom_head": "Head 自定义代码", "custom_body": "Body 自定义代码", "site_url": "站点 URL", "upload_max_file_mb": "单文件大小上限（MB）", "discover_enabled": "启用发现页", "watermark_text": "图片水印文字", "watermark_domain": "图片水印域名", "watermark_fallback_image_url": "图片加载失败兜底图 URL"
   },
   "hints": {
+    "auth_registration_enabled": "关闭后新用户不能注册，已注册用户不受影响。",
+    "auth_turnstile_enabled": "启用后，登录/注册开关才会生效；需要同时填写 Site Key 和 Secret Key。",
+    "auth_turnstile_site_key": "Cloudflare Turnstile 控制台创建 Widget 后得到的公开 Site Key，可发送到浏览器。",
+    "auth_turnstile_secret_key": "Cloudflare Turnstile Secret Key，仅后端向官方 siteverify 接口校验；留空保持已保存密钥。",
+    "auth_login_turnstile_enabled": "登录表单显示 Turnstile，并由后端强制校验。",
+    "auth_registration_turnstile_enabled": "注册和重发验证邮件表单显示 Turnstile，并由后端强制校验。",
+    "auth_registration_email_verification_enabled": "开启后新注册用户必须点击邮件链接才能登录；管理员创建的账号视为已验证。",
+    "auth_registration_email_whitelist_enabled": "开启后只允许下方列出的域名注册；每行一个，也支持逗号或分号分隔。",
+    "auth_registration_email_whitelist_domains": "例如 example.com、company.org。不要填写邮箱地址，不会公开给前端。",
+    "auth_registration_verification_expiry_minutes": "建议 5–1440 分钟，默认 30 分钟；过期链接只能重新发送。",
+    "email_enabled": "关闭时不会发送注册验证邮件；只有启用注册邮箱验证后，注册流程才会调用邮件服务。开发阶段可以保持关闭。", "email_provider": "三选一：通用 SMTP、阿里云 DirectMail API 或 Resend API。只会调用当前选择的服务。", "email_from_address": "SMTP/Resend 使用的发件地址；阿里云 API 也会作为默认发件地址，必须先在对应服务商验证。", "email_from_name": "邮件中显示的发件人名称。", "email_reply_to": "可选的回复地址；阿里云需要在控制台验证该地址。", "email_smtp_host": "例如 smtpdm.aliyun.com、smtp.gmail.com 或你的企业邮箱 SMTP 地址。", "email_smtp_port": "STARTTLS 常用 587，SSL/TLS 常用 465；阿里云 ECS 不建议使用 25 端口。", "email_smtp_username": "通常填写完整发件邮箱地址。", "email_smtp_password": "SMTP 密码或服务商生成的 SMTP 专用密码；留空保持已保存密码。", "email_smtp_encryption": "生产环境使用 STARTTLS 或 SSL/TLS；无加密仅用于本地测试。", "email_aliyun_endpoint": "阿里云 DirectMail 官方 API 地址，默认 https://dm.aliyuncs.com。", "email_aliyun_access_key_id": "建议使用仅授予 DirectMail 发信权限的 RAM 用户 AccessKey ID。", "email_aliyun_access_key_secret": "对应的 AccessKey Secret；不要使用拥有全部云资源权限的主账号密钥。", "email_aliyun_account_name": "阿里云 DirectMail 控制台已验证的发件地址，必须与发信地址一致。", "email_aliyun_reply_to_address": "启用前请先在阿里云 DirectMail 控制台验证回复地址。", "email_resend_endpoint": "Resend 官方 API 地址，默认 https://api.resend.com。", "email_resend_api_key": "Resend 控制台创建的 API Key，通常以 re_ 开头。",
     "payment_default_gateway": "仅用于新订单的默认选择；用户仍可在已配置且可用的渠道中选择。",
     "payment_paypal_base_url": "默认按环境填入 PayPal 官方 API 地址；如使用兼容网关，可改为对应 API 根地址。",
     "payment_paypal_client_id": "PayPal Developer > Apps & Credentials 中对应环境的 Client ID。",
