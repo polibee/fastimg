@@ -3,6 +3,7 @@ module goravel
 go 1.25.0
 
 require (
+	github.com/klauspost/compress v1.17.9
 	github.com/goravel/framework v1.18.0
 	github.com/goravel/gin v1.18.0
 	github.com/goravel/openai v1.18.0
