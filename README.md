@@ -1,6 +1,8 @@
-# Go Vue Admin
+# FastImg
 
-A modular general-purpose admin platform built with Goravel, Vue 3, TypeScript, and shadcn-vue. Resource Manifests drive resource pages, permissions, menus, search, and batch actions.
+FastImg is a membership-based media hosting platform for developers, site owners, and content creators. It provides stable image links, a member media library, image processing, Personal API Tokens, plan-controlled quotas, payment channels, moderation, hotlink protection, and an administrator operations panel.
+
+It is built on the Go Vue Admin foundation: Goravel 1.18, Go, PostgreSQL, Redis, Vue 3, TypeScript, Vite, and shadcn-vue. Existing framework capabilities such as authentication, RBAC, Resource pages, migrations, queues, audit logging, i18n, and the API client are reused rather than duplicated.
 
 [![RackNerd VPS](https://img.shields.io/badge/RackNerd-VPS-2563eb?style=for-the-badge)](https://my.racknerd.com/aff.php?aff=7572)
 [![Vast.ai GPU Cloud](https://img.shields.io/badge/Vast.ai-GPU%20Cloud-7c3aed?style=for-the-badge)](https://cloud.vast.ai/?ref_id=91181)
@@ -8,24 +10,49 @@ A modular general-purpose admin platform built with Goravel, Vue 3, TypeScript, 
 ## Documentation
 
 - [中文文档](./README.zh-CN.md)
+- [FastImg deployment guide](./docs/fastimg-deployment.md)
+- [FastImg production gates](./docs/fastimg-production-gates.md)
+- [FastImg product design](./docs/fastimg-product-design.md)
+- [FastImg stage development plan](./docs/fastimg-stage-development-plan.md)
+- [FastImg developer API](./docs/fastimg-developer-api.md)
+- [FastImg payment gateway design](./docs/fastimg-payment-gateway.md)
+- [FastImg frontend design](./docs/fastimg-frontend-design.md)
 - [AI Quickstart](./docs/ai-quickstart.md)
-- [Architecture and roadmap](./docs/README.md)
+- [Platform architecture and roadmap](./docs/README.md)
 
-## Features
+## Product capabilities
 
-- JWT login, refresh, logout, and PostgreSQL-authoritative refresh-token storage with Redis as an acceleration layer.
-- Users, roles, permissions, data-scope rules, and field permissions.
-- Resource Registry-driven list, create, edit, detail, and delete flows.
-- Search, filters, sorting, pagination, and CSV export.
-- Current-page, cross-page, and filtered-set selection, plus bulk delete, bulk update, and Manifest Actions.
-- Resource relations, grouped forms, and field-dependency extension points.
-- Global search, menu grouping, and permission filtering.
-- Request/response audit logging, sensitive-field redaction, manual cleanup, and scheduled cleanup.
-- `admin:make-resource` generates the backend Resource, migration, permissions, menu, frontend ResourceSpec, tests, and README; ordinary resources reuse generic pages by default and complex resources may explicitly override them.
+### Member experience
+
+- Guest-accessible home, plans, and discovery pages; upload and personal operations require sign-in.
+- Free service is available. Paid plans add configurable storage, file size, upload, API, bandwidth, transform, token, advertising, and watermark entitlements.
+- Image upload returns absolute Original, Markdown, HTML, BBCode, and direct-link formats immediately when processing is ready.
+- Personal media library with public, unlisted, and private visibility, folders, albums, recycle bin, restore, permanent deletion, and access controls.
+- Personal API Tokens with fixed minimal permissions: `upload:write`, `media:read`, and `media:delete`. Token expiration can be custom or permanent.
+- API upload, image list/detail/link retrieval, and owner-only deletion. Member API tokens cannot call administrator APIs.
+- Plan checkout supports multiple enabled payment providers; each order chooses one provider, while the default gateway is only a recommendation.
+
+### Administrator experience
+
+- Separate `/admin/**` routes and AdminShell. The member frontend uses `/`, `/media`, `/plans`, `/discover`, `/folders`, and `/albums`.
+- Member, plan, advertising, media, album, folder, order, payment event, refund, report, access-log, statistics, settings, token, and audit management according to RBAC permissions.
+- Administrator media actions are explicit: hide, restore, approve, reject, and permanently delete. They are not exposed through generic media CRUD and are audited.
+- Post-publication moderation: newly uploaded media is available by default; reports and administrator review can later hide or reject content and remove it from discovery.
+- Provider-specific payment configuration with encrypted credentials, configurable enablement, callbacks, order snapshots, payment transactions, webhook events, fulfillment, and refunds.
+- Site settings for SEO, sitemap, robots, email verification, custom code, watermarks, storage limits, and payment providers.
+
+### Developer and operations foundation
+
+- JWT authentication, refresh, logout, PostgreSQL-authoritative refresh-token storage, and Redis acceleration/queue support.
+- Resource Manifest-driven list, create, edit, detail, permissions, menus, search, filters, relations, and batch actions.
+- Request/response audit logging with sensitive-field redaction and retention cleanup.
+- Redis-backed recovery and fulfillment jobs with retry boundaries; PostgreSQL remains the source of business facts.
+- SSG entry pages for the public home, plans, and discovery pages. Full SSR is not currently enabled.
+- Local storage is suitable for development and controlled validation. Production still requires object storage/CDN integration and recovery verification.
 
 ## Local development
 
-Start PostgreSQL and Redis through Laragon, then run the backend:
+Start PostgreSQL and Redis through Laragon. The backend must use PostgreSQL and Redis; it must not silently fall back to an in-memory replacement.
 
 ~~~powershell
 cd backend
@@ -40,10 +67,13 @@ pnpm install
 pnpm dev
 ~~~
 
-Port contract:
+Development port examples:
 
 - Go API: http://127.0.0.1:3000
-- Go/Vue admin panel: http://127.0.0.1:5180
+- Go/Vue member and admin frontend: http://127.0.0.1:5180
+- Admin routes: http://127.0.0.1:5180/admin
+
+When multiple projects are running, assign each project a unique frontend and backend port, use Vite `strictPort`, and verify the actual Windows-side URL before sharing it. Do not let a dev server silently increment into another project's port.
 
 Review generated migrations before applying them. The generator does not silently execute migrations.
 
@@ -67,6 +97,26 @@ pnpm exec vue-tsc --noEmit
 pnpm run build
 ~~~
 
+For a public SEO build:
+
+~~~powershell
+cd admin
+pnpm run build:ssg
+~~~
+
+## Deployment
+
+Docker deployment and Linux source deployment are provided under [`deploy/`](./deploy/) and documented in the [deployment guide](./docs/fastimg-deployment.md). Both deployment modes run only the FastImg application and require externally managed PostgreSQL and Redis.
+
+~~~bash
+cp deploy/docker/fastimg.env.example deploy/docker/fastimg.env
+# Fill production APP_KEY, JWT_SECRET, APP_URL, CORS, PostgreSQL and Redis values.
+deploy/docker/deploy.sh --check
+deploy/docker/deploy.sh
+~~~
+
+The deployment scripts do not claim that real payment callbacks, TLS, isolated backup recovery, dependency scanning, object storage/CDN, or production load testing have passed. Review the [production gates](./docs/fastimg-production-gates.md) before public launch.
+
 ## Directory conventions
 
 - Backend foundation: `backend/app/core`
@@ -77,4 +127,8 @@ pnpm run build
 - Frontend infrastructure: `admin/src/core`
 - Frontend business pages and components: `admin/src/modules/<module>`
 
-Before production deployment, review secrets, database, Redis, reverse proxy, retention, backups, monitoring, and migration procedures for the target environment. This README describes the development baseline; it is not a substitute for environment acceptance.
+## Project status
+
+FastImg is suitable for continued development and controlled integration testing. It is not declared formally production-ready until every target-environment gate is verified, including real payment callbacks, TLS/reverse proxy, backup and restore, dependency scanning, object storage/CDN, pressure testing, monitoring, and rollback.
+
+Before production deployment, review secrets, database, Redis, reverse proxy, retention, backups, monitoring, migrations, provider credentials, and administrator bootstrap procedures for the target environment. This README is an entry point, not a substitute for environment acceptance.
