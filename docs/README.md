@@ -23,6 +23,7 @@
 - [fastimg-requirements-matrix.md](./fastimg-requirements-matrix.md)：FastImg 需求编号、API 目录、页面清单和风险控制
 - [fastimg-data-contracts.md](./fastimg-data-contracts.md)：FastImg 数据字段、状态机、幂等和一致性契约
 - [fastimg-release-runbook.md](./fastimg-release-runbook.md)：本地开发、迁移、发布、回滚和运行检查
+- [fastimg-deployment.md](./fastimg-deployment.md)：Linux 源码部署、Docker 应用部署和外部数据库/Redis约束
 - [fastimg-developer-api.md](./fastimg-developer-api.md)：Personal API Token、上传接口和各种图片链接返回规范
 - [fastimg-frontend-design.md](./fastimg-frontend-design.md)：用户端和管理端页面、状态与交互设计
 - [fastimg-moderation-policy.md](./fastimg-moderation-policy.md)：违规图片、违规账户、举报、处罚与申诉策略
@@ -31,6 +32,8 @@
 - [fastimg-hotlink-protection.md](./fastimg-hotlink-protection.md)：Referer 白名单、签名 URL、CDN 和防盗链策略
 - [fastimg-payment-gateway.md](./fastimg-payment-gateway.md)：支付网关、订单、支付流水、退款、订阅和权益履约
 - [fastimg-production-readiness.md](./fastimg-production-readiness.md)：生产开发就绪评估、阶段门禁和 Provider 验证状态
+- [fastimg-production-audit.md](./fastimg-production-audit.md)：生产配置、支付幂等、审计脱敏和运维清理门禁
+- [fastimg-production-gates.md](./fastimg-production-gates.md)：真实支付、TLS、备份恢复、漏洞扫描、对象存储和压测门禁
 - [fastimg-stage-development-plan.md](./fastimg-stage-development-plan.md)：M0-M8 阶段性开发计划和详细功能清单
 
 ## 核心原则

@@ -1,0 +1,25 @@
+[Unit]
+Description=FastImg API and Redis queue worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__FASTIMG_USER__
+Group=__FASTIMG_GROUP__
+WorkingDirectory=__FASTIMG_ROOT__/current/backend
+EnvironmentFile=__FASTIMG_ROOT__/shared/.env
+ExecStart=__FASTIMG_ROOT__/current/backend/fastimg-api
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=__FASTIMG_ROOT__/shared/storage
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

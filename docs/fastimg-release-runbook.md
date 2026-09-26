@@ -2,6 +2,8 @@
 
 ## 1. 本地开发前检查
 
+生产部署脚本和外部数据库/Redis约束见 [fastimg-deployment.md](./fastimg-deployment.md)。脚本不会启动 PostgreSQL 或 Redis 容器，也不会把真实支付、备份恢复或对象存储验收伪装成已完成。
+
 PostgreSQL 和 Redis 由 Laragon 管理。开发、迁移或联调前检查：
 
 ```powershell
@@ -139,3 +141,20 @@ pnpm dev
 - 审核待处理量和举报处理时长
 - 每日新增存储、外链流量和孤儿对象数量
 - 订单回调成功率和重复事件数量
+
+## 10. 生产门禁工具
+
+以下工具默认不会安装依赖、修改锁文件、删除数据库或写入真实支付渠道：
+
+```powershell
+# 生成并验证 PostgreSQL 自定义格式备份；默认输出到系统临时目录
+pwsh -File .\scripts\fastimg-db-backup.ps1 -VerifyDump
+
+# 依赖扫描缺工具或未批准联网时会 fail-closed
+pwsh -File .\scripts\fastimg-dependency-audit.ps1
+
+# 只访问公开状态接口，不执行上传、订单或支付写操作
+pwsh -File .\scripts\fastimg-load-smoke.ps1 -BaseUrl http://127.0.0.1:53085 -Requests 100 -Concurrency 10
+```
+
+真实支付回调、TLS/反向代理、隔离库恢复、对象存储/CDN 和正式压测的验收步骤见 [fastimg-production-gates.md](./fastimg-production-gates.md)。

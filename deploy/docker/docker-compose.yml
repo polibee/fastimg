@@ -1,0 +1,33 @@
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/api.Dockerfile
+    env_file:
+      - ./fastimg.env
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8080
+    expose:
+      - "8080"
+    volumes:
+      - fastimg_media:/app/storage/fastimg
+      - fastimg_logs:/app/storage/logs
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        SSG_PUBLIC_ORIGIN: ${APP_URL}
+    ports:
+      - "${FASTIMG_WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  fastimg_media:
+  fastimg_logs:

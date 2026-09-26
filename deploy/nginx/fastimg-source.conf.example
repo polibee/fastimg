@@ -1,0 +1,53 @@
+# Generated from this template by deploy/linux/deploy.sh when
+# FASTIMG_INSTALL_NGINX=1. Replace the certificate and domain values first.
+server {
+    listen 80;
+    server_name __FASTIMG_DOMAIN__;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name __FASTIMG_DOMAIN__;
+
+    root __FASTIMG_WEB_ROOT__;
+    index index.html;
+    client_max_body_size 25m;
+
+    ssl_certificate     __FASTIMG_TLS_CERT__;
+    ssl_certificate_key __FASTIMG_TLS_KEY__;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:FastImgSSL:10m;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:__FASTIMG_API_PORT__;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    location ~ ^/(i|s)(/|$) {
+        proxy_pass http://127.0.0.1:__FASTIMG_API_PORT__;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    location = /sitemap.xml { proxy_pass http://127.0.0.1:__FASTIMG_API_PORT__; }
+    location = /robots.txt { proxy_pass http://127.0.0.1:__FASTIMG_API_PORT__; }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
