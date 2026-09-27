@@ -147,9 +147,9 @@ async function load() {
     const details = await Promise.allSettled(idsResponse.data.map((id) => apiFetch<MediaItem>(`/api/v1/media/${id}`, {}, auth.token)))
     items.value = details.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])
     await Promise.allSettled(items.value.map(async (item) => {
-      const thumbnail = item.variants?.thumbnail?.url
-      if (!thumbnail || !auth.token) return
-      const blob = await apiFetchBlob(thumbnail, auth.token)
+      const original = item.variants?.original?.url
+      if (!original || !auth.token) return
+      const blob = await apiFetchBlob(original, auth.token)
       previewURLs.value[item.id] = URL.createObjectURL(blob)
     }))
   } catch {

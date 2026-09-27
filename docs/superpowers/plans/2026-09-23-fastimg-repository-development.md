@@ -216,7 +216,7 @@ Task 2 是上传和支付的共同前置；Task 3 是媒体库的前置；Task 4
 - [ ] 实现 `/api/v1/uploads/sessions` 分片会话接口，用于大文件和断点续传。
 - [ ] 让普通上传和分片上传共同调用 `CompleteUpload` 用例，不复制媒体写入、配额、审核和用量逻辑。
 - [x] 实现 `GET /api/v1/media` 的 `media:read` 可选权限、统一分页和筛选（Token 路由源码已接入）。
-- [ ] ready 时返回 `201` 和 `links.original/thumbnail/medium/webp/avif/url/markdown/html/bbcode`。
+- [ ] ready 时返回 `201` 和 `links.original/url/markdown/html/bbcode`；服务端只保存唯一原图，显示尺寸由接收站控制。
 - [ ] processing 时返回 `202`、媒体 ID 和 status URL；失败时返回稳定错误码和重试状态。
 - [x] Token 默认可以获取自己图片链接和删除自己图片；所有操作必须执行 Token 所属用户的资源归属校验（真实数据库验收待迁移）。
 - [ ] 增加 curl、JavaScript、PicGo/ShareX 配置示例和完整 API 契约测试（OpenAPI Token 路径/Schema 已补）。

@@ -66,9 +66,9 @@ async function loadRecent() {
     const response = await apiFetchEnvelope<MediaItem[]>('/api/v1/media?page=1&per_page=6', {}, auth.token)
     recent.value = response.data
     await Promise.allSettled(response.data.map(async (item) => {
-      const thumbnail = item.variants?.thumbnail?.url
-      if (!thumbnail || !auth.token) return
-      const blob = await apiFetchBlob(thumbnail, auth.token)
+      const original = item.variants?.original?.url
+      if (!original || !auth.token) return
+      const blob = await apiFetchBlob(original, auth.token)
       previews.value[item.id] = URL.createObjectURL(blob)
     }))
   } catch {

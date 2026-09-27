@@ -12,27 +12,21 @@ import (
 // Links returns member-visible authenticated link formats. Upload responses
 // should use LinkFormatsFromVariants with signed public URLs instead.
 func Links(mediaID uint, originalName string) map[string]string {
-	base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53083"), "/")
+	base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53085"), "/")
 	original := absoluteURL(base, contentURL(mediaID, "original"))
-	thumbnail := absoluteURL(base, contentURL(mediaID, "thumbnail"))
-	medium := absoluteURL(base, contentURL(mediaID, "medium"))
-	return LinkFormatsFromVariants(originalName, map[string]string{"original": original, "thumbnail": thumbnail, "medium": medium})
+	return LinkFormatsFromVariants(originalName, map[string]string{"original": original})
 }
 
 // LinkFormatsFromVariants creates the formats users copy into forums, docs and
 // HTML. The supplied URLs must already be public absolute URLs.
 func LinkFormatsFromVariants(originalName string, variants map[string]string) map[string]string {
 	original := variants["original"]
-	thumbnail := variants["thumbnail"]
-	medium := variants["medium"]
 	return map[string]string{
-		"original":  original,
-		"thumbnail": thumbnail,
-		"medium":    medium,
-		"url":       original,
-		"markdown":  fmt.Sprintf("![%s](%s)", originalName, original),
-		"html":      fmt.Sprintf(`<img src="%s" alt="%s">`, original, html.EscapeString(originalName)),
-		"bbcode":    fmt.Sprintf("[img]%s[/img]", original),
+		"original": original,
+		"url":      original,
+		"markdown": fmt.Sprintf("![%s](%s)", originalName, original),
+		"html":     fmt.Sprintf(`<img src="%s" alt="%s">`, original, html.EscapeString(originalName)),
+		"bbcode":   fmt.Sprintf("[img]%s[/img]", original),
 	}
 }
 

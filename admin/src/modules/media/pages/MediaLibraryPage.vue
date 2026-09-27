@@ -68,9 +68,9 @@ async function loadMedia() {
     items.value = response.data
     total.value = Number(response.meta?.total ?? response.data.length)
     await Promise.allSettled(response.data.map(async (item) => {
-      const thumbnail = item.variants?.thumbnail?.url
-      if (!thumbnail || !auth.token) return
-      const blob = await apiFetchBlob(thumbnail, auth.token)
+      const original = item.variants?.original?.url
+      if (!original || !auth.token) return
+      const blob = await apiFetchBlob(original, auth.token)
       previewURLs.value[item.id] = URL.createObjectURL(blob)
     }))
   } catch {

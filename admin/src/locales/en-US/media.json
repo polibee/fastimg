@@ -1,7 +1,7 @@
 {
   "workspace": "Workspace",
   "title": "Media library",
-  "description": "Review and manage your uploads. Files are validated and thumbnails are generated automatically.",
+  "description": "Review and manage your uploads. Files are validated and stored as one normalized original image.",
   "backToLibrary": "Back to library",
   "trash": "Trash",
   "uploading": "Uploading…",

@@ -79,6 +79,8 @@ export function useMemberUpload(onUpdated: () => void = () => {}) {
         ? 'member.media.errors.quotaExceeded'
         : error instanceof ApiError && error.code === 'UPLOAD_FILE_TOO_LARGE'
           ? 'member.media.errors.fileTooLarge'
+          : error instanceof ApiError && error.code === 'AUTH_UNAUTHORIZED'
+            ? 'member.media.errors.sessionExpired'
           : 'member.media.errors.uploadFailed'
       setItem(item.id, { state: 'failed', errorKey })
     }

@@ -80,7 +80,7 @@ func TestUploadRetryFailsAndCleansCorruptReservedObjects(t *testing.T) {
 	require.Empty(t, storage.objects)
 }
 
-func TestUploadRetryFailsWhenARequiredVariantIsMissing(t *testing.T) {
+func TestUploadRetryFailsWhenOriginalObjectIsMissing(t *testing.T) {
 	processor := NewImageProcessor(ImageLimits{})
 	processed, err := processor.Process("sample.png", "image/png", testPNG(t, 64, 32))
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestUploadRetryFailsWhenARequiredVariantIsMissing(t *testing.T) {
 	keys := make(map[string]string, len(objects)-1)
 	recoveryObjects := make([]PreparedObject, 0, len(objects)-1)
 	for _, object := range objects {
-		if object.Name == "medium" {
+		if object.Name == "original" {
 			continue
 		}
 		keys[object.Name] = object.Key

@@ -15,7 +15,7 @@
   "detail": "Resource detail",
   "detailDescription": "View the detailed fields for this resource record.",
   "mediaPreview": "Media preview",
-  "mediaPreviewDescription": "This thumbnail is available to authorized administrators and does not change the user's public or private access setting.",
+  "mediaPreviewDescription": "This original image is available to authorized administrators and does not change the user's public or private access setting.",
   "back": "Back to list",
   "manageMedia": "Manage media",
   "perPage": "{count} / page",

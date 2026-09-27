@@ -126,8 +126,8 @@ func (c *MediaController) AdminContent(ctx httpcontract.Context) httpcontract.Re
 	if mediaID <= 0 {
 		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
 	}
-	variantName := ctx.Request().Query("variant", "thumbnail")
-	if variantName != "original" && variantName != "thumbnail" && variantName != "medium" {
+	variantName := ctx.Request().Query("variant", "original")
+	if variantName != "original" {
 		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
 	}
 	var asset models.MediaAsset

@@ -35,7 +35,7 @@ https://blog.example.org/*
 访问 URL 包含短期签名：
 
 ```text
-/i/asset/medium.webp?expires=...&signature=...
+/i/asset?variant=original&expires=...&signature=...
 ```
 
 签名内容至少包含：媒体/Variant 标识、过期时间、策略版本和必要的下载参数。签名 URL 适合私有分享、下载和高风险资源，不适合作为永久嵌入链接。

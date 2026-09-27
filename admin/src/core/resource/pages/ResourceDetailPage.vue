@@ -55,7 +55,7 @@ onMounted(async () => {
     data.value = record
     if (resourceName.value === 'media') {
       try {
-        const blob = await apiFetchBlob(`/api/v1/admin/media/${String(route.params.id)}/content?variant=thumbnail`, auth.token)
+        const blob = await apiFetchBlob(`/api/v1/admin/media/${String(route.params.id)}/content?variant=original`, auth.token)
         mediaPreviewURL.value = URL.createObjectURL(blob)
       } catch {
         mediaPreviewURL.value = ''

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { AlertCircle, Check, Copy, ExternalLink, LoaderCircle, RotateCcw, Upload } from '@lucide/vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -23,8 +23,6 @@ function handleImageError(event: Event) {
   const image = event.target as HTMLImageElement
   if (image.src !== fallbackImageURL.value) image.src = fallbackImageURL.value
 }
-
-onMounted(() => void loadSitePresentation())
 
 function linkStateKey(itemID: string, key: string) {
   return `${itemID}:${key}`
@@ -54,6 +52,35 @@ function handleDrop(event: DragEvent) {
   if (!auth.isAuthenticated) return
   if (event.dataTransfer?.files.length) void uploadFiles(event.dataTransfer.files)
 }
+
+function clipboardImageFiles(event: ClipboardEvent) {
+  const clipboard = event.clipboardData
+  if (!clipboard) return []
+
+  const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith('image/'))
+  if (files.length) return files
+
+  return Array.from(clipboard.items)
+    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => Boolean(file))
+}
+
+function handlePaste(event: ClipboardEvent) {
+  if (!auth.isAuthenticated || uploading.value) return
+  const files = clipboardImageFiles(event)
+  if (!files.length) return
+
+  event.preventDefault()
+  void uploadFiles(files)
+}
+
+onMounted(() => {
+  void loadSitePresentation()
+  window.addEventListener('paste', handlePaste)
+})
+
+onBeforeUnmount(() => window.removeEventListener('paste', handlePaste))
 </script>
 
 <template>
@@ -72,6 +99,7 @@ function handleDrop(event: DragEvent) {
           <Upload v-else data-icon="inline-start" />{{ uploading ? t('member.media.uploading') : t('member.upload.choose') }}
         </Button>
         <span class="text-xs text-muted-foreground">{{ t('member.upload.privateHint') }}</span>
+        <span class="text-xs text-muted-foreground">{{ t('member.upload.pasteHint') }}</span>
       </div>
       <div v-else class="flex flex-col items-center gap-2 text-center sm:items-end sm:text-right">
         <p class="text-sm text-muted-foreground">{{ t('member.upload.loginRequired') }}</p>

@@ -193,10 +193,6 @@ curl -X POST "https://img.example.com/api/v1/uploads/batch" \
     "height": 900,
     "links": {
       "original": "https://img.example.com/i/abc/original.png",
-      "thumbnail": "https://img.example.com/i/abc/thumbnail.webp",
-      "medium": "https://img.example.com/i/abc/medium.webp",
-      "webp": "https://img.example.com/i/abc/image.webp",
-      "avif": "https://img.example.com/i/abc/image.avif",
       "url": "https://img.example.com/i/abc/image.png",
       "markdown": "![cover](https://img.example.com/i/abc/image.png)",
       "html": "<img src=\"https://img.example.com/i/abc/image.png\" alt=\"cover\">",
@@ -211,9 +207,9 @@ curl -X POST "https://img.example.com/api/v1/uploads/batch" \
 }
 ```
 
-`links` 是固定对象。Variant 暂不可用时对应值为 `null`，不能返回猜测出来的 URL。
+`links` 是固定对象，只包含唯一存储的 `original` 与四种复制格式，不能返回猜测出来的 Variant URL。
 
-ready 响应中的 `links` 会返回带 `APP_URL` 域名的绝对公开链接，包含 `url`、`markdown`、`html` 和 `bbcode`，分别对应原图 URL、Markdown 图片、HTML 图片标签和 BBCode 图片标签。`original`、`thumbnail`、`medium` 是同一媒体的三个稳定公开 Variant 地址。公开地址使用 APP_KEY 签名，不暴露存储对象路径；删除媒体、停用防盗链策略或轮换 APP_KEY 后失效。客户端可以直接把这些值复制到论坛、博客和 Markdown 内容中，不需要再拼接域名或额外创建分享链接。
+ready 响应中的 `links` 会返回带 `APP_URL` 域名的绝对公开链接，包含 `original`、`url`、`markdown`、`html` 和 `bbcode`；公开地址使用 APP_KEY 签名，不暴露存储对象路径。客户端可以直接把这些值复制到论坛、博客和 Markdown 内容中，不需要再拼接域名或额外创建分享链接。展示尺寸由接收站的 CSS 或自身处理链决定。
 
 公开链接每次成功返回的实际字节数都会记入媒体所属用户当前 UTC 月的 `bandwidth` 用量。套餐 `monthly_bandwidth_bytes` 为 `0` 表示不限量；达到非零上限后返回 `429 BANDWIDTH_QUOTA_EXCEEDED`，无法可靠计量时返回 `503 BANDWIDTH_METERING_UNAVAILABLE`，不会静默放行未计量流量。
 
@@ -326,7 +322,7 @@ Content-Type: application/json
 {"expires_at":"2026-10-24T23:59:59Z","password":"至少八个字符"}
 ```
 
-创建成功只返回一次完整 `/s/{token}` 地址；列表接口只返回 token 前缀，服务端不保存可恢复的明文 Token。`password` 可选，长度为 8–72 个字符，服务端只保存框架 Hash；设置密码的分享链接访问时必须通过 `GET /s/{token}?variant=thumbnail&password=...` 提供密码，缺少或错误密码返回 `401 SHARE_PASSWORD_REQUIRED`。`GET /s/{token}` 会重新校验分享状态、过期时间、媒体状态、Variant 和当前防盗链策略，再读取私有对象。删除媒体、撤销链接或防盗链拒绝后不泄露对象存储地址。
+创建成功只返回一次完整 `/s/{token}` 地址；列表接口只返回 token 前缀，服务端不保存可恢复的明文 Token。`password` 可选，长度为 8–72 个字符，服务端只保存框架 Hash；设置密码的分享链接访问时使用 `GET /s/{token}?variant=original&password=...`，缺少或错误密码返回 `401 SHARE_PASSWORD_REQUIRED`。`GET /s/{token}` 会重新校验分享状态、过期时间、媒体状态、原图和当前防盗链策略，再读取私有对象。删除媒体、撤销链接或防盗链拒绝后不泄露对象存储地址。
 
 ### 6.3 签名 URL、防盗链与访问记录
 
@@ -335,7 +331,7 @@ POST /api/v1/media/1001/signed-url
 Authorization: Bearer <session-token>
 Content-Type: application/json
 
-{"variant":"thumbnail","expires_in":600}
+{"variant":"original","expires_in":600}
 ```
 
 `expires_in` 必须为 60–86400 秒；服务端使用 `APP_KEY` 以 HMAC-SHA256 绑定媒体 ID、Variant 和 Unix 过期时间，响应只返回应用地址 `/i/{id}?variant=...&expires=...&signature=...`，不返回 Local/S3 对象地址。APP_KEY 未配置时返回 `503 LINK_SIGNING_UNAVAILABLE`。签名 URL 仅在生成时返回，过期、篡改、媒体删除或 Variant 不可用统一返回 `404 LINK_NOT_FOUND`。
@@ -553,7 +549,7 @@ Token 明确不能调用：批量上传、上传重试、套餐/用量、订单/
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/discovery/status` | 无 | 返回发现页 `enabled` 状态 |
 | `GET` | `/api/v1/discovery/feed?page=1&per_page=24` | 无 | 分页返回 `ready`、公开且未被拒绝的媒体；`per_page` 限制为 1–48 |
-| `GET` | `/api/v1/discovery/media/{id}/content?variant=thumbnail` | 无 | 返回已审核媒体内容；Variant 仅允许 `thumbnail`、`medium`、`original` |
+| `GET` | `/api/v1/discovery/media/{id}/content?variant=original` | 无 | 返回已审核媒体原图；Variant 仅允许 `original` |
 
 `feed` 返回 `{data: [...], meta: {page, per_page, total}}`；每项包含媒体 ID、文件名、尺寸、类型、时间和 `thumbnail_url`/`original_url`。公开列表的服务端过滤条件固定为 `status=ready`、未软删除、`visibility=public`、`moderation_status != rejected`。普通新上传默认 `public + approved`，可立即进入发现页并通过稳定链接使用；隐藏或拒绝后从发现页移除，恢复后重新出现。管理员在 `/admin/media` 执行隐藏、恢复、审核通过、审核拒绝和永久删除，不能通过通用 CRUD 直接改写状态；举报进入 `/admin/reports`。
 

@@ -33,6 +33,29 @@ test('member upload panel renders localized copyable link formats after success'
   assert.doesNotMatch(panel, /<Input[^>]*:model-value="item\.links\[key\]"/)
 })
 
+test('member upload panel accepts image clipboard paste without intercepting text', () => {
+  const panel = read('src/modules/member/components/MemberUploadPanel.vue')
+
+  assert.match(panel, /window\.addEventListener\('paste', handlePaste\)/)
+  assert.match(panel, /window\.removeEventListener\('paste', handlePaste\)/)
+  assert.match(panel, /clipboardData\?\.files|clipboardData\.files/)
+  assert.match(panel, /item\.kind === 'file'/)
+  assert.match(panel, /item\.type\.startsWith\('image\/'\)/)
+  assert.match(panel, /event\.preventDefault\(\)/)
+  assert.match(panel, /uploadFiles\(files\)/)
+})
+
+test('member upload exposes an actionable message when the session expires', () => {
+  const composable = read('src/modules/member/composables/useMemberUpload.ts')
+  const zh = JSON.parse(read('src/locales/zh-CN/member.json'))
+  const en = JSON.parse(read('src/locales/en-US/member.json'))
+
+  assert.match(composable, /error\.code === 'AUTH_UNAUTHORIZED'/)
+  assert.match(composable, /member\.media\.errors\.sessionExpired/)
+  assert.equal(typeof zh.media?.errors?.sessionExpired, 'string')
+  assert.equal(typeof en.media?.errors?.sessionExpired, 'string')
+})
+
 test('upload link labels and copy feedback are synchronized in both locales', () => {
   for (const locale of ['zh-CN', 'en-US']) {
     const messages = JSON.parse(read(`src/locales/${locale}/member.json`))
@@ -41,6 +64,7 @@ test('upload link labels and copy feedback are synchronized in both locales', ()
     assert.equal(typeof messages.upload?.openImage, 'string')
     assert.equal(typeof messages.upload?.copyLink, 'string')
     assert.equal(typeof messages.upload?.copied, 'string')
+    assert.equal(typeof messages.upload?.pasteHint, 'string')
     for (const key of ['url', 'markdown', 'html', 'bbcode']) {
       assert.equal(typeof messages.upload?.links?.[key], 'string')
     }

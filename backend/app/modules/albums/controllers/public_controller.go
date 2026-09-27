@@ -45,7 +45,7 @@ func (c *PublicController) Show(ctx httpcontract.Context) httpcontract.Response 
 			"height":        item.Height,
 			"size_bytes":    item.SizeBytes,
 			"created_at":    item.CreatedAt,
-			"thumbnail_url": publicAlbumContentURL(album.ID, item.ID, "thumbnail"),
+			"thumbnail_url": publicAlbumContentURL(album.ID, item.ID, "original"),
 			"original_url":  publicAlbumContentURL(album.ID, item.ID, "original"),
 		})
 	}
@@ -64,7 +64,7 @@ func (c *PublicController) Content(ctx httpcontract.Context) httpcontract.Respon
 	if err != nil || !publicAlbumContains(album, uint(mediaID)) {
 		return adminmiddleware.APIError(ctx, http.StatusNotFound, "PUBLIC_ALBUM_MEDIA_NOT_FOUND")
 	}
-	variant := ctx.Request().Query("variant", "thumbnail")
+	variant := ctx.Request().Query("variant", "original")
 	contentType, content, err := c.discovery.ContentPublic(ctx.Context(), uint(mediaID), variant)
 	if err != nil {
 		if errors.Is(err, discoveryservices.ErrDiscoveryVariantNotFound) || errors.Is(err, discoveryservices.ErrDiscoveryMediaNotFound) {
@@ -88,6 +88,6 @@ func publicAlbumContains(album collectionservices.PublicAlbum, mediaID uint) boo
 }
 
 func publicAlbumContentURL(albumID, mediaID uint, variant string) string {
-	base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53083"), "/")
+	base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53085"), "/")
 	return fmt.Sprintf("%s/api/v1/public/albums/%d/media/%d/content?variant=%s", base, albumID, mediaID, variant)
 }

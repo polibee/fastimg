@@ -169,7 +169,7 @@ func (r *DatabaseRepository) Resolve(_ context.Context, token, variant, password
 	if err := verifySharePassword(r.hasher, password, link.PasswordHash); err != nil {
 		return mediaservices.MediaVariantObject{}, err
 	}
-	if variant != "original" && variant != "thumbnail" && variant != "medium" {
+	if variant != "original" {
 		return mediaservices.MediaVariantObject{}, ErrInvalidShareVariant
 	}
 	var asset models.MediaAsset
@@ -273,7 +273,7 @@ func verifySharePassword(hasher passwordHasher, password, passwordHash string) e
 func shareView(link models.ShareLink, raw string) ShareView {
 	url := ""
 	if raw != "" {
-		base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53083"), "/")
+		base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53085"), "/")
 		url = base + "/s/" + raw
 	}
 	return ShareView{ID: link.ID, MediaID: link.MediaAssetID, Token: raw, URL: url, TokenPrefix: link.TokenPrefix, Status: link.Status, ExpiresAt: link.ExpiresAt, CreatedAt: link.CreatedAt}

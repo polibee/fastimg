@@ -36,14 +36,10 @@
 
 ## 3. MediaVariant 字段契约
 
-Variant 类型首期固定为：
+Variant 类型首期只保留：
 
 ```text
 original
-thumbnail
-medium
-webp
-avif
 ```
 
 每个 Variant 必须保存：`media_id`、`variant_type`、`object_key`、`size_bytes`、`width`、`height`、`mime_type`、`processing_status`、`error_code`、`created_at`。
@@ -120,7 +116,7 @@ Token 原文只存在于创建响应和用户当前页面内存中；服务端�
 | `media:read` | 查询本人媒体列表、详情、内容和上传完成后的各种链接 | 只能读取当前 Token 所属用户的媒体 |
 | `media:delete` | 删除本人媒体到回收站 | 只能删除当前 Token 所属用户的媒体 |
 
-当前不向 Personal API Token 开放 `links:read`、`usage:read`、`webhook:manage`、批量上传、上传重试、套餐/用量、文件夹、相册、分享链接、防盗链和任何管理员接口。链接属于本人媒体详情/上传结果的一部分，由 `media:read` 统一保护；删除能力由 `media:delete` 单独保护。上传完成后的 `links` 使用 `APP_URL` 生成带 APP_KEY 签名的绝对公开地址，支持 `url`、`markdown`、`html`、`bbcode` 及 `original`、`thumbnail`、`medium` 三个 Variant；不暴露对象存储地址。
+当前不向 Personal API Token 开放 `links:read`、`usage:read`、`webhook:manage`、批量上传、上传重试、套餐/用量、文件夹、相册、分享链接、防盗链和任何管理员接口。链接属于本人媒体详情/上传结果的一部分，由 `media:read` 统一保护；删除能力由 `media:delete` 单独保护。上传完成后的 `links` 使用 `APP_URL` 生成带 APP_KEY 签名的绝对公开地址，只返回唯一的 `original`、`url`、`markdown`、`html`、`bbcode`；不暴露对象存储地址。接收站自行使用 CSS 或自身处理链控制显示尺寸，不由 FastImg 为每张图片额外保存缩略图和中图。
 
 公开相册使用 `GET /api/v1/public/albums/{id}`，不接受会员 Token 或管理员身份作为绕过条件。只有相册 `visibility=public` 且媒体同时满足 `ready`、未删除、`visibility=public`、`moderation_status != rejected` 时才出现在响应；公开图片内容地址绑定相册 ID 与媒体 ID，服务端每次读取都会重新校验关系和公开状态。
 

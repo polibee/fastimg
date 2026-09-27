@@ -29,7 +29,7 @@ func TestImageProcessorRejectsImagesOverPixelLimit(t *testing.T) {
 	require.ErrorIs(t, err, ErrImageDimensionsExceeded)
 }
 
-func TestImageProcessorStripsJPEGMetadataAndBuildsBoundedVariants(t *testing.T) {
+func TestImageProcessorStripsJPEGMetadataAndStoresOnlyOriginal(t *testing.T) {
 	source := image.NewRGBA(image.Rect(0, 0, 1600, 900))
 	for y := 0; y < 900; y++ {
 		for x := 0; x < 1600; x++ {
@@ -48,17 +48,13 @@ func TestImageProcessorStripsJPEGMetadataAndBuildsBoundedVariants(t *testing.T) 
 	require.Equal(t, int64(900), result.Height)
 	require.NotContains(t, string(result.Original), "FASTIMG-PRIVATE-METADATA")
 
-	thumbnail, _, err := image.Decode(bytes.NewReader(result.Thumbnail))
+	original, _, err := image.Decode(bytes.NewReader(result.Original))
 	require.NoError(t, err)
-	require.LessOrEqual(t, thumbnail.Bounds().Dx(), 480)
-	require.LessOrEqual(t, thumbnail.Bounds().Dy(), 480)
-	medium, _, err := image.Decode(bytes.NewReader(result.Medium))
-	require.NoError(t, err)
-	require.LessOrEqual(t, medium.Bounds().Dx(), 1280)
-	require.LessOrEqual(t, medium.Bounds().Dy(), 1280)
+	require.Equal(t, 1600, original.Bounds().Dx())
+	require.Equal(t, 900, original.Bounds().Dy())
 }
 
-func TestImageProcessorAppliesPlanWatermarkToAllVariants(t *testing.T) {
+func TestImageProcessorAppliesPlanWatermarkToOriginal(t *testing.T) {
 	source := image.NewRGBA(image.Rect(0, 0, 320, 180))
 	for y := 0; y < 180; y++ {
 		for x := 0; x < 320; x++ {
@@ -77,8 +73,6 @@ func TestImageProcessorAppliesPlanWatermarkToAllVariants(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotEqual(t, plain.Original, watermarked.Original)
-	require.NotEqual(t, plain.Thumbnail, watermarked.Thumbnail)
-	require.NotEqual(t, plain.Medium, watermarked.Medium)
 }
 
 func TestImageProcessorIncludesConfiguredDomainInWatermark(t *testing.T) {

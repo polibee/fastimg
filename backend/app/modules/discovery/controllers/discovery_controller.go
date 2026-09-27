@@ -38,7 +38,7 @@ func (c *Controller) Content(ctx httpcontract.Context) httpcontract.Response {
 	if mediaID <= 0 {
 		return adminmiddleware.APIError(ctx, http.StatusNotFound, "DISCOVERY_MEDIA_NOT_FOUND")
 	}
-	variant := ctx.Request().Query("variant", "thumbnail")
+	variant := ctx.Request().Query("variant", "original")
 	contentType, content, err := c.service.Content(ctx.Context(), uint(mediaID), variant)
 	if err != nil {
 		if errors.Is(err, planservices.ErrBandwidthQuotaExceeded) {

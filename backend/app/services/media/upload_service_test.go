@@ -14,7 +14,7 @@ import (
 	storageservices "goravel/app/services/storage"
 )
 
-func TestUploadServiceStoresVariantsAndFinalizesOneMediaAsset(t *testing.T) {
+func TestUploadServiceStoresOnlyOriginalAndFinalizesOneMediaAsset(t *testing.T) {
 	storage := newFakeStorageProvider()
 	repository := &fakeUploadRepository{}
 	service := NewUploadService(NewImageProcessor(ImageLimits{}), storage, repository)
@@ -27,14 +27,17 @@ func TestUploadServiceStoresVariantsAndFinalizesOneMediaAsset(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "ready", outcome.Status)
 	require.Equal(t, uint(22), outcome.MediaID)
-	require.Equal(t, 3, len(storage.objects))
+	require.Equal(t, 1, len(storage.objects))
+	for key := range storage.objects {
+		require.Contains(t, key, "/original.")
+	}
 	require.Equal(t, uint(11), repository.completedSessionID)
 	require.Empty(t, repository.failedSessionID)
 }
 
 func TestUploadServiceCleansObjectsAndMarksSessionFailedWhenStorageWriteFails(t *testing.T) {
 	storage := newFakeStorageProvider()
-	storage.failOn = "medium"
+	storage.failOn = "original"
 	repository := &fakeUploadRepository{}
 	service := NewUploadService(NewImageProcessor(ImageLimits{}), storage, repository)
 
@@ -50,7 +53,7 @@ func TestUploadServiceCleansObjectsAndMarksSessionFailedWhenStorageWriteFails(t 
 
 func TestUploadServiceRejectsStoredObjectsWhoseBytesDoNotMatchReservation(t *testing.T) {
 	storage := newFakeStorageProvider()
-	storage.tamperOn = "medium"
+	storage.tamperOn = "original"
 	repository := &fakeUploadRepository{}
 	service := NewUploadService(NewImageProcessor(ImageLimits{}), storage, repository)
 
@@ -76,7 +79,7 @@ func TestUploadServiceKeepsObjectsForRecoveryWhenFinalizationFails(t *testing.T)
 
 	require.NoError(t, err)
 	require.Equal(t, "processing", outcome.Status)
-	require.Len(t, storage.objects, 3)
+	require.Len(t, storage.objects, 1)
 	require.Empty(t, repository.failedSessionID)
 }
 

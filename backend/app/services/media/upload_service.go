@@ -182,11 +182,19 @@ func (s *UploadService) Retry(ctx context.Context, userID, sessionID uint) (Uplo
 }
 
 func recoveryHasRequiredVariants(recovery UploadRecovery) bool {
-	const requiredCount = 3
-	if len(recovery.Objects) != requiredCount || len(recovery.Reservation.ObjectKeys) != requiredCount {
+	// New sessions reserve only the original. Accept the former three-variant
+	// shape for an already persisted processing session so a deployment does not
+	// strand an upload that started before this storage policy changed.
+	if hasRequiredObjects(recovery, map[string]bool{"original": true}) {
+		return true
+	}
+	return hasRequiredObjects(recovery, map[string]bool{"original": true, "thumbnail": true, "medium": true})
+}
+
+func hasRequiredObjects(recovery UploadRecovery, required map[string]bool) bool {
+	if len(recovery.Objects) != len(required) || len(recovery.Reservation.ObjectKeys) != len(required) {
 		return false
 	}
-	required := map[string]bool{"original": true, "thumbnail": true, "medium": true}
 	for _, object := range recovery.Objects {
 		if !required[object.Name] || object.Key == "" || recovery.Reservation.ObjectKeys[object.Name] != object.Key {
 			return false
@@ -329,8 +337,6 @@ func preparedObjects(userID uint, processed ProcessedImage) ([]PreparedObject, e
 		content []byte
 	}{
 		{name: "original", content: processed.Original},
-		{name: "thumbnail", content: processed.Thumbnail},
-		{name: "medium", content: processed.Medium},
 	}
 	objects := make([]PreparedObject, 0, len(inputs))
 	for _, input := range inputs {

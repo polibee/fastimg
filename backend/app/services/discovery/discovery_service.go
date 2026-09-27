@@ -152,7 +152,7 @@ func (s *Service) Feed(ctx context.Context, page, perPage int) (FeedPage, error)
 		items = append(items, FeedItem{
 			ID: asset.ID, OriginalName: asset.OriginalName, ContentType: asset.ContentType,
 			Width: asset.Width, Height: asset.Height, SizeBytes: asset.SizeBytes,
-			CreatedAt: asset.CreatedAt, ThumbnailURL: contentURL(asset.ID, "thumbnail"), OriginalURL: contentURL(asset.ID, "original"),
+			CreatedAt: asset.CreatedAt, ThumbnailURL: contentURL(asset.ID, "original"), OriginalURL: contentURL(asset.ID, "original"),
 		})
 	}
 	return FeedPage{Items: items, Page: page, PerPage: perPage, Total: total}, nil
@@ -225,10 +225,10 @@ func IsDiscoverable(visibility, moderationStatus string) bool {
 func settingBool(value string) bool { return strings.EqualFold(strings.TrimSpace(value), "true") }
 
 func validVariant(value string) bool {
-	return value == "original" || value == "thumbnail" || value == "medium"
+	return value == "original"
 }
 
 func contentURL(mediaID uint, variant string) string {
-	base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53083"), "/")
+	base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53085"), "/")
 	return fmt.Sprintf("%s/api/v1/discovery/media/%d/content?variant=%s", base, mediaID, variant)
 }

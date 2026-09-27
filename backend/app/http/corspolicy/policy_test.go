@@ -15,10 +15,10 @@ func TestConfiguredOriginsAreExactAndNeverWildcard(t *testing.T) {
 }
 
 func TestDevelopmentOriginsRemainAvailableWithoutConfiguration(t *testing.T) {
-	if !AllowedOriginFor("http://127.0.0.1:53083", "local", "") {
+	if !AllowedOriginFor("http://127.0.0.1:53084", "local", "") {
 		t.Fatal("local development origin should remain available")
 	}
-	if AllowedOriginFor("http://127.0.0.1:53083", "production", "") {
+	if AllowedOriginFor("http://127.0.0.1:53084", "production", "") {
 		t.Fatal("production must not inherit development origins")
 	}
 }
@@ -29,9 +29,6 @@ func TestAllowedOrigin(t *testing.T) {
 	}
 	if !AllowedOrigin("http://127.0.0.1:5182") {
 		t.Fatal("expected the isolated local admin verification origin to be allowed")
-	}
-	if !AllowedOrigin("http://127.0.0.1:53083") {
-		t.Fatal("expected the isolated WSL preview origin to be allowed")
 	}
 	if !AllowedOrigin("http://127.0.0.1:53084") {
 		t.Fatal("expected the FastImg frontend origin to be allowed")

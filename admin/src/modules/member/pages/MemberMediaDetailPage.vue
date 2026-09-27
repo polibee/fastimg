@@ -90,7 +90,7 @@ const hotlinkDomains = ref<HotlinkDomain[]>([])
 const newHotlinkDomain = ref('')
 const hotlinkDomainError = ref(false)
 const addingHotlinkDomain = ref(false)
-const variantNames = ['original', 'thumbnail', 'medium'] as const
+const variantNames = ['original'] as const
 const linkKeys = ['url', 'markdown', 'html', 'bbcode'] as const
 const availableVariants = computed(() => variantNames.filter((name) => item.value?.variants?.[name]))
 const shareURL = computed(() => shareLink.value?.url ? new URL(shareLink.value.url, globalThis.location?.origin ?? 'http://localhost').toString() : '')

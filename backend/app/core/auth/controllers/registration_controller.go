@@ -154,7 +154,7 @@ func verifyTurnstilePolicy(ctx http.Context, enabled bool, token string) http.Re
 }
 
 func sendVerificationEmail(email, token string) error {
-	baseURL := strings.TrimRight(settingsservices.NewSettingService().Resolve("site_url", facades.Config().GetString("app.url", "http://127.0.0.1:53083")), "/")
+	baseURL := strings.TrimRight(settingsservices.NewSettingService().Resolve("site_url", facades.Config().GetString("app.url", "http://127.0.0.1:53085")), "/")
 	verificationURL := fmt.Sprintf("%s/verify-email?token=%s", baseURL, token)
 	return emailservices.NewService().Send(context.Background(), emailservices.Message{
 		To:      email,

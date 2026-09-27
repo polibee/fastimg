@@ -38,9 +38,7 @@ const (
 )
 
 var supportedVariants = map[string]struct{}{
-	"original":  {},
-	"thumbnail": {},
-	"medium":    {},
+	"original": {},
 }
 
 type SignedURLInput struct {
@@ -238,7 +236,7 @@ func (s *Service) PublicSignedContent(ctx context.Context, mediaID uint, variant
 }
 
 func absolutePublicURL(path string) string {
-	base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53083"), "/")
+	base := strings.TrimRight(facades.Config().GetString("app.url", "http://127.0.0.1:53085"), "/")
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		return path
 	}

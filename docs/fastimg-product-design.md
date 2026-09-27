@@ -22,10 +22,10 @@ FastImg 是面向开发者、站长和内容创作者的免费媒体托管平台
 | 月 API 上传 | 500 次 | API 和客户端上传共用配额 |
 | 月外链流量 | 5 GB | 服务端事件计量 |
 | Personal API Token | 1 个 | 支持撤销和重新创建 |
-| 图片处理 | 原图规范化、缩略图、中图 | 水印由套餐权益决定；开启时三种 Variant 一致处理 |
+| 图片处理 | 原图规范化 | 水印由套餐权益决定；接收站通过 CSS 或自身图片处理控制展示尺寸 |
 | 链接格式 | URL、Markdown、HTML、BBCode | 免费可用 |
 | 广告 | 可展示 | 通过套餐权益关闭 |
-| 图片水印 | 默认关闭 | 按套餐权益控制，开启时原图、缩略图和中图统一写入水印 |
+| 图片水印 | 默认关闭 | 按套餐权益控制，开启时写入唯一存储的原图 |
 
 ### Creator
 
@@ -566,10 +566,6 @@ curl -X POST "https://img.example.com/api/v1/uploads" \
     "mime_type": "image/png",
     "links": {
       "original": "https://img.example.com/i/abc/original.png",
-      "thumbnail": "https://img.example.com/i/abc/thumbnail.webp",
-      "medium": "https://img.example.com/i/abc/medium.webp",
-      "webp": "https://img.example.com/i/abc/image.webp",
-      "avif": "https://img.example.com/i/abc/image.avif",
       "url": "https://img.example.com/i/abc/image.png",
       "markdown": "![cover](https://img.example.com/i/abc/image.png)",
       "html": "<img src=\"https://img.example.com/i/abc/image.png\" alt=\"cover\">",
@@ -606,14 +602,10 @@ Authorization: Bearer <token>
 
 如果请求的媒体不属于 Token 所属用户，统一返回 `MEDIA_ACCESS_DENIED`，不能通过增加 Scope 绕过归属校验。查询其他媒体列表则需要额外的 `media:read`，删除自己媒体使用内置的 `media:delete` 基础能力。
 
-链接返回固定键集合：
+链接返回固定键集合（只保存和投递原图）：
 
 ```text
 original
-thumbnail
-medium
-webp
-avif
 url
 markdown
 html

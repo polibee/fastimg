@@ -47,7 +47,7 @@ func (s *MediaLibraryService) GetDetails(ctx context.Context, userID, mediaID ui
 		return MediaListItem{}, err
 	}
 	item := MediaListItem{Asset: asset}
-	for _, name := range []string{"original", "thumbnail", "medium"} {
+	for _, name := range []string{"original"} {
 		variant, variantErr := s.repository.FindOwnedVariant(ctx, userID, mediaID, name)
 		if errors.Is(variantErr, ErrVariantNotFound) {
 			continue
@@ -64,7 +64,7 @@ func (s *MediaLibraryService) GetDetails(ctx context.Context, userID, mediaID ui
 
 func (s *MediaLibraryService) GetContent(ctx context.Context, userID, mediaID uint, name string) (MediaContent, error) {
 	switch name {
-	case "original", "thumbnail", "medium":
+	case "original":
 	default:
 		return MediaContent{}, ErrInvalidVariantName
 	}

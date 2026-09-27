@@ -14,6 +14,12 @@ func TestLinkFormatsExposeAbsolutePublicURLs(t *testing.T) {
 	if links["url"] != links["original"] {
 		t.Fatalf("url must point to the original variant: %q", links["url"])
 	}
+	if _, ok := links["thumbnail"]; ok {
+		t.Fatal("thumbnail link must not be exposed when only original is stored")
+	}
+	if _, ok := links["medium"]; ok {
+		t.Fatal("medium link must not be exposed when only original is stored")
+	}
 	if links["markdown"] != "![summer & sky.png]("+links["url"]+")" {
 		t.Fatalf("unexpected markdown link: %q", links["markdown"])
 	}

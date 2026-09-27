@@ -32,8 +32,6 @@ const (
 	defaultMaxImagePixels     int64 = 20_000_000
 	defaultMaxAnimationPixels int64 = 40_000_000
 	defaultMaxAnimationFrames       = 50
-	thumbnailMaxSide                = 480
-	mediumMaxSide                   = 1280
 )
 
 // ImageLimits bounds both the compressed upload and the decoded work performed
@@ -51,12 +49,10 @@ type ProcessedImage struct {
 	Width       int64
 	Height      int64
 	Original    []byte
-	Thumbnail   []byte
-	Medium      []byte
 }
 
 // ProcessOptions contains plan-controlled transformations applied before the
-// original and its bounded variants are stored.
+// normalized original is stored.
 type ProcessOptions struct {
 	WatermarkEnabled bool
 	WatermarkText    string
@@ -84,15 +80,15 @@ func NewImageProcessor(limits ImageLimits) *ImageProcessor {
 	return &ImageProcessor{limits: limits}
 }
 
-// Process verifies image bytes against the supplied filename and MIME type,
-// strips embedded metadata by decoding/re-encoding, and creates bounded previews.
+// Process verifies image bytes against the supplied filename and MIME type and
+// strips embedded metadata by decoding/re-encoding.
 func (p *ImageProcessor) Process(filename, declaredContentType string, source []byte) (ProcessedImage, error) {
 	return p.ProcessWithOptions(filename, declaredContentType, source, ProcessOptions{})
 }
 
-// ProcessWithOptions verifies, normalizes, and derives an uploaded image. The
-// watermark is applied to the decoded source before all three stored variants
-// are encoded, so a plan cannot bypass it by requesting the original object.
+// ProcessWithOptions verifies and normalizes an uploaded image. The watermark
+// is applied before the single stored original is encoded, so a plan cannot
+// bypass it by requesting the public original URL.
 func (p *ImageProcessor) ProcessWithOptions(filename, declaredContentType string, source []byte, options ProcessOptions) (ProcessedImage, error) {
 	if int64(len(source)) == 0 {
 		return ProcessedImage{}, ErrInvalidImage
@@ -128,10 +124,7 @@ func (p *ImageProcessor) ProcessWithOptions(filename, declaredContentType string
 		return ProcessedImage{}, ErrImageDimensionsExceeded
 	}
 
-	var (
-		original []byte
-		preview  image.Image
-	)
+	var original []byte
 	switch actualFormat {
 	case "gif":
 		frameCount, totalPixels, scanErr := scanGIFFrames(source)
@@ -168,7 +161,6 @@ func (p *ImageProcessor) ProcessWithOptions(filename, declaredContentType string
 			return ProcessedImage{}, fmt.Errorf("%w: %v", ErrImageProcessing, encodeErr)
 		}
 		original = encoded.Bytes()
-		preview = animation.Image[0]
 	case "jpeg":
 		decoded, decodeErr := jpeg.Decode(bytes.NewReader(source))
 		if decodeErr != nil {
@@ -181,7 +173,6 @@ func (p *ImageProcessor) ProcessWithOptions(filename, declaredContentType string
 		if err != nil {
 			return ProcessedImage{}, fmt.Errorf("%w: %v", ErrImageProcessing, err)
 		}
-		preview = decoded
 	case "png":
 		decoded, decodeErr := png.Decode(bytes.NewReader(source))
 		if decodeErr != nil {
@@ -194,24 +185,13 @@ func (p *ImageProcessor) ProcessWithOptions(filename, declaredContentType string
 		if err != nil {
 			return ProcessedImage{}, fmt.Errorf("%w: %v", ErrImageProcessing, err)
 		}
-		preview = decoded
 	default:
 		return ProcessedImage{}, ErrUnsupportedImage
-	}
-
-	thumbnail, err := encodeResized(preview, thumbnailMaxSide, actualFormat)
-	if err != nil {
-		return ProcessedImage{}, fmt.Errorf("%w: %v", ErrImageProcessing, err)
-	}
-	medium, err := encodeResized(preview, mediumMaxSide, actualFormat)
-	if err != nil {
-		return ProcessedImage{}, fmt.Errorf("%w: %v", ErrImageProcessing, err)
 	}
 
 	return ProcessedImage{
 		Format: actualFormat, ContentType: contentTypeForFormat(actualFormat),
 		Width: width, Height: height, Original: original,
-		Thumbnail: thumbnail, Medium: medium,
 	}, nil
 }
 
@@ -401,56 +381,6 @@ func encodeImage(source image.Image, format string) ([]byte, error) {
 	default:
 		return nil, ErrUnsupportedImage
 	}
-}
-
-func encodeResized(source image.Image, maxSide int, format string) ([]byte, error) {
-	bounds := source.Bounds()
-	scale := math.Min(float64(maxSide)/float64(bounds.Dx()), float64(maxSide)/float64(bounds.Dy()))
-	if scale > 1 {
-		scale = 1
-	}
-	width := max(1, int(math.Round(float64(bounds.Dx())*scale)))
-	height := max(1, int(math.Round(float64(bounds.Dy())*scale)))
-	resized := resizeBilinear(source, width, height)
-	return encodeImage(resized, format)
-}
-
-func resizeBilinear(source image.Image, width, height int) *image.NRGBA64 {
-	bounds := source.Bounds()
-	result := image.NewNRGBA64(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		sourceY := (float64(y)+0.5)*float64(bounds.Dy())/float64(height) - 0.5
-		y0 := clamp(int(math.Floor(sourceY)), 0, bounds.Dy()-1)
-		y1 := min(y0+1, bounds.Dy()-1)
-		fy := max(0, min(1, sourceY-math.Floor(sourceY)))
-		for x := 0; x < width; x++ {
-			sourceX := (float64(x)+0.5)*float64(bounds.Dx())/float64(width) - 0.5
-			x0 := clamp(int(math.Floor(sourceX)), 0, bounds.Dx()-1)
-			x1 := min(x0+1, bounds.Dx()-1)
-			fx := max(0, min(1, sourceX-math.Floor(sourceX)))
-			c00 := color.NRGBA64Model.Convert(source.At(bounds.Min.X+x0, bounds.Min.Y+y0)).(color.NRGBA64)
-			c10 := color.NRGBA64Model.Convert(source.At(bounds.Min.X+x1, bounds.Min.Y+y0)).(color.NRGBA64)
-			c01 := color.NRGBA64Model.Convert(source.At(bounds.Min.X+x0, bounds.Min.Y+y1)).(color.NRGBA64)
-			c11 := color.NRGBA64Model.Convert(source.At(bounds.Min.X+x1, bounds.Min.Y+y1)).(color.NRGBA64)
-			result.SetNRGBA64(x, y, color.NRGBA64{
-				R: interpolate(c00.R, c10.R, c01.R, c11.R, fx, fy),
-				G: interpolate(c00.G, c10.G, c01.G, c11.G, fx, fy),
-				B: interpolate(c00.B, c10.B, c01.B, c11.B, fx, fy),
-				A: interpolate(c00.A, c10.A, c01.A, c11.A, fx, fy),
-			})
-		}
-	}
-	return result
-}
-
-func interpolate(topLeft, topRight, bottomLeft, bottomRight uint16, x, y float64) uint16 {
-	top := float64(topLeft)*(1-x) + float64(topRight)*x
-	bottom := float64(bottomLeft)*(1-x) + float64(bottomRight)*x
-	return uint16(math.Round(top*(1-y) + bottom*y))
-}
-
-func clamp(value, low, high int) int {
-	return max(low, min(value, high))
 }
 
 func scanGIFFrames(data []byte) (int, int64, error) {

@@ -43,12 +43,12 @@ func TestNormalizePageBoundsPublicFeedRequests(t *testing.T) {
 }
 
 func TestPublicDiscoveryOnlyAcceptsKnownVariants(t *testing.T) {
-	for _, variant := range []string{"original", "thumbnail", "medium"} {
+	for _, variant := range []string{"original"} {
 		if !validVariant(variant) {
 			t.Fatalf("variant %q should be public", variant)
 		}
 	}
-	for _, variant := range []string{"", "avatar", "../../private"} {
+	for _, variant := range []string{"", "thumbnail", "medium", "avatar", "../../private"} {
 		if validVariant(variant) {
 			t.Fatalf("variant %q should be rejected", variant)
 		}

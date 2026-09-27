@@ -8,7 +8,7 @@ import (
 
 func TestValidateProductionConfigRejectsUnsafeDefaults(t *testing.T) {
 	env := map[string]string{
-		"APP_ENV": "production", "APP_DEBUG": "true", "APP_URL": "http://127.0.0.1:53083",
+		"APP_ENV": "production", "APP_DEBUG": "true", "APP_URL": "http://127.0.0.1:53085",
 		"APP_KEY": "short", "JWT_SECRET": "short", "DB_CONNECTION": "postgres", "DB_SSLMODE": "disable",
 	}
 	require.Error(t, Validate(env))

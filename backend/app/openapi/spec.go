@@ -93,9 +93,9 @@ func Spec() map[string]any {
 			"/site/presentation":            map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getSitePresentation", "responses": map[string]any{"200": jsonResponse("SitePresentation")}}},
 			"/discovery/status":             map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryStatus", "responses": map[string]any{"200": jsonResponse("DiscoveryStatus"), "500": errorResponse()}}},
 			"/discovery/feed":               map[string]any{"get": map[string]any{"security": []any{}, "operationId": "listDiscoveryFeed", "parameters": []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer")}, "responses": map[string]any{"200": jsonResponse("DiscoveryFeedResponse"), "404": errorResponse(), "500": errorResponse()}}},
-			"/discovery/media/{id}/content": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryMediaContent", "parameters": []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}, "default": "thumbnail"}}}, "responses": map[string]any{"200": map[string]any{"description": "Public discovery media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()}}},
+			"/discovery/media/{id}/content": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryMediaContent", "parameters": []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original"}, "default": "original"}}}, "responses": map[string]any{"200": map[string]any{"description": "Public discovery media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()}}},
 			"/public/albums/{id}":           map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getPublicAlbum", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("PublicAlbum"), "404": errorResponse()}}},
-			"/public/albums/{id}/media/{media_id}/content": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getPublicAlbumMediaContent", "parameters": []map[string]any{pathParameter("id"), pathParameter("media_id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}, "default": "thumbnail"}}}, "responses": map[string]any{"200": map[string]any{"description": "Public album media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()}}},
+			"/public/albums/{id}/media/{media_id}/content": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getPublicAlbumMediaContent", "parameters": []map[string]any{pathParameter("id"), pathParameter("media_id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original"}, "default": "original"}}}, "responses": map[string]any{"200": map[string]any{"description": "Public album media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()}}},
 			"/payment-gateways":                            map[string]any{"get": map[string]any{"operationId": "listAvailablePaymentGateways", "responses": map[string]any{"200": map[string]any{"description": "Available configured gateway codes"}, "401": errorResponse()}}},
 			"/ads": map[string]any{"get": map[string]any{
 				"operationId": "listPublishedAds",
@@ -165,7 +165,7 @@ func Spec() map[string]any {
 			})},
 			"/media/{id}/content": map[string]any{"get": map[string]any{
 				"operationId": "getOwnMediaContent",
-				"parameters":  []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}}}},
+				"parameters":  []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original"}, "default": "original"}}},
 				"responses":   map[string]any{"200": map[string]any{"description": "Private media bytes", "content": map[string]any{"image/jpeg": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}, "image/png": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}, "image/gif": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "401": errorResponse(), "404": errorResponse()},
 			}},
 			"/media/trash": map[string]any{"delete": map[string]any{
@@ -205,7 +205,7 @@ func Spec() map[string]any {
 			}},
 			"/media/{id}/signed-url": map[string]any{"post": map[string]any{
 				"operationId": "createOwnSignedMediaURL", "parameters": []map[string]any{pathParameter("id")},
-				"requestBody": jsonBody("SignedMediaURLRequest", map[string]any{"type": "object", "properties": map[string]any{"variant": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}}, "expires_in": map[string]any{"type": "integer", "minimum": 60, "maximum": 86400, "default": 600}}}),
+				"requestBody": jsonBody("SignedMediaURLRequest", map[string]any{"type": "object", "properties": map[string]any{"variant": map[string]any{"type": "string", "enum": []string{"original"}, "default": "original"}, "expires_in": map[string]any{"type": "integer", "minimum": 60, "maximum": 86400, "default": 600}}}),
 				"responses":   map[string]any{"201": jsonResponse("SignedMediaURL"), "401": errorResponse(), "404": errorResponse(), "422": errorResponse(), "503": errorResponse()},
 			}},
 			"/media/{id}/hotlink-policy": map[string]any{
@@ -245,11 +245,11 @@ func Spec() map[string]any {
 				"responses": map[string]any{"201": jsonResponse("PersonalAPITokenCreated"), "401": errorResponse(), "404": errorResponse()},
 			}},
 			"/s/{token}": map[string]any{"get": map[string]any{
-				"security": []any{}, "operationId": "resolvePublicShareLink", "parameters": []map[string]any{pathParameter("token"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}}}, {"name": "password", "in": "query", "schema": map[string]any{"type": "string", "format": "password"}, "description": "Required only for password-protected share links."}},
+				"security": []any{}, "operationId": "resolvePublicShareLink", "parameters": []map[string]any{pathParameter("token"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original"}, "default": "original"}}, {"name": "password", "in": "query", "schema": map[string]any{"type": "string", "format": "password"}, "description": "Required only for password-protected share links."}},
 				"responses": map[string]any{"200": map[string]any{"description": "Shared media bytes", "content": map[string]any{"image/jpeg": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}, "image/png": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}, "image/gif": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "401": errorResponse(), "404": errorResponse()},
 			}},
 			"/i/{id}": map[string]any{"get": map[string]any{
-				"security": []any{}, "operationId": "resolveSignedMediaURL", "parameters": []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "required": true, "schema": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}}}, {"name": "expires", "in": "query", "required": true, "schema": map[string]any{"type": "integer", "format": "int64"}}, {"name": "signature", "in": "query", "required": true, "schema": map[string]any{"type": "string"}}},
+				"security": []any{}, "operationId": "resolveSignedMediaURL", "parameters": []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "required": true, "schema": map[string]any{"type": "string", "enum": []string{"original"}}}, {"name": "expires", "in": "query", "required": true, "schema": map[string]any{"type": "integer", "format": "int64"}}, {"name": "signature", "in": "query", "required": true, "schema": map[string]any{"type": "string"}}},
 				"responses": map[string]any{"200": map[string]any{"description": "Signed media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()},
 			}},
 			"/admin/registry": map[string]any{"get": operation("listResources")},
@@ -458,7 +458,7 @@ func shareLinkSchema() map[string]any {
 
 func signedMediaURLSchema() map[string]any {
 	return map[string]any{"type": "object", "required": []string{"url", "variant", "expires_at"}, "properties": map[string]any{
-		"url": map[string]any{"type": "string", "description": "Opaque application-signed delivery URL."}, "variant": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}}, "expires_at": map[string]any{"type": "string", "format": "date-time"},
+		"url": map[string]any{"type": "string", "description": "Opaque application-signed delivery URL."}, "variant": map[string]any{"type": "string", "enum": []string{"original"}}, "expires_at": map[string]any{"type": "string", "format": "date-time"},
 	}}
 }
 
@@ -479,7 +479,7 @@ func mediaAccessLogSchema() map[string]any {
 		"id":             map[string]any{"type": "integer", "format": "int64"},
 		"media_asset_id": map[string]any{"type": "integer", "format": "int64"},
 		"share_link_id":  map[string]any{"type": "integer", "format": "int64", "nullable": true},
-		"variant":        map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}},
+		"variant":        map[string]any{"type": "string", "enum": []string{"original"}},
 		"delivery_mode":  map[string]any{"type": "string", "enum": []string{"off", "referer", "signed", "hybrid", "share"}},
 		"result":         map[string]any{"type": "string", "enum": []string{"allowed", "denied", "not_found", "expired", "invalid"}},
 		"referer_host":   map[string]any{"type": "string", "nullable": true},

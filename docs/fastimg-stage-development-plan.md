@@ -127,7 +127,7 @@ GET /api/v1/quota
 2. 校验真实文件格式、扩展名、MIME、大小、像素、动画帧数和用户配额。
 3. 建立 `StorageProvider`，首期实现 Local Provider 和 Fake Provider，预留 S3-compatible Provider。
 4. 建立 MediaAsset、MediaVariant、StorageObject。
-5. 图片异步生成 thumbnail、medium、WebP、AVIF。
+5. 图片异步执行原图规范化；显示尺寸由接收站 CSS 或自身处理链控制，不为每张图片额外生成缩略图、中图、WebP 或 AVIF。
 6. 默认清理 GPS、设备信息等 EXIF。
 7. 用户媒体库支持网格、列表、筛选、搜索、文件夹、相册、批量操作和详情页。
 8. 删除进入回收站，支持恢复和永久删除。
@@ -159,7 +159,7 @@ POST   /api/v1/media/{id}/restore
 
 当前是可供内部开发预览的多个纵向切片，不代表 M1/M2 验收完成，更不可作为生产就绪声明。
 
-- 已实现：Local Provider、图片内容/扩展名/MIME/大小/像素/动画帧校验、重新编码清除源元数据、thumbnail/medium 生成、上传会话与幂等键、用户/套餐/配额检查、对象写入校验、私有媒体列表/预览/回收站/恢复，以及 `GET /api/v1/uploads/{id}` 状态查询和 `POST /api/v1/uploads/{id}/retry` 用户恢复入口。
+- 已实现：Local Provider、图片内容/扩展名/MIME/大小/像素/动画帧校验、重新编码清除源元数据、唯一原图对象写入、上传会话与幂等键、用户/套餐/配额检查、对象写入校验、私有媒体列表/预览/回收站/恢复，以及 `GET /api/v1/uploads/{id}` 状态查询和 `POST /api/v1/uploads/{id}/retry` 用户恢复入口。
 - 恢复规则：processing 会话的 `updated_at` 已超过 10 分钟才可被恢复请求接管；接管会在用户行锁内刷新更新时间。逐个核验登记对象的 MIME、大小和 SHA-256，全部匹配才确认用量并标 ready；对象缺失/损坏则删除可清理对象、释放预占并标记 failed，要求用户重新上传。
 - 已实现后台资源：plans、广告位、文件夹、相册进入后台资源导航；文件夹/相册启用 `user_id` own scope，广告位使用后台权限。Generated Resource Engine、RBAC 与审计复用框架，不复制实现。
 - 已实现套餐快照：新订阅在现有快照列写入套餐条款、权益和 SHA-256 内容版本；配额读取兼容新 envelope 与旧纯权益 JSON，订阅 API 优先显示快照并校验版本。旧订阅缺失历史价格/名称，只能兼容显示当前套餐并返回 `snapshot_available: false`。该变更未新增或运行数据库迁移。
@@ -379,7 +379,7 @@ POST   /api/v1/media/{id}/signed-url
 
 ## 十五、2026-09-24 开发进度：认证链接格式
 
-- 上传创建、状态查询、重试和会员媒体详情统一返回 `original`、`thumbnail`、`medium`、`url`、`markdown`、`html`、`bbcode`。
+- 上传创建、状态查询、重试和会员媒体详情统一返回唯一 `original`、`url`、`markdown`、`html`、`bbcode`。
 - 会员 `/media/:id` 提供 URL、Markdown、HTML、BBCode 复制控件，文案同步维护 zh-CN/en-US。
 - 当前链接仍指向认证内容端点，未实现公开稳定分享、密码/过期分享、签名 URL 或防盗链；不得把本切片描述为 M3 完成。
 - `go test ./... -count=1` 通过；前端会员/媒体/i18n/路由/集合专项测试 21/21 通过；本轮未执行迁移、数据库写入或后端重启。
@@ -686,7 +686,7 @@ POST   /api/v1/media/{id}/signed-url
 
 - 使用 `fastimg_dev` 的开发账号创建一次 Personal API Token；服务端忽略客户端提交的非法 Scope，固定授予 `upload:write`、`media:read`、`media:delete`。
 - 使用 `Authorization: Bearer fst_...` 验证本人媒体列表和兼容列表接口；使用 `X-API-Key: fst_...` 验证单文件 multipart 上传、本人媒体详情、链接返回和软删除。
-- 上传 `admin/src/assets/hero.png` 返回 `201`、`ready` 和 `original`/`thumbnail`/`medium`/Markdown/HTML/BBCode 等链接；详情返回 200，删除后返回 `deleted`。
+- 上传 `admin/src/assets/hero.png` 返回 `201`、`ready` 和 `original`/Markdown/HTML/BBCode 等链接；详情返回 200，删除后返回 `deleted`。
 - 使用同一 Token 请求 `/api/v1/me/usage` 和 `/api/v1/orders` 均返回 `403 TOKEN_ENDPOINT_NOT_ALLOWED`，确认订单和用量没有被 Personal API Token 放开。
 - 验收 Token 在完成测试后立即撤销，明文 Token 未保留在数据库、仓库或运行日志中。
 
@@ -763,7 +763,7 @@ POST   /api/v1/media/{id}/signed-url
 
 ### 本轮完成
 
-- 新增公开发现状态接口 `GET /api/v1/discovery/status`、分页接口 `GET /api/v1/discovery/feed` 和公开内容接口 `GET /api/v1/discovery/media/{id}/content?variant=thumbnail|medium|original`。发现页返回 `ready`、未删除、`visibility=public` 且未被管理员拒绝的媒体；普通上传完成后即可进入发现页，空数据也返回稳定 JSON 分页结构。
+- 新增公开发现状态接口 `GET /api/v1/discovery/status`、分页接口 `GET /api/v1/discovery/feed` 和公开内容接口 `GET /api/v1/discovery/media/{id}/content?variant=original`。发现页返回 `ready`、未删除、`visibility=public` 且未被管理员拒绝的媒体；普通上传完成后即可进入发现页，空数据也返回稳定 JSON 分页结构。
 - 不再提供会员主动投稿接口。发现页采用“先公开、后治理”：用户上传完成后默认 `public + approved`，用户无需等待管理员；用户或游客可以对公开图片举报，举报进入后台举报队列。
 - 新增迁移 `20260925000005_add_discovery_state_to_media`，普通上传默认写入 `public + approved`，上传完成后立即可通过稳定链接访问；用户可在会员媒体详情切换 `private` 或 `link`。`discovery_submitted_at` 仅保留历史审计字段，不再作为发现页查询条件。
 - 会员端新增公开 `/discover` 页面：游客可访问，使用真实发现 API 加载图片瀑布流、分页加载、图片内容链接和登录后举报入口；导航、SEO 元数据和 SSG 公开页面清单已同步中英文。
@@ -824,7 +824,7 @@ POST   /api/v1/media/{id}/signed-url
 ### 本轮完成
 
 - `Entitlement` 新增 `watermark_enabled`。Free 默认关闭；FastImg 初始 Creator/Pro 种子套餐开启，管理员可以在 `/admin/plans/{id}/edit` 的权益表单中单独切换每个计划，保存后新订阅和管理员手动分配的订阅快照立即生效。
-- 上传服务端在配额校验后读取当前用户的订阅快照，而不是相信前端传入的开关；开启水印时在原图编码前处理 PNG/JPEG，GIF 的每一帧也处理，然后再生成 thumbnail/medium，避免通过原图或预览 Variant 绕过套餐能力。
+- 上传服务端在配额校验后读取当前用户的订阅快照，而不是相信前端传入的开关；开启水印时在唯一原图编码前处理 PNG/JPEG，GIF 的每一帧也处理，不存在可绕过水印的预览 Variant。
 - `/admin/settings` 的“其他设置”增加 `watermark.text`、`watermark.domain` 和 `watermark.fallback_image_url`：文字默认使用 `FastImg`，域名可选追加到水印，加载失败时会员端使用配置图片或内置 FastImg 兜底图；内置处理器支持 ASCII 字母、数字和常用网址符号，不引入新的字体或图片处理框架依赖。
 - 修复套餐权益编辑器的广告和水印开关：使用显式 `model-value`/更新回调同步到 `entitlements_json`，保存后由服务端规范化并在新上传时生效。新增公开 `GET /api/v1/site/presentation`，只提供经过 URL 安全校验的加载失败兜底图地址；会员首页、上传结果、媒体库、相册、详情和发现页均在图片加载失败时显示兜底水印图。
 - 会员 `/plans` 展示当前公开套餐是否在上传时添加水印；旧订阅快照缺少新字段时兼容为关闭，计划写入会规范化输出 `watermark_enabled`。
@@ -1146,3 +1146,47 @@ POST   /api/v1/media/{id}/signed-url
 - 设置布局与开发代理测试 `10/10` 通过，`vue-tsc -b --pretty false` 通过，`npm run build` 通过。
 - 后端 `http://127.0.0.1:53085/sitemap.xml` 实测返回 `200 application/xml`；白屏根因是前端端口错误承接 XML 请求，而不是站点地图 XML 生成失败。
 - sitemap 内容仍受后台 `sitemap.enabled`、公开路径过滤和 `site_url` 规范域名设置控制；真实生产域名、TLS 和反向代理仍需部署时配置。
+
+## 六十六、2026-09-27：会员上传页剪贴板粘贴上传
+
+### 本轮完成
+
+- 首页 `/` 和媒体库 `/media` 共用的 `MemberUploadPanel` 增加全局 `paste` 监听；登录用户按 `Ctrl+V` 粘贴截图或其他图片文件后，文件会进入现有上传队列，不新增接口、不绕过现有套餐和服务端校验。
+- 只处理剪贴板中的图片文件；普通文字粘贴不调用 `preventDefault()`，因此不会破坏输入框和浏览器默认粘贴行为。游客不会读取剪贴板，上传仍由登录认证保护。
+- 粘贴提示增加中英文文案；上传完成后的预览、状态轮询和四种带域名链接复制继续复用现有实现。
+
+### 验证结果和边界
+
+- RED/GREEN：`tests/member-upload-links.test.mjs` 的剪贴板契约先失败后通过，专项测试 `4/4` 通过。
+- 支持范围与文件选择器一致：当前接受 JPG、PNG、GIF；浏览器无法提供图片文件时不拦截粘贴事件。真实浏览器剪贴板权限和不同浏览器的截图格式仍应在部署验收中抽测。
+- 本轮没有新增 API、权限、数据库迁移或存储配置；仍需按生产门禁完成真实支付回调、TLS、备份恢复、对象存储/CDN 和压力测试。
+
+## 六十七、2026-09-27：修复粘贴上传请求失败和会话错误提示
+
+### 本轮完成
+
+- 修复后端 CORS 预检：浏览器会员上传使用的 `Idempotency-Key` 现在与 `Content-Type`、`Authorization` 一起出现在 `Access-Control-Allow-Headers`，跨 53084 前端与 53085 后端的 multipart POST 可以真正发送。
+- 会员上传 composable 对 `AUTH_UNAUTHORIZED` 单独显示“登录状态已失效，请重新登录后再上传”，不再把认证问题伪装成文件损坏或格式错误。
+- 仅重启当前项目自己的 53085 后端进程；没有修改 Laragon 数据库、Redis 或生产 CORS 白名单规则。
+
+### 验证结果和边界
+
+- 实测预检 `OPTIONS http://127.0.0.1:53085/api/v1/uploads` 返回 `204`，并允许 `Idempotency-Key`。
+- 使用浏览器当前登录账号按 `Ctrl+V` 粘贴测试 PNG，实际上传返回 `ready`，预览和 URL、Markdown、HTML、BBCode 四种链接均显示；测试图片已移入回收站清理。
+- 前端相关契约、类型检查和生产构建继续通过；Go 定向测试启动仍受本机 Windows `Access is denied` 运行环境限制，但后端构建成功并已完成真实 HTTP 预检验收。
+
+## 六十八、2026-09-27：修复公开链接端口并切换为单原图存储
+
+### 本轮完成
+
+- 修正开发环境 `backend/.env` 的 `APP_URL` 为 `http://127.0.0.1:53085`。53083 是历史前端端口且当前没有服务，导致上传结果中的 `<img>` 预览和公开 `/i/{id}` 链接无法打开；签名本身在 53085 已实测返回图片。
+- 上传处理器不再生成或写入 `thumbnail`、`medium`，`ProcessedImage`、上传预留、媒体列表/详情、链接格式、公开发现、公开相册、会员内容和管理员预览均只接受 `original`。
+- 上传结果保留用户需要的 `original`、`url`、`markdown`、`html`、`bbcode` 五类信息；接收网站自行用 CSS 或自己的图片处理服务控制显示尺寸。
+- 为避免部署切换时丢失正在处理的旧任务，恢复逻辑临时兼容已存在的三 Variant 处理会话；新上传永远只建立一个原图对象。旧媒体的历史缩略图/中图不主动删除，永久删除仍会清理其全部旧对象，避免误删用户数据。
+- 同步更新 OpenAPI、开发者 API、数据契约、产品设计和前端预览请求；发现页和公开相册保留旧的 `thumbnail_url` 字段名以降低客户端破坏性，但其值现在指向原图内容地址。
+
+### 验证结果和边界
+
+- 根因验收：`53083` 对用户提供的链接返回连接拒绝；同一签名 URL 改为 `53085` 返回 `200 image/png`。
+- 新增/更新原图唯一存储、链接键集合和公开 Variant 契约测试；Go 测试启动仍受本机 Windows Go cache `Access is denied` 限制，不能把该环境限制误报为测试通过。
+- 已完成后端重新编译和前端类型/构建前置检查；重启后需重新打开媒体详情或重新上传一次，才能拿到使用 53085 的新链接。生产环境必须把 `APP_URL` 设置成真实 HTTPS 域名，不应把 53085 带入生产。

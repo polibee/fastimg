@@ -15,7 +15,7 @@
   "detail": "资源详情",
   "detailDescription": "查看资源记录的详细字段。",
   "mediaPreview": "媒体预览",
-  "mediaPreviewDescription": "这是管理员权限范围内的缩略图预览，不改变用户的公开或私有访问设置。",
+  "mediaPreviewDescription": "这是管理员权限范围内的原图预览，不改变用户的公开或私有访问设置。",
   "back": "返回列表",
   "manageMedia": "管理媒体",
   "perPage": "每页 {count} 条",

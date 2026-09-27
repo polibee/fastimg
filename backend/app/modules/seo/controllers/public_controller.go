@@ -109,7 +109,7 @@ func settingValue(key string) string {
 func publicBaseURL() string {
 	base := settingValue("site_url")
 	if base == "" {
-		base = strings.TrimSpace(facades.Config().GetString("app.url", "http://127.0.0.1:53083"))
+		base = strings.TrimSpace(facades.Config().GetString("app.url", "http://127.0.0.1:53085"))
 	}
 	return strings.TrimRight(base, "/")
 }

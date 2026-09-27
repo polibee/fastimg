@@ -22,15 +22,15 @@ func TestMediaLibraryDoesNotReadStorageBeforeOwnershipCheck(t *testing.T) {
 
 func TestMediaLibraryDetailsAreOwnerScopedAndIncludeReadyVariants(t *testing.T) {
 	asset := models.MediaAsset{UserID: 9, OriginalName: "photo.png", Status: "ready", Width: 800, Height: 600}
-	repository := &fakeMediaLibraryRepository{asset: asset, detailErr: map[string]error{"medium": ErrVariantNotFound}}
+	repository := &fakeMediaLibraryRepository{asset: asset, detailErr: map[string]error{"thumbnail": ErrVariantNotFound, "medium": ErrVariantNotFound}}
 	service := NewMediaLibraryService(repository, newFakeStorageProvider())
 
 	item, err := service.GetDetails(context.Background(), 9, 22)
 
 	require.NoError(t, err)
 	require.Equal(t, asset, item.Asset)
-	require.Len(t, item.Variants, 2)
-	require.Equal(t, []string{"original", "thumbnail"}, []string{item.Variants[0].Variant.Name, item.Variants[1].Variant.Name})
+	require.Len(t, item.Variants, 1)
+	require.Equal(t, "original", item.Variants[0].Variant.Name)
 }
 
 func TestMediaLibraryDetailsDoNotReturnAnotherUsersMedia(t *testing.T) {

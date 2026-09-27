@@ -602,7 +602,7 @@ func (r *DatabaseRepository) ListOwned(_ context.Context, userID uint, trash boo
 		return items, total, nil
 	}
 	var variants []models.MediaVariant
-	if err := facades.Orm().Query().WhereIn("media_asset_id", assetIDs).Where("status = ?", "ready").Get(&variants); err != nil {
+	if err := facades.Orm().Query().WhereIn("media_asset_id", assetIDs).Where("status = ? AND name = ?", "ready", "original").Get(&variants); err != nil {
 		return nil, 0, err
 	}
 	objectIDs := make([]any, 0, len(variants))
