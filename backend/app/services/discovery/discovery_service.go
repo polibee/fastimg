@@ -16,17 +16,17 @@ import (
 
 var (
 	ErrDiscoveryDisabled        = errors.New("discovery is disabled")
-	ErrDiscoverySubmissionsOff  = errors.New("discovery submissions are disabled")
 	ErrDiscoveryMediaNotFound   = errors.New("public discovery media not found")
 	ErrDiscoveryVariantNotFound = errors.New("public discovery variant not found")
-	ErrDiscoveryAlreadyPending  = errors.New("discovery submission already pending")
 )
 
 const (
 	VisibilityPrivate  = "private"
+	VisibilityLink     = "link"
 	VisibilityPublic   = "public"
 	ModerationPending  = "pending"
 	ModerationApproved = "approved"
+	ModerationRejected = "rejected"
 )
 
 type FeedItem struct {
@@ -49,8 +49,7 @@ type FeedPage struct {
 }
 
 type Status struct {
-	Enabled            bool `json:"enabled"`
-	SubmissionsEnabled bool `json:"submissions_enabled"`
+	Enabled bool `json:"enabled"`
 }
 
 type PublicVariant struct {
@@ -62,7 +61,6 @@ type PublicVariant struct {
 type Repository interface {
 	ListPublic(ctx context.Context, page, perPage int) ([]models.MediaAsset, int64, error)
 	FindPublicVariant(ctx context.Context, mediaID uint, variant string) (PublicVariant, error)
-	Submit(ctx context.Context, userID, mediaID uint) (models.MediaAsset, error)
 }
 
 type DatabaseRepository struct{}
@@ -72,8 +70,8 @@ func NewDatabaseRepository() *DatabaseRepository { return &DatabaseRepository{} 
 func (r *DatabaseRepository) ListPublic(_ context.Context, page, perPage int) ([]models.MediaAsset, int64, error) {
 	page, perPage = NormalizePage(page, perPage)
 	query := facades.Orm().Query().Table("media_assets").Where(
-		"status = ? AND deleted_at IS NULL AND visibility = ? AND moderation_status = ?",
-		"ready", VisibilityPublic, ModerationApproved,
+		"status = ? AND deleted_at IS NULL AND visibility = ? AND moderation_status <> ?",
+		"ready", VisibilityPublic, ModerationRejected,
 	)
 	var items []models.MediaAsset
 	var total int64
@@ -89,8 +87,8 @@ func (r *DatabaseRepository) FindPublicVariant(_ context.Context, mediaID uint, 
 	}
 	var asset models.MediaAsset
 	if err := facades.Orm().Query().Table("media_assets").Where(
-		"id = ? AND status = ? AND deleted_at IS NULL AND visibility = ? AND moderation_status = ?",
-		mediaID, "ready", VisibilityPublic, ModerationApproved,
+		"id = ? AND status = ? AND deleted_at IS NULL AND visibility = ? AND moderation_status <> ?",
+		mediaID, "ready", VisibilityPublic, ModerationRejected,
 	).First(&asset); err != nil {
 		return PublicVariant{}, ErrDiscoveryMediaNotFound
 	}
@@ -105,41 +103,38 @@ func (r *DatabaseRepository) FindPublicVariant(_ context.Context, mediaID uint, 
 	return PublicVariant{ObjectKey: object.ObjectKey, ContentType: object.ContentType, OwnerUserID: asset.UserID}, nil
 }
 
-func (r *DatabaseRepository) Submit(_ context.Context, userID, mediaID uint) (models.MediaAsset, error) {
-	var asset models.MediaAsset
-	if err := facades.Orm().Query().Where("id = ? AND user_id = ? AND status = ? AND deleted_at IS NULL", mediaID, userID, "ready").First(&asset); err != nil {
-		return models.MediaAsset{}, ErrDiscoveryMediaNotFound
-	}
-	if asset.Visibility == VisibilityPublic && asset.ModerationStatus == ModerationPending {
-		return asset, ErrDiscoveryAlreadyPending
-	}
-	now := time.Now().UTC()
-	if _, err := facades.Orm().Query().Table("media_assets").Where("id = ? AND user_id = ?", mediaID, userID).Update(map[string]any{
-		"visibility": VisibilityPublic, "moderation_status": ModerationPending, "discovery_submitted_at": now, "updated_at": now,
-	}); err != nil {
-		return models.MediaAsset{}, err
-	}
-	asset.Visibility = VisibilityPublic
-	asset.ModerationStatus = ModerationPending
-	return asset, nil
-}
-
 type Service struct {
-	repository Repository
-	storage    storageservices.StorageProvider
-	settings   *settingsservices.SettingService
+	repository     Repository
+	storage        storageservices.StorageProvider
+	storageResolve func(context.Context) (storageservices.StorageProvider, error)
+	settings       *settingsservices.SettingService
 }
 
 func NewService(repository Repository, storage storageservices.StorageProvider) *Service {
 	return &Service{repository: repository, storage: storage, settings: settingsservices.NewSettingService()}
 }
 
+// NewServiceWithStorageResolver keeps storage selection at the runtime
+// boundary. Public delivery must use the currently configured primary
+// provider, not a provider captured when routes were registered.
+func NewServiceWithStorageResolver(repository Repository, resolver func(context.Context) (storageservices.StorageProvider, error)) *Service {
+	return &Service{repository: repository, storageResolve: resolver, settings: settingsservices.NewSettingService()}
+}
+
 func NewDatabaseService(storage storageservices.StorageProvider) *Service {
 	return NewService(NewDatabaseRepository(), storage)
 }
 
+func NewDatabaseServiceWithRuntimeStorage() *Service {
+	disk := facades.Storage().Disk("fastimg")
+	return NewServiceWithStorageResolver(NewDatabaseRepository(), func(_ context.Context) (storageservices.StorageProvider, error) {
+		provider, _, err := storageservices.NewRuntimeRegistry(disk).Primary()
+		return provider, err
+	})
+}
+
 func (s *Service) Status(_ context.Context) Status {
-	return Status{Enabled: settingBool(s.settings.Resolve("discover.enabled", "true")), SubmissionsEnabled: settingBool(s.settings.Resolve("discover.submissions_enabled", "true"))}
+	return Status{Enabled: settingBool(s.settings.Resolve("discover.enabled", "true"))}
 }
 
 func (s *Service) Feed(ctx context.Context, page, perPage int) (FeedPage, error) {
@@ -164,14 +159,30 @@ func (s *Service) Feed(ctx context.Context, page, perPage int) (FeedPage, error)
 }
 
 func (s *Service) Content(ctx context.Context, mediaID uint, variant string) (string, []byte, error) {
-	if !s.Status(ctx).Enabled {
+	return s.content(ctx, mediaID, variant, true)
+}
+
+// ContentPublic serves media that belongs to an explicitly public album. It
+// keeps the same visibility, moderation, storage and bandwidth checks as the
+// discovery delivery path, but does not make an album depend on the optional
+// discovery feed switch.
+func (s *Service) ContentPublic(ctx context.Context, mediaID uint, variant string) (string, []byte, error) {
+	return s.content(ctx, mediaID, variant, false)
+}
+
+func (s *Service) content(ctx context.Context, mediaID uint, variant string, requireDiscovery bool) (string, []byte, error) {
+	if requireDiscovery && !s.Status(ctx).Enabled {
 		return "", nil, ErrDiscoveryDisabled
 	}
 	publicVariant, err := s.repository.FindPublicVariant(ctx, mediaID, variant)
 	if err != nil {
 		return "", nil, err
 	}
-	content, err := s.storage.Get(ctx, publicVariant.ObjectKey)
+	storage, err := s.resolveStorage(ctx)
+	if err != nil {
+		return "", nil, fmt.Errorf("resolve public discovery storage: %w", err)
+	}
+	content, err := storage.Get(ctx, publicVariant.ObjectKey)
 	if err != nil {
 		return "", nil, fmt.Errorf("read public discovery media: %w", err)
 	}
@@ -181,16 +192,14 @@ func (s *Service) Content(ctx context.Context, mediaID uint, variant string) (st
 	return publicVariant.ContentType, content, nil
 }
 
-func (s *Service) Submit(ctx context.Context, userID, mediaID uint) error {
-	status := s.Status(ctx)
-	if !status.Enabled {
-		return ErrDiscoveryDisabled
+func (s *Service) resolveStorage(ctx context.Context) (storageservices.StorageProvider, error) {
+	if s.storageResolve != nil {
+		return s.storageResolve(ctx)
 	}
-	if !status.SubmissionsEnabled {
-		return ErrDiscoverySubmissionsOff
+	if s.storage == nil {
+		return nil, errors.New("discovery storage is not configured")
 	}
-	_, err := s.repository.Submit(ctx, userID, mediaID)
-	return err
+	return s.storage, nil
 }
 
 func NormalizePage(page, perPage int) (int, int) {
@@ -204,6 +213,13 @@ func NormalizePage(page, perPage int) (int, int) {
 		perPage = 48
 	}
 	return page, perPage
+}
+
+// IsDiscoverable is the shared post-moderation rule for a public media asset.
+// Uploads are available immediately; only an explicit rejection removes them
+// from discovery. Private and link-only media are never listed here.
+func IsDiscoverable(visibility, moderationStatus string) bool {
+	return visibility == VisibilityPublic && moderationStatus != ModerationRejected
 }
 
 func settingBool(value string) bool { return strings.EqualFold(strings.TrimSpace(value), "true") }

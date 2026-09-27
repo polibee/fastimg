@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Check, Copy, Languages } from '@lucide/vue'
@@ -12,6 +12,8 @@ import { ApiError, errorMessageKey } from '@/lib/api'
 import { DEMO_CREDENTIALS, type DemoCredentialKey } from '@/lib/login-demo'
 import { resolveLoginRedirect } from '@/lib/login-redirect'
 import { useAuthStore } from '@/stores/auth'
+import { generatedApi, type RegistrationPolicy } from '@/generated/api'
+import TurnstileWidget from '../components/TurnstileWidget.vue'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -22,6 +24,12 @@ const password = ref(DEMO_CREDENTIALS.password)
 const errorMessage = ref('')
 const isSubmitting = ref(false)
 const copiedCredential = ref<DemoCredentialKey | null>(null)
+const policy = ref<RegistrationPolicy>()
+const turnstileToken = ref('')
+
+onMounted(async () => {
+  try { policy.value = await generatedApi.registrationPolicy() } catch { /* login remains usable when policy discovery is unavailable */ }
+})
 
 function toggleLocale() {
   locale.value = locale.value === 'zh-CN' ? 'en-US' : 'zh-CN'
@@ -50,7 +58,7 @@ async function submit() {
   errorMessage.value = ''
   isSubmitting.value = true
   try {
-    await auth.login(email.value, password.value)
+    await auth.login(email.value, password.value, turnstileToken.value)
     await router.replace(resolveLoginRedirect(route.query.redirect))
   } catch (error) {
     errorMessage.value = error instanceof ApiError ? t(errorMessageKey(error.code)) : t('errors.unknown')
@@ -109,10 +117,12 @@ async function submit() {
             <Label for="password">{{ t('auth.password') }}</Label>
             <Input id="password" v-model="password" type="password" autocomplete="current-password" required />
           </div>
+          <TurnstileWidget v-if="policy?.login_turnstile" :site-key="policy.turnstile_site_key" v-model:token="turnstileToken" />
           <p v-if="errorMessage" class="text-sm text-destructive" role="alert">{{ errorMessage }}</p>
           <Button type="submit" :disabled="isSubmitting">
             {{ isSubmitting ? t('auth.loggingIn') : t('auth.login') }}
           </Button>
+          <Button type="button" variant="ghost" @click="router.push({ name: 'register' })">{{ t('auth.createAccount') }}</Button>
         </form>
       </CardContent>
     </Card>

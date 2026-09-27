@@ -29,6 +29,8 @@ interface MediaItem {
   width: number
   height: number
   status: string
+  visibility: 'private' | 'link' | 'public'
+  moderation_status: string
   created_at: string
   links: Record<string, string>
   variants: Record<string, MediaVariant>
@@ -76,6 +78,10 @@ const signedExpiresIn = ref('600')
 const signedURL = ref<SignedURL>()
 const creatingSignedURL = ref(false)
 const signedURLError = ref(false)
+const visibility = ref<'private' | 'link' | 'public'>('public')
+const savingVisibility = ref(false)
+const visibilityError = ref(false)
+const visibilitySaved = ref(false)
 const hotlinkPolicy = ref<HotlinkPolicy>({ media_id: 0, mode: 'off', allow_no_referer: false })
 const savingHotlinkPolicy = ref(false)
 const hotlinkPolicyError = ref(false)
@@ -108,6 +114,7 @@ async function loadDetails() {
     if (!auth.token) throw new Error('unauthenticated')
     const response = await apiFetchEnvelope<MediaItem>(`/api/v1/media/${encodeURIComponent(String(route.params.id))}`, {}, auth.token)
     item.value = response.data
+    visibility.value = response.data.visibility || 'public'
     await loadLinkSecurity()
     await Promise.allSettled(availableVariants.value.map(async (name) => {
       const blob = await apiFetchBlob(item.value!.variants[name].url, auth.token!)
@@ -117,6 +124,26 @@ async function loadDetails() {
     failed.value = true
   } finally {
     loading.value = false
+  }
+}
+
+async function saveVisibility() {
+  if (!auth.token || !item.value) return
+  savingVisibility.value = true
+  visibilityError.value = false
+  visibilitySaved.value = false
+  try {
+    await apiFetch(`/api/v1/media/${item.value.id}/visibility`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visibility: visibility.value }),
+    }, auth.token)
+    item.value.visibility = visibility.value
+    visibilitySaved.value = true
+  } catch {
+    visibilityError.value = true
+  } finally {
+    savingVisibility.value = false
   }
 }
 
@@ -316,6 +343,27 @@ onBeforeUnmount(releasePreviews)
           </CardContent>
         </Card>
       </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>{{ t('member.media.visibilityTitle') }}</CardTitle>
+          <CardDescription>{{ t('member.media.visibilityDescription') }}</CardDescription>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label class="flex max-w-sm flex-1 flex-col gap-1 text-sm">
+            <span class="text-muted-foreground">{{ t('member.media.visibility') }}</span>
+            <select v-model="visibility" class="h-9 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="public">{{ t('member.media.visibilityOptions.public') }}</option>
+              <option value="link">{{ t('member.media.visibilityOptions.link') }}</option>
+              <option value="private">{{ t('member.media.visibilityOptions.private') }}</option>
+            </select>
+          </label>
+          <Button :disabled="savingVisibility" @click="saveVisibility">
+            <LoaderCircle v-if="savingVisibility" class="animate-spin" data-icon="inline-start" />
+            {{ visibilitySaved ? t('member.media.saved') : t('member.media.saveVisibility') }}
+          </Button>
+        </CardContent>
+        <CardContent v-if="visibilityError" class="pt-0 text-sm text-destructive">{{ t('member.media.errors.visibilityFailed') }}</CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>{{ t('member.media.linkFormats') }}</CardTitle>

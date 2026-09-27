@@ -33,7 +33,11 @@ test('admin global search normalizes only registered all-scope resources', () =>
 })
 
 test('admin resource registry filtering excludes own-scope routes in both naming forms', () => {
-  const router = read('src/router/index.ts')
-  assert.match(router, /dataScope/)
-  assert.match(router, /data_scope === 'own'/)
+  const routes = read('src/apps/admin/routes.ts')
+  const shell = read('src/core/layouts/AdminShell.vue')
+  assert.match(routes, /dataScope\?:\s*string/)
+  assert.match(routes, /data_scope\?:\s*string/)
+  assert.match(routes, /scoped\.dataScope === 'own'/)
+  assert.match(routes, /scoped\.data_scope === 'own'/)
+  assert.match(shell, /data_scope !== 'own'/)
 })

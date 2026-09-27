@@ -12,6 +12,7 @@ import (
 	"goravel/app/core/resource"
 	"goravel/app/facades"
 	"goravel/app/modules/admin/registry"
+	developerservices "goravel/app/services/developer"
 	rbacservices "goravel/app/services/rbac"
 	userservices "goravel/app/services/users"
 )
@@ -192,6 +193,14 @@ func (r *ResourceController) Delete(ctx http.Context) http.Response {
 		}
 		recordManagementAudit(ctx, "role.delete", map[string]any{"target_role_id": id})
 		return ctx.Response().NoContent(204)
+	case "api-tokens-service":
+		if err := developerservices.NewDatabaseRepository().DeleteAdmin(ctx.Context(), uint(id)); err != nil {
+			if errors.Is(err, developerservices.ErrTokenNotFound) {
+				return ctx.Response().Status(404).Json(http.Json{"code": "RESOURCE_NOT_FOUND"})
+			}
+			return ctx.Response().Status(500).Json(http.Json{"code": "INTERNAL_ERROR"})
+		}
+		return ctx.Response().NoContent(204)
 	}
 	if manifest.SoftDelete {
 		if _, err := facades.Orm().Query().Table(manifest.Table).Where("id = ?", id).Update(map[string]any{"deleted_at": time.Now().UTC()}); err != nil {
@@ -211,6 +220,8 @@ func resourceDeleteStrategy(manifest resource.Manifest) string {
 		return "users-service"
 	case "roles":
 		return "roles-service"
+	case "api_tokens":
+		return "api-tokens-service"
 	default:
 		return "generic-table"
 	}

@@ -80,7 +80,7 @@ func EnsureFreeSubscriptionWithQuery(query orm.Query, userID uint) error {
 	if encodeErr != nil {
 		return encodeErr
 	}
-	return query.Create(&models.Subscription{
+	return CreateSubscriptionWithQuery(query, models.Subscription{
 		UserID: userID, PlanID: plan.ID, Status: "active",
 		EntitlementSnapshotJSON: encoded,
 	})
@@ -156,9 +156,14 @@ func (s *PlanService) AssignPlan(userID, planID uint) (*models.Subscription, err
 			if err := tx.Where("user_id = ? AND status = ?", userID, "active").First(&subscription); err != nil {
 				return err
 			}
-			if _, err := tx.Where("id = ?", subscription.ID).Update(map[string]any{
-				"plan_id": plan.ID, "starts_at": now, "entitlement_snapshot_json": snapshot,
-			}); err != nil {
+			updates := map[string]any{
+				"plan_id": plan.ID, "starts_at": now, "ends_at": nil,
+				"entitlement_snapshot_json": snapshot,
+			}
+			if facades.Schema().HasColumn("subscriptions", "grace_period_ends_at") {
+				updates["grace_period_ends_at"] = nil
+			}
+			if _, err := tx.Where("id = ?", subscription.ID).Update(updates); err != nil {
 				return err
 			}
 			subscription.PlanID = plan.ID
@@ -166,7 +171,7 @@ func (s *PlanService) AssignPlan(userID, planID uint) (*models.Subscription, err
 			subscription.EntitlementSnapshotJSON = snapshot
 		} else {
 			subscription = models.Subscription{UserID: userID, PlanID: plan.ID, Status: "active", StartsAt: &now, EntitlementSnapshotJSON: snapshot}
-			if err := tx.Create(&subscription); err != nil {
+			if err := CreateSubscriptionWithQuery(tx, subscription); err != nil {
 				return err
 			}
 		}

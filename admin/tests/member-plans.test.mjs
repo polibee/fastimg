@@ -37,6 +37,13 @@ test('guest can load the public plan catalog and sees a login prompt for private
   assert.equal(typeof english.plans.guestDescription, 'string')
 })
 
+test('public plan cards use the current price catalog contract without rendering NaN', () => {
+  const page = read('src/modules/member/pages/MemberPlansPage.vue')
+  assert.match(page, /amount_minor/)
+  assert.match(page, /prices\?\.\[0\]/)
+  assert.doesNotMatch(page, /formatPrice\(plan\)[\s\S]*?plan\.price_amount\s*\/\s*100/)
+})
+
 test('member plan page uses localized member keys for user-facing content', () => {
   const page = read('src/modules/member/pages/MemberPlansPage.vue')
   assert.match(page, /useI18n\(\)/)

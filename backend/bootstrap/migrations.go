@@ -47,5 +47,9 @@ func Migrations() []schema.Migration {
 		&migrations.M20260926000002AddEmailVerifiedAtToUsers{},
 		&migrations.M20260926000003CreateEmailVerificationTokensTable{},
 		&migrations.M20260926000004CreateBackupJobsTable{},
+		&migrations.M20260926000005AddSubscriptionExpiryLifecycle{},
+		&migrations.M20260927000001CreateStorageConnectionsTable{},
+		&migrations.M20260927000002AddStoragePermissions{},
+		&migrations.M20260927000003AddTaskPermissions{},
 	}
 }

@@ -27,6 +27,7 @@ func NewMemberController() *MemberController {
 }
 
 func (c *MemberController) Gateways(ctx httpcontract.Context) httpcontract.Response {
+	billing.RefreshGatewayRegistry()
 	return ctx.Response().Success().Json(httpcontract.Json{"data": c.gateways.Codes()})
 }
 
@@ -78,6 +79,7 @@ func (c *MemberController) ShowOrder(ctx httpcontract.Context) httpcontract.Resp
 }
 
 func (c *MemberController) StartPayment(ctx httpcontract.Context) httpcontract.Response {
+	billing.RefreshGatewayRegistry()
 	userID, err := memberUserID(ctx)
 	if err != nil {
 		return ctx.Response().Status(http.StatusUnauthorized).Json(httpcontract.Json{"code": "AUTH_UNAUTHORIZED"})
@@ -164,21 +166,30 @@ func billingError(ctx httpcontract.Context, err error) httpcontract.Response {
 		}
 		return ctx.Response().Status(status).Json(httpcontract.Json{"code": code, "gateway_code": providerErr.GatewayCode, "provider_code": providerErr.ProviderCode})
 	}
+	code, status := billingErrorCode(err)
+	return ctx.Response().Status(status).Json(httpcontract.Json{"code": code})
+}
+
+func billingErrorCode(err error) (string, int) {
 	switch {
 	case errors.Is(err, billing.ErrInvalidOrderRequest):
-		return ctx.Response().Status(http.StatusUnprocessableEntity).Json(httpcontract.Json{"code": "ORDER_VALIDATION_FAILED"})
+		return "ORDER_VALIDATION_FAILED", http.StatusUnprocessableEntity
 	case errors.Is(err, billing.ErrFreePlanNotPayable):
-		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "FREE_PLAN_NO_PAYMENT"})
+		return "FREE_PLAN_NO_PAYMENT", http.StatusConflict
 	case errors.Is(err, billing.ErrPlanPriceNotFound):
-		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "PLAN_PRICE_UNAVAILABLE"})
+		return "PLAN_PRICE_UNAVAILABLE", http.StatusConflict
 	case errors.Is(err, billing.ErrOrderNotFound):
-		return ctx.Response().Status(http.StatusNotFound).Json(httpcontract.Json{"code": "ORDER_NOT_FOUND"})
+		return "ORDER_NOT_FOUND", http.StatusNotFound
+	case errors.Is(err, billing.ErrOrderAlreadyCanceled):
+		return "ORDER_NOT_CANCELLABLE", http.StatusConflict
 	case errors.Is(err, billing.ErrPaymentNotAllowed):
-		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "PAYMENT_NOT_ALLOWED"})
+		return "PAYMENT_NOT_ALLOWED", http.StatusConflict
+	case errors.Is(err, billing.ErrPaymentIdempotencyConflict):
+		return "PAYMENT_IDEMPOTENCY_CONFLICT", http.StatusConflict
 	case errors.Is(err, providers.ErrGatewayUnavailable):
-		return ctx.Response().Status(http.StatusConflict).Json(httpcontract.Json{"code": "GATEWAY_UNAVAILABLE"})
+		return "GATEWAY_UNAVAILABLE", http.StatusConflict
 	default:
-		return ctx.Response().Status(http.StatusInternalServerError).Json(httpcontract.Json{"code": "BILLING_OPERATION_FAILED"})
+		return "BILLING_OPERATION_FAILED", http.StatusInternalServerError
 	}
 }
 

@@ -6,6 +6,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCanCancelOrderOnlyAllowsUnpaidStates(t *testing.T) {
+	for _, status := range []string{"created", "pending_payment"} {
+		require.True(t, CanCancelOrder(status), status)
+	}
+	for _, status := range []string{"paid", "fulfilled", "canceled", "expired", "failed"} {
+		require.False(t, CanCancelOrder(status), status)
+	}
+}
+
 func TestValidateCreateOrderRequestRequiresServerPricedFields(t *testing.T) {
 	valid := CreateOrderRequest{PlanID: 8, PriceID: 11, Currency: "USD", BillingPeriod: "monthly", IdempotencyKey: "checkout-1"}
 	require.NoError(t, ValidateCreateOrderRequest(valid))

@@ -1,0 +1,1 @@
+{ "title": "相册媒体关系", "description": "查看并维护相册与媒体的关联。媒体和相册仍按所属用户保持一致。", "mediaIdList": "要加入的媒体 ID", "mediaIdHint": "输入一个或多个 ready 媒体 ID，用逗号分隔。", "add": "加入相册", "remove": "移出相册", "loadFailed": "相册媒体关系加载失败", "saveFailed": "相册媒体关系保存失败", "empty": "此相册暂未关联媒体", "owner": "用户", "status": "状态", "visibility": "可见性", "success": "操作已完成" }

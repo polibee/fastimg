@@ -1,3 +1,3 @@
 import type {RouteRecordRaw} from 'vue-router'
 const c=(name:string)=>()=>import(`@/modules/member/pages/${name}.vue`)
-export const publicMemberRoutes:RouteRecordRaw[]=[{path:'',name:'member-home',component:c('MemberHomePage')},{path:'discover',name:'member-discover',component:c('MemberDiscoverPage')},{path:'plans',name:'member-plans',component:c('MemberPlansPage')}]
+export const publicMemberRoutes:RouteRecordRaw[]=[{path:'',name:'member-home',component:c('MemberHomePage')},{path:'discover',name:'member-discover',component:c('MemberDiscoverPage')},{path:'plans',name:'member-plans',component:c('MemberPlansPage')},{path:'a/:id',name:'public-album',component:c('PublicAlbumPage')},{path:'register',name:'register',component:()=>import('@/modules/auth/pages/RegisterPage.vue')},{path:'verify-email',name:'verify-email',component:()=>import('@/modules/auth/pages/VerifyEmailPage.vue')}]

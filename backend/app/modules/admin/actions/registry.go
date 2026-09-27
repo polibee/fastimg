@@ -11,6 +11,8 @@ var applicationRegistry = func() *adminactions.Registry {
 	_ = r.Register(useractions.NewSetStatusHandler())
 	_ = r.Register(developeractions.NewSetStatusHandler())
 	_ = r.Register(NewResolveHandler())
+	_ = r.Register(NewMediaModerationHandler())
+	_ = r.Register(NewMediaPermanentDeleteHandler())
 	return r
 }()
 

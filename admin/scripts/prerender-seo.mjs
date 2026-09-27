@@ -8,13 +8,69 @@ const dist = join(root, '..', 'dist')
 const template = await readFile(join(dist, 'index.html'), 'utf8')
 const origin = process.env.SSG_PUBLIC_ORIGIN || 'https://img.example.com'
 
-const pages = publicPages
+const albumIDs = String(process.env.SSG_PUBLIC_ALBUM_IDS || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter((value) => /^\d+$/.test(value))
+const apiOrigin = (process.env.SSG_API_ORIGIN || 'http://127.0.0.1:53085').replace(/\/$/, '')
+const albumPages = []
+for (const id of albumIDs) {
+  try {
+    const response = await fetch(`${apiOrigin}/api/v1/public/albums/${id}`)
+    if (!response.ok) continue
+    const payload = await response.json()
+    const album = payload?.data
+    if (!album || album.visibility !== 'public') continue
+    albumPages.push({
+      path: `/a/${id}`,
+      title: `${album.name} — FastImg`,
+      description: `Browse the public album “${album.name}” on FastImg.`,
+      heading: album.name,
+      body: `Public images from the ${album.name} album.`,
+      album,
+    })
+  } catch (error) {
+    console.warn(`Skipped public album ${id}: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+const pages = [...publicPages, ...albumPages]
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character])
+}
+
+function safeJSON(value) {
+  return JSON.stringify(value).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')
+}
+
+function replaceOrAppend(document, pattern, value) {
+  if (pattern.test(document)) return document.replace(pattern, value)
+  return document.replace('</head>', `${value}</head>`)
+}
 
 for (const page of pages) {
   const canonical = `${origin.replace(/\/$/, '')}${page.path}`
-  const head = `<meta name="description" content="${page.description}"><meta property="og:title" content="${page.title}"><meta property="og:description" content="${page.description}"><meta property="og:type" content="website"><meta property="og:url" content="${canonical}"><link rel="canonical" href="${canonical}"><script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebSite', name: 'FastImg', url: origin })}</script>`
-  const content = `<main data-fastimg-ssg="true"><h1>${page.heading}</h1><p>${page.body}</p><p><a href="/login">Sign in to upload</a> · <a href="/plans">View plans</a></p></main>`
-  const output = template.replace('</head>', `${head}</head>`).replace('<div id="app"></div>', content)
+  const tags = [
+    [`<title[^>]*>[\\s\\S]*?<\\/title>`, `<title>${escapeHTML(page.title)}</title>`],
+    [`<meta\\s+name="description"[^>]*>`, `<meta name="description" content="${escapeHTML(page.description)}">`],
+    [`<meta\\s+property="og:title"[^>]*>`, `<meta property="og:title" content="${escapeHTML(page.title)}">`],
+    [`<meta\\s+property="og:description"[^>]*>`, `<meta property="og:description" content="${escapeHTML(page.description)}">`],
+    [`<meta\\s+property="og:type"[^>]*>`, '<meta property="og:type" content="website">'],
+    [`<meta\\s+property="og:url"[^>]*>`, `<meta property="og:url" content="${escapeHTML(canonical)}">`],
+    [`<link\\s+rel="canonical"[^>]*>`, `<link rel="canonical" href="${escapeHTML(canonical)}">`],
+    [`<script\\s+type="application/ld\\+json">[\\s\\S]*?<\\/script>`, `<script type="application/ld+json">${safeJSON({ '@context': 'https://schema.org', '@type': 'WebSite', name: 'FastImg', url: origin })}</script>`],
+  ]
+  const albumContent = page.album?.media?.map((item) => `<article><a href="${escapeHTML(item.original_url)}"><img src="${escapeHTML(item.thumbnail_url)}" alt="${escapeHTML(item.original_name)}" loading="lazy"></a><p>${escapeHTML(item.original_name)}</p></article>`).join('') || ''
+  const content = page.album
+    ? `<main data-fastimg-ssg="true"><h1>${escapeHTML(page.heading)}</h1><p>${escapeHTML(page.body)}</p><section>${albumContent}</section><p><a href="/discover">Discover more public images</a></p></main>`
+    : `<main data-fastimg-ssg="true"><h1>${escapeHTML(page.heading)}</h1><p>${escapeHTML(page.body)}</p><p><a href="/login">Sign in to upload</a> · <a href="/plans">View plans</a></p></main>`
+  const mount = `<div id="app" data-fastimg-ssg="true">${content}</div>`
+  let output = template
+  for (const [pattern, tag] of tags) output = replaceOrAppend(output, new RegExp(pattern, 'i'), tag)
+  output = output.replace('<div id="app"></div>', mount)
   const target = page.path === '/' ? join(dist, 'index.html') : join(dist, page.path.slice(1), 'index.html')
   await mkdir(dirname(target), { recursive: true })
   await writeFile(target, output)

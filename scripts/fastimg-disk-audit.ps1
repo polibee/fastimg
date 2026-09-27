@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [double]$WarnGB = 8
+    [double]$WarnGB = 8,
+    [switch]$Apply
 )
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -8,34 +9,57 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 function Get-DirectoryGB([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return 0.0 }
     $sum = (Get-ChildItem -LiteralPath $Path -Force -File -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+    if ($null -eq $sum) { return 0.0 }
     return [math]::Round(([double]$sum / 1GB), 2)
 }
 
 $rows = @()
-function Add-Row([string]$Path, [string]$Class) {
+function Add-Row([string]$Path, [string]$Class, [bool]$Rebuildable, [bool]$Protected) {
     if (Test-Path -LiteralPath $Path) {
         $script:rows += [pscustomobject]@{
             Class = $Class
             GB = Get-DirectoryGB $Path
             Path = $Path
+            Rebuildable = $Rebuildable
+            Protected = $Protected
         }
     }
 }
 
-Get-ChildItem -LiteralPath $repoRoot -Force -Directory -Filter '.gocache*' | ForEach-Object { Add-Row $_.FullName '可重建 Go 缓存' }
+Get-ChildItem -LiteralPath $repoRoot -Force -Directory -Filter '.gocache*' -ErrorAction SilentlyContinue | ForEach-Object { Add-Row $_.FullName 'Go build cache' $true $false }
 $backendRoot = Join-Path $repoRoot 'backend'
-Get-ChildItem -LiteralPath $backendRoot -Force -Directory -Filter '.gocache*' | ForEach-Object { Add-Row $_.FullName '可重建 Go 缓存' }
-Add-Row (Join-Path $backendRoot 'storage/.cache-go-build') '可重建 Go 缓存'
-Add-Row (Join-Path $backendRoot '.cache') '可重建 Go 缓存'
-Add-Row (Join-Path $repoRoot 'admin/node_modules') '可重建前端依赖'
-Add-Row (Join-Path $backendRoot '.runtime') '运行产物，先检查当前进程'
-Add-Row (Join-Path $backendRoot 'storage/bin') '构建产物，人工确认'
-Add-Row (Join-Path $backendRoot 'storage/fastimg') '受保护：媒体数据'
-Add-Row (Join-Path $backendRoot 'storage/logs') '受保护：运行日志'
+Get-ChildItem -LiteralPath $backendRoot -Force -Directory -Filter '.gocache*' -ErrorAction SilentlyContinue | ForEach-Object { Add-Row $_.FullName 'Go build cache' $true $false }
+Add-Row (Join-Path $backendRoot 'storage/.cache-go-build') 'Go build cache' $true $false
+Add-Row (Join-Path $backendRoot '.cache') 'Go build cache' $true $false
+Add-Row (Join-Path $repoRoot 'admin/node_modules') 'Frontend dependencies' $true $false
+Add-Row (Join-Path $backendRoot '.runtime') 'Runtime artifacts; inspect process first' $false $false
+Add-Row (Join-Path $backendRoot 'storage/bin') 'Build artifacts; inspect manually' $false $false
+Add-Row (Join-Path $backendRoot 'storage/fastimg') 'Protected media data' $false $true
+Add-Row (Join-Path $backendRoot 'storage/logs') 'Protected runtime logs' $false $true
 
-$rows | Sort-Object GB -Descending | Format-Table Class, GB, Path -AutoSize
-$rebuildable = ($rows | Where-Object { $_.Class -in @('可重建 Go 缓存', '可重建前端依赖') } | Measure-Object -Property GB -Sum).Sum
-Write-Host ("可重建候选合计：{0:N2} GB" -f [double]$rebuildable)
-if ([double]$rebuildable -gt $WarnGB) {
-    Write-Warning ("可重建候选超过 {0:N2} GB，请先执行清理预览。" -f $WarnGB)
+if ($rows.Count -gt 0) {
+    $rows | Sort-Object GB -Descending | Format-Table Class, GB, Protected, Path -AutoSize
 }
+$rebuildable = ($rows | Where-Object { $_.Rebuildable -and -not $_.Protected } | Measure-Object -Property GB -Sum).Sum
+if ($null -eq $rebuildable) { $rebuildable = 0.0 }
+Write-Host ("Rebuildable candidates total: {0:N2} GB" -f [double]$rebuildable)
+
+if ([double]$rebuildable -gt $WarnGB) {
+    Write-Warning ("Rebuildable candidates exceed {0:N2} GB. Review the list before cleanup." -f $WarnGB)
+}
+
+if (-not $Apply) {
+    Write-Host 'Read-only audit complete. Pass -Apply to remove rebuildable, unprotected candidates.'
+    exit 0
+}
+
+$protectedMedia = (Resolve-Path -LiteralPath (Join-Path $backendRoot 'storage/fastimg') -ErrorAction SilentlyContinue).Path
+foreach ($row in ($rows | Where-Object { $_.Rebuildable -and -not $_.Protected })) {
+    $resolved = (Resolve-Path -LiteralPath $row.Path -ErrorAction Stop).Path
+    if ($protectedMedia -and ($resolved -eq $protectedMedia -or $resolved.StartsWith($protectedMedia + [IO.Path]::DirectorySeparatorChar))) {
+        throw 'Refusing to remove protected media storage.'
+    }
+    Write-Host ("Removing rebuildable candidate: {0}" -f $resolved)
+    Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction Stop
+}
+Write-Host 'Cleanup complete. Re-run without -Apply to verify the result.'

@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode"
 
+	"goravel/app/facades"
 	storageservices "goravel/app/services/storage"
 )
 
@@ -25,6 +26,7 @@ const uploadRecoveryGracePeriod = 10 * time.Minute
 
 type UploadInput struct {
 	UserID              uint
+	Channel             UploadChannel
 	OriginalName        string
 	DeclaredContentType string
 	IdempotencyKey      string
@@ -35,15 +37,31 @@ type UploadInput struct {
 }
 
 type UploadMetadata struct {
-	UserID         uint
-	OriginalName   string
-	ContentType    string
-	Format         string
-	SHA256         string
-	SizeBytes      int64
-	Width          int64
-	Height         int64
-	IdempotencyKey string
+	UserID              uint
+	StorageConnectionID uint
+	Channel             UploadChannel
+	OriginalName        string
+	ContentType         string
+	Format              string
+	SHA256              string
+	SizeBytes           int64
+	Width               int64
+	Height              int64
+	IdempotencyKey      string
+}
+
+// UploadChannel identifies the entry point that consumed the upload.  The
+// monthly API quota is intentionally scoped to Personal API Token uploads;
+// browser/member uploads are governed by the daily upload and storage limits.
+type UploadChannel string
+
+const (
+	UploadChannelMember UploadChannel = "member"
+	UploadChannelAPI    UploadChannel = "api"
+)
+
+func CountsTowardMonthlyAPIUploads(channel UploadChannel) bool {
+	return channel == UploadChannelAPI
 }
 
 type PreparedObject struct {
@@ -95,13 +113,29 @@ type UploadOutcome struct {
 }
 
 type UploadService struct {
-	processor  *ImageProcessor
-	storage    storageservices.StorageProvider
-	repository UploadRepository
+	processor           *ImageProcessor
+	storage             storageservices.StorageProvider
+	repository          UploadRepository
+	storageConnectionID uint
 }
 
 func NewUploadService(processor *ImageProcessor, storage storageservices.StorageProvider, repository UploadRepository) *UploadService {
-	return &UploadService{processor: processor, storage: storage, repository: repository}
+	return NewUploadServiceWithConnection(processor, storage, repository, 0)
+}
+
+func NewUploadServiceWithConnection(processor *ImageProcessor, storage storageservices.StorageProvider, repository UploadRepository, storageConnectionID uint) *UploadService {
+	return &UploadService{processor: processor, storage: storage, repository: repository, storageConnectionID: storageConnectionID}
+}
+
+func NewDatabaseUploadService() *UploadService {
+	disk := facades.Storage().Disk("fastimg")
+	var provider storageservices.StorageProvider = storageservices.NewLocalProvider(disk)
+	storageConnectionID := uint(0)
+	if configured, connection, err := storageservices.NewRuntimeRegistry(disk).Primary(); err == nil {
+		provider = configured
+		storageConnectionID = connection.ID
+	}
+	return NewUploadServiceWithConnection(NewImageProcessor(ImageLimits{}), provider, NewDatabaseRepository(), storageConnectionID)
 }
 
 func (s *UploadService) GetStatus(ctx context.Context, userID, sessionID uint) (UploadOutcome, error) {
@@ -188,7 +222,7 @@ func (s *UploadService) Upload(ctx context.Context, input UploadInput) (UploadOu
 	}
 	sourceHash := sha256.Sum256(input.Content)
 	metadata := UploadMetadata{
-		UserID: input.UserID, SizeBytes: int64(len(input.Content)),
+		UserID: input.UserID, StorageConnectionID: s.storageConnectionID, Channel: input.Channel, SizeBytes: int64(len(input.Content)),
 		SHA256: hex.EncodeToString(sourceHash[:]), IdempotencyKey: input.IdempotencyKey,
 	}
 	if err := s.repository.CheckUploadAllowance(ctx, metadata); err != nil {

@@ -28,15 +28,15 @@ FastImg 前端分为两套体验：
 | --- | --- | --- | --- |
 | 上传/媒体 | 创建上传、管理自己的图片、复制链接、删除/恢复 | 按用户/状态查媒体，按权限审核、隐藏、恢复或处理违规 | 同一 MediaAsset/Variant/StorageObject 与配额、审计；用户归属由服务端强制 |
 | 套餐/用量 | 查看 Free/付费权益和自身额度，按额度使用功能 | 维护套餐、权益版本和会员订阅，处理额度调整 | Plan/Subscription 快照和服务端 UsageLedger；前端不能自行计量或改额度 |
-| Token/API | 为本人创建/撤销 Token，通过 API 上传并获取自己的链接 | 仅按独立管理权限处理滥用或安全事件，不读取明文 Token | token hash、调用身份、归属校验、速率/配额与审计；Token 明文仅创建时展示一次 |
-| 发现/举报 | 浏览公开审核通过内容，投稿/举报并查看本人申诉 | 开关发现页/投稿，处理举报和申诉，执行有期限/原因的处罚 | 同一审核状态、Report、ModerationAction 和审计；举报数本身不自动永久封号 |
+| Token/API | 为本人创建/删除 Token，通过 API 上传并获取自己的链接 | 仅按独立管理权限处理滥用或安全事件，不读取明文 Token | token hash、调用身份、归属校验、速率/配额与审计；Token 明文仅创建时展示一次 |
+| 发现/举报 | 浏览公开内容、举报图片并查看本人申诉 | 开关发现页，处理举报和申诉，执行有期限/原因的处罚 | 同一审核状态、Report、ModerationAction 和审计；举报数本身不自动永久封号 |
 | 广告/统计 | 只读展示管理员启用的页眉、页脚、左侧栏或右侧栏广告；查看个人用量/访问摘要 | 管理四类固定广告位、文本/图片/JS 内容、跳转地址和启停 | 后端决定广告展示资格；广告活动、竞价和点击统计暂不进入简单 MVP |
 
 会员资料管理是“管理自己的账号与安全设置”，不是会员管理其他账号；用户列表、封禁、角色和全站套餐管理只属于后台。
 
 实现时复用 Go Vue Admin 的认证、API Client、i18n、基础组件和服务层；不要复制一套认证/RBAC，也不要让普通会员进入 `AdminShell`。成员端读写都必须在服务端按当前身份做 owner-scope 校验；管理员跨用户访问只能走显式授权的管理用例，并记录审计。套餐权益限制会员可用额度/功能，不授予管理员权限。
 
-当前代码状态需要与设计状态区分：会员端现已作为 `admin/` 同一 Vue 工程内的独立路由分支落地：`/` 使用 `MemberShell`，提供上传优先首页、最近本人媒体和套餐/存储摘要；`/media` 提供本人图片上传、媒体列表/预览、搜索、软删除和回收站恢复；`/media/:id` 提供本人媒体只读详情、认证链接复制、可选密码/过期时间的分享链接、签名 URL 生成和基础防盗链策略维护；`/folders`、`/albums` 提供本人文件夹/相册基础 CRUD；`/share-links` 管理本人分享链接摘要和撤销；`/tokens` 提供 Personal API Token 创建、一次性展示、撤销和轮换；`/plans` 读取公开套餐目录、当前登录人的订阅和本人用量。首页和媒体库共用上传组件及状态轮询，不提交 `user_id`；服务端从认证身份解析所有者。管理首页、RBAC、审计、全站资源和媒体访问记录查询均位于 `/admin/**`，其中 `/admin/media-access-logs` 只对 `admin.media_access_logs.view` 开放并展示脱敏字段。旧 `/app`、`/app/media`、`/app/plans` 静态重定向到新会员路径。文件夹/相册后台资源仍由管理员页面管理，但会员端使用独立 `/api/v1/me/folders`、`/api/v1/me/albums` API，不依赖管理员权限；媒体到文件夹的本人归档接口和 Personal API Token 后端基础认证已实现，媒体到相册关联、CDN 原生防盗链、带宽计量、媒体编辑/批量操作、订单和发现页仍待后续切片。认证链接和普通分享链接已区分；分享密码由服务端 Hash 并在公开访问时校验，应用层签名 URL、Referer 策略和访问记录已经完成本地数据库迁移、重启和真实 HTTP 验收。共享 Vite、认证、API Client、vue-i18n 和 shadcn-vue 不代表共用页面或管理权限。
+当前代码状态需要与设计状态区分：会员端现已作为 `admin/` 同一 Vue 工程内的独立路由分支落地：`/` 使用 `MemberShell`，提供上传优先首页、最近本人媒体和套餐/存储摘要；`/media` 提供本人图片上传、媒体列表/预览、搜索、软删除和回收站恢复；`/media/:id` 提供本人媒体详情、认证预览、链接复制、公开/未列出/私有切换、可选密码/过期时间的分享链接、签名 URL 生成和基础防盗链策略维护；`/folders`、`/albums` 提供本人文件夹/相册基础 CRUD；`/share-links` 管理本人分享链接摘要和撤销；`/tokens` 提供 Personal API Token 创建、一次性展示、删除和轮换；`/plans` 读取公开套餐目录、当前登录人的订阅和本人用量。新上传媒体默认 `public`：公开媒体可使用绝对稳定链接，`link` 媒体不进入发现页但持有链接可访问，`private` 媒体不提供稳定外部链接，只能由本人登录后访问；显式临时签名 URL/分享链接仍受过期、撤销和违规状态控制。首页和媒体库共用上传组件及状态轮询，不提交 `user_id`；服务端从认证身份解析所有者。管理首页、RBAC、审计、全站资源和媒体访问记录查询均位于 `/admin/**`，其中 `/admin/media` 是 all-scope 媒体管理，管理员打开媒体详情时通过独立的 `/api/v1/admin/media/{id}/content` 预览接口读取任意用户图片，必须具备 `admin.media.view`；会员 own-scope 内容接口不会被后台页面复用。举报创建归入 `moderation.report.create`，管理员处理归入 `moderation.report.resolve`，均进入业务审计。旧 `/app`、`/app/media`、`/app/plans` 静态重定向到新会员路径。共享 Vite、认证、API Client、vue-i18n 和 shadcn-vue 不代表共用页面或管理权限。
 
 范围约束已经落到实现：`/api/v1/me/folders` 与 `/api/v1/me/albums` 永远按认证用户 own-scope 执行；`/api/v1/admin/folders` 与 `/api/v1/admin/albums` 使用后台权限和 all-scope，面向管理员查看/管理所有用户的容器数据。前端生成资源的 `dataScope: all` 只用于后台资源页，不会改变会员端 API 的所有权校验。`/folders`、`/albums` 与 `/admin/folders`、`/admin/albums` 是两套页面，不能通过旧版平铺重定向互相覆盖。
 
@@ -50,7 +50,7 @@ FastImg 前端分为两套体验：
 | `/folders` | 文件夹 | 文件夹树、移动和批量整理 |
 | `/albums` | 相册 | 相册、封面、排序和访问策略 |
 | `/share-links` | 分享链接 | 创建、复制、撤销和过期状态 |
-| `/tokens` | Personal API Token | 创建、显示一次、撤销和轮换 |
+| `/tokens` | Personal API Token | 创建、显示一次、删除和轮换 |
 | `/usage` | 用量 | 存储、流量、上传、API 和处理量 |
 | `/plans` | 套餐 | 已实现只读套餐/用量；购买未接入 |
 | `/orders` | 订单 | 订单状态、周期和支付结果 |
@@ -233,8 +233,7 @@ API 上传：本周期已用 / 上限
 ## 9. 发现页
 
 - 首次加载先请求 `/api/v1/discovery/status`；关闭时显示后台配置的关闭说明，不继续请求 feed。
-- 默认只请求 approved、ready、public 媒体。
-- 投稿按钮受 `submissions_enabled` 控制，关闭时显示“当前暂停投稿”。
+- 默认只请求 ready、public 且未被拒绝的媒体；普通上传完成后自动进入发现页。
 - 瀑布流使用分页或游标，不一次加载全部数据。
 - 支持随机、最新、热门排序，但排序参数必须由后端白名单控制。
 - 卡片提供举报入口，不展示 GPS/EXIF 等隐私信息。
@@ -244,8 +243,7 @@ API 上传：本周期已用 / 上限
 
 | 状态 | 用户端行为 | 后台行为 |
 | --- | --- | --- |
-| enabled | 展示内容和投稿入口 | 审核新投稿和举报 |
-| submissions_closed | 展示已有内容，不显示投稿入口 | 继续处理已有举报 |
+| enabled | 展示公开内容和举报入口 | 处理举报、隐藏、拒绝和恢复 |
 | disabled | 展示关闭说明，不请求内容列表 | 仍可审核、举报和恢复 |
 
 举报弹窗必须提供原因、补充说明和提交结果。用户不能看到被举报人的私密信息，管理员处理结果通过通知反馈必要信息。
@@ -257,7 +255,6 @@ AdminShell 顶栏提供双语“前往用户端”快捷入口，导航到会员
 ### 10.1 发现页设置
 
 - 总开关：启用/停用发现页
-- 投稿开关：允许/禁止新图片投稿
 - 审核模式：人工、自动、混合
 - 默认排序：最新、随机、热门
 - 举报阈值：达到阈值后自动进入人工复核
@@ -275,7 +272,6 @@ AdminShell 顶栏提供双语“前往用户端”快捷入口，导航到会员
 - 隐藏图片
 - 删除图片
 - 恢复图片
-- 限制用户投稿
 - 限制用户上传
 - 暂停账户
 - 封禁账户
@@ -286,7 +282,7 @@ AdminShell 顶栏提供双语“前往用户端”快捷入口，导航到会员
 
 - 处罚对象和影响范围
 - 当前违规图片和举报原因
-- 处罚级别：限制投稿、限制上传、暂停、封禁
+- 处罚级别：限制上传、暂停、封禁
 - 处罚期限
 - 是否立即隐藏已有公开图片
 - 是否允许申诉
@@ -323,7 +319,7 @@ AdminShell 顶栏提供双语“前往用户端”快捷入口，导航到会员
 
 管理员页面必须显示数据来源时间和筛选条件；涉及用户媒体、额度、封禁、审核和永久删除的操作必须显示审计提示。
 
-Personal API Token 的管理端与会员端严格分离：会员端 `/tokens` 只管理当前用户并且只在创建/轮换时显示一次完整 Token；管理端 `/admin/api_tokens` 只展示非秘密运营字段，不能创建、读取或导出完整 Token/token_hash，也不能物理删除 Token，只能通过受权限保护的状态动作停用或撤销。
+Personal API Token 的管理端与会员端严格分离：会员端 `/tokens` 只管理当前用户并且只在创建/轮换时显示一次完整 Token；管理端 `/admin/api_tokens` 只展示非秘密运营字段，不能创建、读取或导出完整 Token/token_hash；删除动作单独受 `admin.api_tokens.delete` 权限保护，不能用查看或状态权限替代。
 
 ## 11. 空状态、错误和可访问性
 
@@ -350,7 +346,13 @@ Personal API Token 的管理端与会员端严格分离：会员端 `/tokens` �
 ### 开发预览样式运行约束（2026-09-24）
 
 - FastImg 隔离 Vite 配置必须保留 `@tailwindcss/vite` 插件；仅导入 `style.css` 会生成 Tailwind reset/主题变量，但不会生成页面使用的 utility classes，表现为页面结构存在而样式全部丢失。
-- Windows 开发机若缺少 `@tailwindcss/oxide-win32-x64-msvc` 可选原生包，不能通过删除 Tailwind 插件规避；应恢复同版本本地依赖后再启动。当前运行态使用 `admin/vite.fastimg-isolated.config.mjs`、Vite `53083`，API 后端为 `53084`。
+- Windows 开发机若缺少 `@tailwindcss/oxide-win32-x64-msvc` 可选原生包，不能通过删除 Tailwind 插件规避；应恢复同版本本地依赖后再启动。当前标准运行态使用 `admin/vite.config.ts`、Vite `53084`，API 后端为 `53085`；`vite.fastimg-isolated.config.mjs` 只作为历史隔离预览记录保留。
+
+### SEO 机器可读文件（2026-09-27）
+
+- 管理端设置里的 sitemap/robots 按钮必须指向 API 后端基址，而不是直接拼接前端 SPA 地址；本地前端端口访问这两个路径时由 Vite 代理到后端。
+- `/sitemap.xml` 必须返回 `application/xml`，`/robots.txt` 必须返回 `text/plain`。如果浏览器显示 Vue 首页或白屏，先检查端口代理和后端路由，不要在前端新增同名 Vue 页面。
+- 生产反向代理必须将两个公开路径转发到后端，并保持 `site_url`/`APP_URL` 为真实规范域名；后台、API、Token、订单和私有媒体不得进入 sitemap。
 
 ### 会员导航紧凑化（2026-09-24）
 
@@ -370,3 +372,10 @@ Personal API Token 的管理端与会员端严格分离：会员端 `/tokens` �
 - `/albums/:id` 是会员端相册内容页，不是 `/admin/albums` 的别名；页面只读取当前用户相册中的 ready 媒体，并使用认证缩略图，不暴露其他用户内容。
 - 相册内容支持全选、批量移除、拖拽排序和上移/下移按钮；排序在用户点击“保存排序”后调用 `PATCH /api/v1/me/albums/{id}/media/order`，服务端要求完整且唯一的当前关系集合并在事务内保存顺序。
 - 批量移除返回 `removed_ids` 和 `skipped_ids` 两组结果，排序失败或移除失败显示可重试的双语提示；Personal API Token 不获得相册或排序接口。
+
+### 公开相册（2026-09-27）
+
+- 公开相册使用独立的访客路径 `/a/:id`，不复用需要登录的 `/albums/:id` 会员内容页，也不跳转到 `/admin/albums`。
+- 公开 API 为 `GET /api/v1/public/albums/:id`；只返回 `visibility=public` 的相册，以及其中 `ready + public + 未拒绝 + 未删除` 的媒体。相册所有者、对象存储 key 和私有媒体不会出现在响应中。
+- 图片地址使用 `/api/v1/public/albums/:album_id/media/:media_id/content`，服务端再次校验相册关系、媒体公开状态、审核状态和带宽权益；公开相册不依赖发现页开关。
+- 页面按相册名称设置 title、description、canonical 和 Open Graph；构建时可通过 `SSG_PUBLIC_ALBUM_IDS=1,2` 和 `SSG_API_ORIGIN` 将指定公开相册加入 SSG。未列入构建清单的相册仍可由真实 API + SPA 路由访问。

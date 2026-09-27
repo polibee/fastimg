@@ -18,8 +18,11 @@ function toggleLocale() {
 }
 
 async function logout() {
-  await auth.logout()
-  await router.replace({ name: 'login' })
+  try {
+    await auth.logout()
+  } finally {
+    await router.replace({ path: '/' })
+  }
 }
 </script>
 
@@ -102,6 +105,13 @@ async function logout() {
             class="ml-auto inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3"
           >
             {{ t('member.actions.login') }}
+          </RouterLink>
+          <RouterLink
+            v-if="!auth.isAuthenticated"
+            to="/register"
+            class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3"
+          >
+            {{ t('auth.register') }}
           </RouterLink>
           <RouterLink
             v-if="hasAdminAccess(auth.user?.permissions ?? [])"

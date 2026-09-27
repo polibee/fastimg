@@ -16,6 +16,7 @@ import (
 	"goravel/app/services/media"
 	planservices "goravel/app/services/plans"
 	"goravel/app/services/quota"
+	rbacservices "goravel/app/services/rbac"
 	settingsservices "goravel/app/services/settings"
 	storageservices "goravel/app/services/storage"
 )
@@ -32,9 +33,15 @@ type UploadController struct {
 }
 
 func NewUploadController() *UploadController {
-	provider := storageservices.NewLocalProvider(facades.Storage().Disk("fastimg"))
-	return &UploadController{service: media.NewUploadService(
-		media.NewImageProcessor(media.ImageLimits{}), provider, media.NewDatabaseRepository(),
+	disk := facades.Storage().Disk("fastimg")
+	var provider storageservices.StorageProvider = storageservices.NewLocalProvider(disk)
+	storageConnectionID := uint(0)
+	if configured, connection, err := storageservices.NewRuntimeRegistry(disk).Primary(); err == nil {
+		provider = configured
+		storageConnectionID = connection.ID
+	}
+	return &UploadController{service: media.NewUploadServiceWithConnection(
+		media.NewImageProcessor(media.ImageLimits{}), provider, media.NewDatabaseRepository(), storageConnectionID,
 	), links: linkservices.NewService(provider, facades.Config().GetString("app.key", ""))}
 }
 
@@ -68,7 +75,7 @@ func (c *UploadController) Create(ctx httpcontract.Context) httpcontract.Respons
 		return uploadFailure(ctx, http.StatusConflict, "SUBSCRIPTION_UNAVAILABLE")
 	}
 	outcome, err := c.service.Upload(ctx.Context(), media.UploadInput{
-		UserID: userID, OriginalName: upload.OriginalName,
+		UserID: userID, Channel: uploadChannel(ctx), OriginalName: upload.OriginalName,
 		DeclaredContentType: upload.ContentType, IdempotencyKey: ctx.Request().Header("Idempotency-Key"),
 		Content: upload.Content, WatermarkEnabled: watermarkEnabled, WatermarkText: watermarkText, WatermarkDomain: watermarkDomain,
 	})
@@ -134,7 +141,7 @@ func (c *UploadController) Batch(ctx httpcontract.Context) httpcontract.Response
 	failed := 0
 	for index, upload := range uploads {
 		outcome, uploadErr := c.service.Upload(ctx.Context(), media.UploadInput{
-			UserID: userID, OriginalName: upload.OriginalName,
+			UserID: userID, Channel: media.UploadChannelMember, OriginalName: upload.OriginalName,
 			DeclaredContentType: upload.ContentType, IdempotencyKey: batchIdempotencyKey(baseKey, index),
 			Content: upload.Content, WatermarkEnabled: watermarkEnabled, WatermarkText: watermarkText, WatermarkDomain: watermarkDomain,
 		})
@@ -162,18 +169,40 @@ func (c *UploadController) Batch(ctx httpcontract.Context) httpcontract.Response
 }
 
 func (c *UploadController) watermarkOptions(userID uint) (bool, string, string, error) {
-	subscription, err := planservices.NewPlanService().SubscriptionForUser(userID)
+	administrator, err := rbacservices.NewRBACService().IsAdministrator(userID)
 	if err != nil {
 		return false, "", "", err
 	}
-	entitlement, err := quota.ParseEntitlementJSON(subscription.EntitlementSnapshotJSON)
-	if err != nil {
-		return false, "", "", err
+	subscription, err := planservices.NewPlanService().SubscriptionForUser(userID)
+	var entitlement quota.Entitlement
+	if err == nil {
+		entitlement, err = quota.ParseEntitlementJSON(subscription.EntitlementSnapshotJSON)
+	}
+	watermarkEnabled, entitlementErr := ResolveWatermarkEntitlement(administrator, entitlement, err)
+	if entitlementErr != nil {
+		return false, "", "", entitlementErr
 	}
 	settings := settingsservices.NewSettingService()
 	watermarkText := settings.Resolve("watermark.text", "FastImg")
 	watermarkDomain := settings.Resolve("watermark.domain", "")
-	return entitlement.WatermarkEnabled, watermarkText, watermarkDomain, nil
+	return watermarkEnabled, watermarkText, watermarkDomain, nil
+}
+
+func ResolveWatermarkEntitlement(administrator bool, entitlement quota.Entitlement, err error) (bool, error) {
+	if err != nil {
+		if administrator {
+			return false, nil
+		}
+		return false, err
+	}
+	return entitlement.WatermarkEnabled, nil
+}
+
+func uploadChannel(ctx httpcontract.Context) media.UploadChannel {
+	if adminmiddleware.IsMemberTokenRequest(ctx) {
+		return media.UploadChannelAPI
+	}
+	return media.UploadChannelMember
 }
 
 func (c *UploadController) Status(ctx httpcontract.Context) httpcontract.Response {

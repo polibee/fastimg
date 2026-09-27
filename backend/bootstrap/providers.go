@@ -27,6 +27,7 @@ import (
 	"github.com/goravel/openai"
 	"github.com/goravel/postgres"
 	"github.com/goravel/redis"
+	fastimgproviders "goravel/app/providers"
 )
 
 func Providers() []foundation.ServiceProvider {
@@ -56,5 +57,6 @@ func Providers() []foundation.ServiceProvider {
 		&telemetry.ServiceProvider{},
 		&testing.ServiceProvider{},
 		&redis.ServiceProvider{},
+		&fastimgproviders.FastImgQueueProvider{},
 	}
 }

@@ -10,11 +10,12 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { generatedApi, type SystemSetting } from '@/generated/api'
-import { ApiError, errorMessageKey } from '@/lib/api'
+import { ApiError, errorMessageKey, publicEndpointURL } from '@/lib/api'
 import { buildSettingUpdates } from '@/modules/settings/save'
 import { emailProviderOptions, paymentEnvironmentOptions, settingDefaults, settingDefinitions, settingGroups, smtpEncryptionOptions } from '@/modules/settings/settings-schema'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
+import StorageSettingsSection from '@/modules/settings/components/StorageSettingsSection.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -49,6 +50,9 @@ function selectOptions(key: string) {
   if (key === 'email.provider') return emailProviderOptions
   if (key === 'email.smtp.encryption') return smtpEncryptionOptions
   if (key === 'payment.paypal.environment') return paymentEnvironmentOptions
+  if (key === 'subscription.expiry.over_quota_policy') return [
+    { value: 'keep_data_block_upload', labelKey: 'settings.subscriptionPolicies.keep_data_block_upload' },
+  ]
   if (key === 'payment.default_gateway') return [
     { value: 'paypal', labelKey: 'settings.gatewayOptions.paypal' },
     { value: 'xcash', labelKey: 'settings.gatewayOptions.xcash' },
@@ -154,7 +158,8 @@ async function save() {
     <Alert v-if="error" variant="destructive"><AlertTitle>{{ t('states.errorTitle') }}</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert>
     <Alert v-if="saved"><AlertDescription>{{ t('settings.saved') }}</AlertDescription></Alert>
     <div v-if="loading" class="text-sm text-muted-foreground">{{ t('resource.loading') }}</div>
-    <form v-else class="grid gap-5" @submit.prevent="save">
+    <StorageSettingsSection v-if="!loading" />
+    <form v-if="!loading" class="grid gap-5" @submit.prevent="save">
       <template v-for="group in groups" :key="group.key">
       <Card v-if="group.fields.length">
         <CardHeader><CardTitle>{{ t(`settings.groups.${group.key}`) }}</CardTitle><CardDescription>{{ t(`settings.groupDescriptions.${group.key}`) }}</CardDescription></CardHeader>
@@ -182,8 +187,8 @@ async function save() {
           </FieldGroup>
           <div v-if="group.key === 'seo'" class="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
             <span class="mr-2 text-sm text-muted-foreground">{{ t('settings.publicFilesTitle') }}</span>
-            <Button as-child variant="outline" size="sm"><a :href="publicSiteURL('/sitemap.xml')" target="_blank" rel="noopener noreferrer"><ExternalLink data-icon="inline-start" />{{ t('settings.openSitemap') }}</a></Button>
-            <Button as-child variant="outline" size="sm"><a :href="publicSiteURL('/robots.txt')" target="_blank" rel="noopener noreferrer"><ExternalLink data-icon="inline-start" />{{ t('settings.openRobots') }}</a></Button>
+            <Button as-child variant="outline" size="sm"><a :href="publicEndpointURL('/sitemap.xml')" target="_blank" rel="noopener noreferrer"><ExternalLink data-icon="inline-start" />{{ t('settings.openSitemap') }}</a></Button>
+            <Button as-child variant="outline" size="sm"><a :href="publicEndpointURL('/robots.txt')" target="_blank" rel="noopener noreferrer"><ExternalLink data-icon="inline-start" />{{ t('settings.openRobots') }}</a></Button>
           </div>
           </template>
 

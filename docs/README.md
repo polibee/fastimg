@@ -29,6 +29,7 @@
 - [fastimg-moderation-policy.md](./fastimg-moderation-policy.md)：违规图片、违规账户、举报、处罚与申诉策略
 - [fastimg-compliance-policy.md](./fastimg-compliance-policy.md)：服务条款、版权、隐私、数据保留和安全事件规则
 - [fastimg-storage-cost-policy.md](./fastimg-storage-cost-policy.md)：存储、流量、回收站、CDN 和免费服务成本策略
+- [fastimg-object-storage-integration.md](./fastimg-object-storage-integration.md)：R2、阿里云 OSS、腾讯云 COS 官方 SDK 适配、配置状态和真实验收
 - [fastimg-hotlink-protection.md](./fastimg-hotlink-protection.md)：Referer 白名单、签名 URL、CDN 和防盗链策略
 - [fastimg-payment-gateway.md](./fastimg-payment-gateway.md)：支付网关、订单、支付流水、退款、订阅和权益履约
 - [fastimg-production-readiness.md](./fastimg-production-readiness.md)：生产开发就绪评估、阶段门禁和 Provider 验证状态

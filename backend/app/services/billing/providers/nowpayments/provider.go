@@ -46,7 +46,7 @@ func New(config Config) *Provider {
 }
 
 func (p *Provider) CreatePayment(ctx context.Context, request providers.CreatePaymentRequest) (providers.PaymentSession, error) {
-	if !p.ready() || request.OrderNo == "" || request.AmountMinor <= 0 {
+	if !p.readyForAPI() || request.OrderNo == "" || request.AmountMinor <= 0 {
 		return providers.PaymentSession{}, providers.ErrGatewayUnavailable
 	}
 	payload := map[string]any{
@@ -74,7 +74,7 @@ func orderReturnURL(template, orderNo string) string {
 }
 
 func (p *Provider) QueryPayment(ctx context.Context, request providers.QueryPaymentRequest) (providers.GatewayPayment, error) {
-	if !p.ready() || request.ProviderPaymentID == "" {
+	if !p.readyForAPI() || request.ProviderPaymentID == "" {
 		return providers.GatewayPayment{}, providers.ErrGatewayUnavailable
 	}
 	body, _, err := p.request(ctx, http.MethodGet, "/v1/payment/"+urlSegment(request.ProviderPaymentID), nil)
@@ -93,7 +93,7 @@ func (p *Provider) QueryPayment(ctx context.Context, request providers.QueryPaym
 }
 
 func (p *Provider) VerifyWebhook(_ context.Context, request providers.WebhookRequest) (providers.GatewayEvent, error) {
-	if !p.ready() || !verifyIPN(p.config.IPNSecret, signatureHeader(request.Headers, "x-nowpayments-sig"), request.Body) {
+	if !p.readyForWebhook() || !verifyIPN(p.config.IPNSecret, signatureHeader(request.Headers, "x-nowpayments-sig"), request.Body) {
 		return providers.GatewayEvent{}, providers.ErrGatewayUnavailable
 	}
 	var payload ipnPayload
@@ -116,8 +116,12 @@ func (p *Provider) QueryRefund(context.Context, string) (providers.GatewayRefund
 	return providers.GatewayRefund{}, ErrUnsupportedRefund
 }
 
-func (p *Provider) ready() bool {
-	return p != nil && p.config.Enabled && p.config.BaseURL != "" && p.config.APIKey != "" && p.config.IPNSecret != ""
+func (p *Provider) readyForAPI() bool {
+	return p != nil && p.config.Enabled && p.config.BaseURL != "" && p.config.APIKey != ""
+}
+
+func (p *Provider) readyForWebhook() bool {
+	return p.readyForAPI() && p.config.IPNSecret != ""
 }
 
 func (p *Provider) request(ctx context.Context, method, path string, body []byte) ([]byte, int, error) {
@@ -129,7 +133,7 @@ func (p *Provider) request(ctx context.Context, method, path string, body []byte
 	request.Header.Set("x-api-key", p.config.APIKey)
 	response, err := p.client.Do(request)
 	if err != nil {
-		return nil, 0, fmt.Errorf("nowpayments request failed: %w", err)
+		return nil, 0, &providers.RequestError{GatewayCode: "nowpayments", Retryable: true, ProviderMessage: "network request failed"}
 	}
 	defer response.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(response.Body, 1<<20+1))
@@ -137,9 +141,29 @@ func (p *Provider) request(ctx context.Context, method, path string, body []byte
 		return nil, response.StatusCode, ErrInvalidResponse
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, response.StatusCode, fmt.Errorf("nowpayments request returned status %d", response.StatusCode)
+		return nil, response.StatusCode, parseRequestError(response.StatusCode, data)
 	}
 	return data, response.StatusCode, nil
+}
+
+func parseRequestError(status int, body []byte) error {
+	var payload struct {
+		Code    json.RawMessage `json:"code"`
+		Message string          `json:"message"`
+		Error   string          `json:"error"`
+	}
+	providerCode, providerMessage := "", ""
+	if json.Unmarshal(body, &payload) == nil {
+		providerCode = strings.Trim(strings.TrimSpace(string(payload.Code)), `"`)
+		providerMessage = strings.TrimSpace(payload.Message)
+		if providerMessage == "" {
+			providerMessage = strings.TrimSpace(payload.Error)
+		}
+	}
+	return &providers.RequestError{
+		GatewayCode: "nowpayments", StatusCode: status, ProviderCode: providerCode,
+		ProviderMessage: providerMessage, Retryable: status == http.StatusTooManyRequests || status >= 500,
+	}
 }
 
 type paymentResponse struct {

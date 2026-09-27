@@ -14,6 +14,7 @@ import (
 	"goravel/app/modules/admin/registry"
 	developeractions "goravel/app/modules/developer/actions"
 	useractions "goravel/app/modules/users/actions"
+	developerservices "goravel/app/services/developer"
 	notificationservices "goravel/app/services/notifications"
 	rbacservices "goravel/app/services/rbac"
 	userservices "goravel/app/services/users"
@@ -215,6 +216,8 @@ func executeBuiltinDelete(ctx http.Context, manifest resource.Manifest, ids []in
 			deleteErr = userservices.NewUserService().Delete(id)
 		case "roles-service":
 			deleteErr = rbacservices.NewRoleService().Delete(id)
+		case "api-tokens-service":
+			deleteErr = developerservices.NewDatabaseRepository().DeleteAdmin(ctx.Context(), uint(id))
 		default:
 			_, deleteErr = facades.Orm().Query().Table(manifest.Table).Where("id = ?", id).Delete()
 		}

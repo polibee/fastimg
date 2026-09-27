@@ -166,7 +166,7 @@ POST   /api/v1/media/{id}/restore
 - 已实现用量摘要/上传入账切片：`GET /api/v1/me/usage` 按认证用户读取套餐快照额度；存储汇总为生命周期余额，API/上传/流量/处理等按 UTC 月周期汇总。上传完成在同一事务内通过 quota Service 记录 SHA-256 幂等存储流水、月度 `upload` 次数流水和 `transform` 流水，并兼容读取旧 `storage_bytes` 名称；一次成功的媒体处理作业（生成原图、缩略图和中图）计为一次 transform，处理中的上传会话预占一次，失败会话不计数。月度上传和处理流水按上传会话创建时所属 UTC 月记账，与并发预占统计周期一致，缺失创建时间的历史会话回退到完成时间。上传在图像解码前进行额度预检，拒绝已知超额请求；`BeginUpload` 在用户行锁事务中复核并原子预占实际 Variant 字节，避免并发请求仅凭预检越额。`GET /api/v1/me/usage/ledger` 仅按认证用户范围分页返回流水，不暴露幂等键。上传配额检查在用户行锁事务内为历史缺少活动订阅的用户补建 Free 快照；原因是 Goravel `Query.First` 对 0 行返回 nil，不能用来判定不存在，需使用 `Exists()`。每日上传限制已接入；月度 API 上传限制按 UTC 月统计本人 `ready` 与 `processing` 上传会话，失败会话不计数，用户行锁串行化并发预占；月度转换限制合计已完成 transform 流水和本人 `processing` 会话，同样串行化预占。额度耗尽分别返回 HTTP 429 / `MONTHLY_API_UPLOAD_LIMIT_REACHED` 或 `MONTHLY_TRANSFORM_LIMIT_REACHED`。本轮补入所有者专属永久删除 API：回收站图片先进入 `cleanup_pending`，Local/未来 Provider 删除所有唯一 Variant 对象成功后才在同一事务标记对象、Variant、媒体 tombstone 并写负向 storage ledger；删除失败可重试且不提前释放额度。带宽流水与限制已在后续 M3 切片完成；软删除不得提前释放。
 - 多语言约束：`docs/i18n.md` 是各阶段强制开发与验收规则；媒体库页面和后台导航使用 vue-i18n 的 `media.*` Key，注册中英文 JSON 语言包。i18n 专项测试覆盖语言文件路径/嵌套 Key 及页面/导航 Key 使用。
 - 当前前端形态：会员端使用 `/`、`/media`、`/plans` 和 `MemberShell`；管理端页面统一在 `/admin/**` 和 `AdminShell`。`/admin/media` 已提供跨用户媒体管理 API/RBAC/审计支撑；文件夹/相册仍是 own-scope，不能替代管理员媒体运营入口。
-- 会员首页 `/` 提供上传入口、最近本人媒体及套餐/存储摘要；`/media` 调用认证后的 `/api/v1/uploads` 与 own-scope `/api/v1/media`，首页和媒体页共用上传队列、处理状态轮询、配额/大小错误与重试反馈。本人媒体页支持受保护缩略图预览、文件名搜索、服务端分页（48 条/页）、软删除、回收站恢复和带二次确认的清空回收站；搜索/回收站切换回到第一页，删除当前页最后一张后自动回退到有效页。会员上传结果和媒体详情现在返回带 `APP_URL` 域名的稳定公开 URL、Markdown、HTML、BBCode 以及 Variant 地址；`/tokens` 已提供 Personal API Token 的创建、一次性展示、撤销和轮换界面，后端已加入 hash、Scope 和会员认证源码。订阅及用量仍从公开套餐目录、当前认证用户订阅和 `/me/usage` 读取，流量按真实返回字节计量，不伪报 0，不下单、不升级、不更改订阅。分页、链接和 Token 文案通过 `member` namespace 同步中英文；会员前端不传 `user_id`，所有权由服务端认证身份决定。会员端已接入文件夹归档和相册批量关联基础操作；防盗链、详情编辑、完整批量管理、订单中心和 `/discover` 尚未完整实现；Token 迁移、运行进程重启以及 API 上传/链接/删除真实验收尚未执行。
+- 会员首页 `/` 提供上传入口、最近本人媒体及套餐/存储摘要；`/media` 调用认证后的 `/api/v1/uploads` 与 own-scope `/api/v1/media`，首页和媒体页共用上传队列、处理状态轮询、配额/大小错误与重试反馈。本人媒体页支持受保护缩略图预览、文件名搜索、服务端分页（48 条/页）、软删除、回收站恢复和带二次确认的清空回收站；搜索/回收站切换回到第一页，删除当前页最后一张后自动回退到有效页。会员上传结果和媒体详情现在返回带 `APP_URL` 域名的稳定公开 URL、Markdown、HTML、BBCode 以及 Variant 地址；`/tokens` 已提供 Personal API Token 的创建、一次性展示、删除和轮换界面，后端已加入 hash、Scope、会员归属删除和管理员独立删除权限。订阅及用量仍从公开套餐目录、当前认证用户订阅和 `/me/usage` 读取，流量按真实返回字节计量，不伪报 0，不下单、不升级、不更改订阅。分页、链接和 Token 文案通过 `member` namespace 同步中英文；会员前端不传 `user_id`，所有权由服务端认证身份决定。会员端已接入文件夹归档和相册批量关联基础操作；防盗链、详情编辑、完整批量管理、订单中心和 `/discover` 尚未完整实现；Token 删除迁移已应用、开发进程已重启，API 上传/链接/删除真实验收仍待独立执行。
 - 本轮验证：`go test ./... -count=1` 全部 Go 包通过（含 Feature）；`pnpm run build` 通过；`node --test tests/fastimg-i18n.test.mjs` 4/4 通过。完整 admin Node 测试为 23/24，唯一失败仍是 `tests/resource-actions.test.ts`：测试要求过滤未知 action kind，但通用实现返回 `unknown`；该文件与对应实现不属于本轮改动。
 - 会员媒体页本轮专项 RED/GREEN 与 i18n/member-plan 回归测试在 Windows Node fallback 中通过 15/15。构建尚未验证：WSL 初始化返回 `E_ACCESSDENIED`；Windows pnpm 尝试在线解析/重装 pnpm 后因无交互终端中止，未能进入 TypeScript/Vite 构建。现有 Vite 53081 仍可服务旧应用，但其 `/src/router/index.ts` 和 `MemberShell` 热服务内容不含新路由/导航键，故浏览器验收未通过；未杀停工作中的服务，等 WSL 可用后只重启本项目 dev server 再验收。没有提交真实图片上传、执行迁移或变更数据库/服务配置。
 - `fastimg_dev` 的只读迁移状态确认 plans、media、advertising、folders、albums 迁移均为 Ran；本轮明确授权应用的仅为广告位、文件夹、相册及其管理权限。没有修改 Laragon PostgreSQL/Redis 配置。Windows 侧 5432/6379 可连接，但 WSL 内启动的后端命令仍尝试访问 `127.0.0.1:6379` 并出现连接拒绝警告；Redis 的 WSL 访问路径和队列运行验收仍未完成。
@@ -186,7 +186,7 @@ POST   /api/v1/media/{id}/restore
 1. 生成原图、缩略图、中图、WebP、AVIF、纯 URL、Markdown、HTML、BBCode。
 2. 支持 private、link、public 三种可见性。
 3. 支持密码分享、过期分享、撤销分享和访问记录。
-4. 公开发现页只允许 ready、approved 且公开的媒体。
+4. 公开发现页自动展示 ready、public 且未被拒绝的媒体；普通上传不需要等待管理员审核即可通过稳定链接访问并进入发现页。
 5. 实现关闭、Referer 白名单、Signed URL 和混合防盗链模式。
 6. 支持防盗链域名归一化、无 Referer 策略、CDN 缓存失效和签名过期。
 7. 对象存储保持私有，稳定链接由应用或 CDN 策略控制。
@@ -238,14 +238,14 @@ POST   /api/v1/media/{id}/signed-url
 
 ### 功能计划
 
-1. 发现页后台支持启用/停用和单独关闭投稿。
+1. 发现页后台支持启用/停用；举报和后台治理不依赖会员投稿。
 2. 图片、用户、域名支持举报。
 3. 举报去重、阈值复核、人工审核和申诉。
 4. 管理员可以隐藏、删除、恢复违规图片。
-5. 管理员可以限制投稿、限制上传、暂停或封禁账户。
+5. 管理员可以限制上传、暂停或封禁账户。
 6. 所有处罚、恢复、额度调整和永久删除都写入审计。
 7. 图片处理增加 SVG 清洗、恶意文件、超大像素、压缩炸弹和 SSRF 防护。
-8. 公开内容必须通过审核状态机后才能进入发现页。
+8. 公开内容先进入发现页，再通过举报、隐藏、拒绝和恢复完成事后治理。
 
 ### 管理端页面
 
@@ -763,11 +763,11 @@ POST   /api/v1/media/{id}/signed-url
 
 ### 本轮完成
 
-- 新增公开发现状态接口 `GET /api/v1/discovery/status`、分页接口 `GET /api/v1/discovery/feed` 和公开内容接口 `GET /api/v1/discovery/media/{id}/content?variant=thumbnail|medium|original`。发现页只返回 `ready`、未删除、`visibility=public` 且 `moderation_status=approved` 的媒体；空数据也返回稳定 JSON 分页结构。
-- 新增会员投稿接口 `POST /api/v1/media/{id}/discovery-submit`。投稿只允许当前用户自己的 ready 媒体，写入公开意图和 `pending` 审核状态，不自动通过；发现功能或投稿开关关闭时返回稳定错误码。
-- 新增迁移 `20260925000005_add_discovery_state_to_media`，已在用户授权的 `fastimg_dev` 执行；上传默认写入 `private + pending`，避免新图片未经审核出现在公开发现页。
+- 新增公开发现状态接口 `GET /api/v1/discovery/status`、分页接口 `GET /api/v1/discovery/feed` 和公开内容接口 `GET /api/v1/discovery/media/{id}/content?variant=thumbnail|medium|original`。发现页返回 `ready`、未删除、`visibility=public` 且未被管理员拒绝的媒体；普通上传完成后即可进入发现页，空数据也返回稳定 JSON 分页结构。
+- 不再提供会员主动投稿接口。发现页采用“先公开、后治理”：用户上传完成后默认 `public + approved`，用户无需等待管理员；用户或游客可以对公开图片举报，举报进入后台举报队列。
+- 新增迁移 `20260925000005_add_discovery_state_to_media`，普通上传默认写入 `public + approved`，上传完成后立即可通过稳定链接访问；用户可在会员媒体详情切换 `private` 或 `link`。`discovery_submitted_at` 仅保留历史审计字段，不再作为发现页查询条件。
 - 会员端新增公开 `/discover` 页面：游客可访问，使用真实发现 API 加载图片瀑布流、分页加载、图片内容链接和登录后举报入口；导航、SEO 元数据和 SSG 公开页面清单已同步中英文。
-- 管理员通过 `/admin/media` 的 `visibility`、`moderation_status` 和投稿时间字段管理发现候选；用户举报继续进入 `/admin/reports`，管理员的全站媒体视角与会员 own-scope 保持分离。
+- 管理员通过 `/admin/media` 的 `visibility`、`moderation_status` 和媒体状态管理公开内容；历史 `discovery_submitted_at` 不再作为用户功能或发现门槛，用户举报继续进入 `/admin/reports`，管理员的全站媒体视角与会员 own-scope 保持分离。
 
 ### 验证与边界
 
@@ -865,3 +865,284 @@ POST   /api/v1/media/{id}/signed-url
 - 后端定向测试覆盖举报动作 payload、资源动作注册、控制器和管理员动作控制器；前端举报页面、导航、双语文案、账单/计划回归测试共 `19/19` 通过，`vue-tsc` 与 Vite 构建通过。
 - 后端已重建并重启在 `http://127.0.0.1:53085`，前端静态预览在 `http://127.0.0.1:53084`；未登录访问 `/api/v1/me/reports` 返回 `401 AUTH_UNAUTHORIZED`，公开站点接口返回 `200`。
 - 举报记录表继续作为审核证据队列，不与媒体表、审计表或支付流水重复；下一步可补充管理员筛选统计和通知，但不改变当前 C/Admin 边界。
+
+## 五十、2026-09-25：支付渠道协议边界、动态注册与审计可读性
+
+### 本轮完成
+
+- 修复支付创建失败的两类根因：XCash 适配器按官方协议使用渠道支持的字段，统一层不再强制注入渠道未声明的 `notify_url`/`return_url`；同时将后端默认入站请求超时从 3 秒调整为 30 秒，外部 Provider 仍使用自己的 10 秒出站超时，避免正常的支付创建过程被框架提前截断。
+- NOWPayments 注册条件改为“启用 + API Key + API 地址”。API Key 用于创建/查询支付；IPN Secret 只用于 IPN 验签和自动履约。因此管理员只填写 API Key 后，NOWPayments 会出现在 C 端渠道列表；补齐 IPN Secret 后才具备自动回调结算能力。
+- 网关注册表支持热刷新：管理员保存设置、会员读取可用渠道、支付创建和 Webhook 处理前都会重新加载当前配置，不需要重启才能看到新增/修改的渠道。
+- 统一支付接口收敛为创建、查询、验签三个基础能力；退款拆为可选 `RefundGateway`，渠道未实现退款时明确返回不支持，不再要求所有适配器实现空的退款接口。
+- Provider 网络和协议错误统一脱敏为可识别的 502/503 安全错误，客户端不再只得到无法定位的通用 500，也不会泄露第三方响应原文、请求体或密钥。
+- 审计模块增加业务分类、操作名称和结果字段；管理员列表默认隐藏历史 `http.*` 技术噪声，展示“创建支付请求/支付回调/媒体上传/设置更新”等面向小白用户的事件和失败摘要，技术 JSON 仅在详情中展开。成功的普通 GET/HEAD 和成功会话刷新不再新增审计噪声，失败请求和重要变更仍保留。
+
+### 验证结果
+
+- Go 定向测试通过：XCash、NOWPayments、PayPal、billing、audit 和 billing controllers；项目专用 Go 缓存位于 `backend/.runtime`，避免继续膨胀用户级缓存。
+- 后端成功重建并运行在 `http://127.0.0.1:53085`；真实 C 端订单 6 使用 XCash 创建支付成功，返回 `https://pay.xca.sh/pay/...`，接口 HTTP 201，耗时约 2 秒。NOWPayments API Key-only 配置已在 C 端渠道列表可见。
+- 前端审计页面构建和类型检查通过；旧技术日志仍保留在数据库供取证，但默认管理员查询不再展示它们。完整页面验收需在后端重启后重新加载 `/admin/audit-logs`。
+
+### 仍需真实环境验收
+
+- NOWPayments、XCash 和 PayPal 的真实回调、重复回调、错误签名、支付状态查询、退款能力和对账仍需使用官方沙盒或小额生产交易逐渠道验收。
+- 第三方回调必须使用公网 HTTPS 域名，不能使用本地 `127.0.0.1`；当前开发端口只用于本机联调。
+- 本轮 `wslnet url` 由于 WSL 服务返回 `E_ACCESSDENIED` 未完成，Windows 侧 PowerShell 已确认前端 53084 和后端 53085 可访问。
+
+## 五十一、2026-09-25：会员支付直达、失败提示与订单取消
+
+### 本轮完成
+
+- 会员结算页点击“立即支付”成功后立即跳转 `checkout_url`，不再先渲染一个需要二次点击的“继续支付”链接；只有 Provider 没有返回地址时才保留页面提示。
+- 支付失败会读取后端安全错误码：Provider 连接超时显示“支付渠道连接超时”，Provider 拒绝显示“支付渠道拒绝请求”，并明确说明订单没有扣款；不会把外部连接问题伪装成普通订单加载失败。
+- 订单详情页新增取消待支付订单入口；结算页原有取消入口继续保留。后端只允许 `created`/`pending_payment` 状态取消，并将重复取消、已支付或已过期订单映射为 `ORDER_NOT_CANCELLABLE`/409，而不是 500。
+
+### 验证与边界
+
+- 前端 billing UI 回归测试先验证了原实现缺少直接跳转，再通过；后端取消错误码测试先失败后通过。前端类型检查和构建、支付/审计/订单相关 Go 定向测试需在本轮最终验收中再次执行。
+- 当前开发环境对 `api.nowpayments.io` 直连在 5 秒左右超时，后端 Provider 10 秒超时后返回 `PAYMENT_PROVIDER_UNAVAILABLE`；XCash 连接可用。该限制属于当前网络出口/第三方可达性，不能通过前端重试掩盖，生产需配置可达的 HTTPS 网络出口后再验收 NOWPayments。
+
+## 五十二、2026-09-25：媒体公开/私有边界、管理员预览与举报审计
+
+### 本轮完成
+
+- 新上传媒体默认 `visibility=public`、`moderation_status=approved`，不阻塞用户使用、外链分享或进入发现页；公开稳定链接和发现页都只允许 `public` 且未被拒绝的媒体。
+- 会员媒体详情新增访问权限表单：`public` 可直接复制绝对链接，`link` 不进入发现页但持有链接即可访问，`private` 不生成稳定公开链接，只允许本人登录后的 own-scope 内容接口访问。显式临时签名 URL/分享链接仍是用户主动创建的例外，并受过期、撤销和违规状态控制。
+- 新增 `PATCH /api/v1/media/{id}/visibility`，所有者只能修改自己的 ready 媒体；服务端不接受 `user_id`，并复用媒体服务的可见性校验。媒体列表/详情响应现在返回 `visibility` 和 `moderation_status`。
+- 管理员媒体库继续使用 `/admin/media` 的 all-scope Resource，不再复用会员 `/api/v1/media`。管理员打开媒体详情时使用受 `admin.media.view` 保护的 `/api/v1/admin/media/{id}/content` 缩略图预览，因此可以确认其他用户上传的图片，但不会改变其公开/私有设置。
+- 公开稳定投递 `/i/{id}` 现在检查媒体可见性和违规状态；违规媒体不能通过稳定链接或分享链接继续返回。举报创建的审计动作从笼统 `media.create` 改为 `moderation.report.create`，管理员处理继续记录 `moderation.report.resolve`。
+- NOWPayments 配置校验与 Provider 注册边界同步修正：创建支付只要求 API Key，IPN Secret 只在回调验签使用；当前 503 若仍出现，依据实测属于 `api.nowpayments.io` 外部网络不可达，不再误判成缺少 IPN Secret。
+
+### 验证与边界
+
+- 先观察到失败的可见性、默认值、审计分类测试，再实现；后端媒体、链接、分享、支付配置和审计定向测试通过，前端媒体专项测试通过（旧 route-parts 测试同步修正）。
+- 现有历史媒体不会被自动从私有批量改成公开，避免未经用户确认扩大曝光；新增迁移只会把未进入历史发现审核、已完成的历史 `pending` 媒体标为 `approved`，不改变其现有可见性。之后的新上传默认公开且通过，用户仍可逐张切换为私有或仅链接可见。
+- 该轮尚未宣称生产 CDN/对象存储已完成；管理员预览走应用受控读取，后续接入 CDN 时必须保持同一可见性、审核和访问日志策略。
+
+## 五十三、2026-09-26：套餐运行时权益与管理员媒体专用操作
+
+### 本轮完成
+
+- Personal API Token 创建和轮换现在读取当前订阅的 `token_limit`；只统计未过期的 active Token，`0` 表示不限量，超过非零上限返回 `409 TOKEN_LIMIT_REACHED`。会员 API 每分钟 Token 限额改为读取 `api_rate_per_minute`，同一来源 IP 仍保留 300 次保护；管理员不受会员 Token 维度限额限制。
+- 会员广告接口不再只判断广告自身的 active 状态，而是先读取当前订阅 `ads_enabled`；关闭广告的套餐返回空广告列表，广告管理员配置仍保留在 `/admin/advertising`。
+- `/admin/media` 的 `status`、`visibility`、`moderation_status` 改为只读，新增专用动作：隐藏、恢复、审核通过、审核拒绝和永久删除。动作通过 Media Admin Service 执行，永久删除复用存储清理/额度释放流程；成功和失败尝试均写入 `admin.media.<operation>` 审计记录。
+- 公开计划目录和当前订阅计划响应移除 `price_amount`、`currency`、`billing_period` 三个旧计划级价格字段，价格展示和下单只使用 `prices[]` 的活动价格版本；订单内部快照继续由结算域维护。
+
+### 验证与边界
+
+- 先新增 Token 限额、广告权益、媒体专用动作和公开套餐契约的 RED 测试，再实现 GREEN；聚焦包测试和 `go test ./... -count=1` 全部通过。
+- 本轮未宣称 Redis 图片队列、真实趋势统计、管理员相册媒体关系、公开相册 SSR/SSG、真实支付回调、TLS、备份恢复、对象存储/CDN 或压力测试门禁完成；这些仍按下一阶段顺序继续开发。
+
+## 五十四、2026-09-26：Redis 异步队列、真实趋势统计与管理员相册媒体关系
+
+### 本轮完成
+
+- 新增真实趋势统计 Service 和管理员接口 `GET /api/v1/admin/statistics/trends`。统计按用户、媒体、相册、订单、支付流水的真实时间字段聚合，并从 `usage_ledgers` 的下载记录累计带宽字节；接口返回连续的日粒度时间桶，不再用前端静态占位数字。缺失的可选业务表按未启用指标处理，已存在表的查询失败会返回 `STATISTICS_UNAVAILABLE`，避免把数据库错误伪装成零用量。
+- `/admin/statistics` 增加起止日期、趋势表和带宽字节展示，日期范围限制为 1 至 93 天；中英文文案通过 `statistics` namespace 提供。
+- 新增管理员相册媒体关系页 `/admin/albums/:id/media` 和三项受 RBAC 保护的 API：查询、加入、移除。加入时服务端校验相册所属用户、媒体所属用户和 `ready` 状态，禁止管理员把其他用户媒体跨用户挂入相册；移除只解除 `album_media` 关系，不删除媒体；所有变更写入 `admin.albums.media.add/remove` 审计。
+- 新增 Redis Job：`fastimg.billing.fulfill-order` 和 `fastimg.media.recover-upload`。支付履约和过期上传恢复均保留数据库状态为事实来源，失败按有限次数重试；`media:dispatch-recovery` 每 5 分钟扫描最多 100 个超时 `processing` 会话并投递恢复任务。
+- 上传确认仍保持同步，确保 C 端成功后立即获得多格式链接；本轮只把可重试的恢复、履约放入 Redis，不为了“异步”破坏现有上传交互。队列配置复用 Goravel Redis Queue 和 Provider 注册，不新增内存队列或第二套调度器。
+- OpenAPI、前端路由、管理员页面、双语 locale、队列契约测试和阶段记录已同步。
+
+### 验证结果
+
+- `go test ./... -count=1` 通过；前端 Node 合约测试 `69/69` 通过；`vue-tsc -b --pretty false` 通过；Vite 生产构建通过。
+- Redis 本机 `127.0.0.1:6379` 返回 `PONG`；后端已重建并重启到 `http://127.0.0.1:53085`，统计路由和管理员相册关系路由已注册，匿名统计请求返回 `401`，管理员统计请求返回连续日桶。
+- 管理员相册列表过滤掉已物理删除媒体，只展示 `ready` 媒体；本地运行态重建后需要再次刷新 `/admin/albums/:id/media` 验证已有数据。
+
+### 边界与未完成项
+
+- 本轮未执行数据库迁移，也未向业务库写入测试数据；相册关系使用现有 `album_media` 表，趋势统计使用现有业务表和用量流水。
+- 当前已验证 Redis 可连接和应用启动，但尚未启动独立生产 Worker 做真实任务消费、失败重试、Redis 重启恢复和积压告警演练；不能据此宣称异步队列生产就绪。
+- 公开相册真实访问路由、SEO/SSR/SSG、对象存储/CDN、真实支付回调、TLS、备份恢复和压力测试门禁仍未完成。
+
+## 五十五、2026-09-26：上传自动公开与发现页事后治理
+
+### 规则修正
+
+- 普通上传完成后写入 `visibility=public`、`moderation_status=approved`，用户不需要等待管理员审核即可查看、复制和使用稳定图片链接；用户仍可自行切换为 `private` 或 `link`。
+- 发现页不是主动投稿队列，而是公开媒体的展示面。只要媒体 `ready`、未删除、`visibility=public` 且未被拒绝，上传后自动进入发现页；举报、隐藏和拒绝是发布后的治理流程。
+- 用户端不再显示投稿入口，也不再调用 `discovery-submit`；举报按钮直接创建举报并关联管理员举报处理。
+- 管理员媒体操作保持事后运营：`hide` 只改为私有，不把图片标成违规；`reject` 才写入 `moderation_status=rejected` 并阻断公开投递；`approve`、`restore` 和永久删除继续走专用 Service，禁止通用 CRUD 直接写生命周期或审核字段。
+- 新迁移 `20260926000001_default_uploaded_media_approved` 更新 PostgreSQL 默认值，并只把“已完成、未投稿发现页、历史 pending”的媒体改为 `approved`；不会把历史私有媒体改成公开，也不会覆盖已进入发现审核的记录。该迁移只注册，尚未执行。
+
+### 验证边界
+
+- 已补充默认状态测试、发现查询的事后治理条件和管理员隐藏/拒绝分离实现；`go test ./... -count=1`、前端 Node 测试 `69/69`、`vue-tsc -b --pretty false` 和 Vite 生产构建均通过。
+- 后端已重建并重启到 `http://127.0.0.1:53085`；`GET /api/v1/discovery/status` 返回 `200` 且只返回 `enabled`，旧投稿路径返回 `410 DISCOVERY_SUBMISSIONS_DISABLED`，OpenAPI 已移除投稿操作。当前本地站点配置的发现总开关为关闭，因此 feed 按设计返回 `DISCOVERY_DISABLED`；开启总开关后将按公开、ready、非拒绝规则返回图片。
+- 真实队列失败重试/Redis 重启、真实支付回调、TLS、备份恢复、对象存储/CDN 和压力测试仍按生产门禁逐项推进，不能用本地配置或单元测试替代真实验收。
+
+## 五十六、2026-09-26：功能关联审计修复
+
+### 本轮完成
+
+- 修复上传配额边界：普通网页登录上传按日上传、文件大小、存储和转换权益计量；只有 Personal API Token 的单文件上传消耗 `monthly_api_uploads`。API Token 上传仍经过同一上传服务、幂等键、媒体处理和绝对链接生成流程。
+- 修复管理员上传水印兜底：管理员继续使用当前设置/计划的水印开关；订阅快照缺失或损坏时不再返回 `SUBSCRIPTION_UNAVAILABLE` 阻断管理员上传，普通会员仍保留严格订阅错误。
+- 修复广告运行时条件：会员广告接口同时应用 `ads_enabled`、`plan_code`、`starts_at` 和 `ends_at`，结束时间按排他边界处理；公共广告查询仍可用于管理员预览。
+- 修复举报与发现页关联：举报对象条件改为 `ready + public + 非 rejected`，与发现页一致，支持上传后事后举报；不再要求先进入人工投稿审核队列。
+- 修复管理员媒体前端资源契约：`status`、`visibility`、`moderation_status` 均为只读；状态变化只能调用隐藏、恢复、通过、拒绝、永久删除专用动作，后端继续复用存储清理、用量释放和审计链路。
+- 收紧支付开发默认值：`payment.fake.enabled` 在 `production` 环境默认关闭，开发/测试环境仍可显式或按本地默认启用；真实渠道配置和回调仍必须单独验收。
+
+### 验证结果
+
+- 先执行 RED 测试，再实现 GREEN：上传来源、广告时段/套餐、举报可见性、管理员水印和 fake 网关默认策略专项测试通过。
+- 后端 `go test ./...` 通过；前端 Node 合约测试 `69/69` 通过；`vue-tsc -b --pretty false` 通过；Vite 生产构建通过。
+- 后端已使用新源码重建并重启到 `http://127.0.0.1:53085`；运行态确认 `/api/v1/discovery/status` 返回 `200`，公开计划响应只使用 `prices[]`，不再输出旧计划级价格字段。
+
+### 仍需保留的生产门禁
+
+- 真实 Redis Worker 消费、失败重试和 Redis 重启恢复尚未完成演练；现有实现已把履约和过期上传恢复投递到 Redis，但上传主流程仍同步以保证成功后立即返回链接。
+- 真实支付回调、TLS/反向代理、隔离备份恢复、依赖漏洞扫描、对象存储/CDN、公开相册 SSR/SSG 和业务压力测试仍不能用本地测试替代。
+
+## 六十、2026-09-27：公开相册访问与 SSG
+
+### 本轮完成
+
+- 新增访客相册 API `GET /api/v1/public/albums/{id}` 和图片内容 API `GET /api/v1/public/albums/{id}/media/{media_id}/content`；相册关系、公开性、删除状态和违规状态由后端逐次校验。
+- 新增会员应用内的公开路由 `/a/:id`。它与登录后的 `/albums/:id`、管理端 `/admin/albums/:id/media` 完全分离，不会把访客带入后台。
+- 公开相册页面支持瀑布流图片、错误兜底、动态 title/description/canonical/Open Graph，并同步中英文文案和 OpenAPI 契约。
+- `build:ssg` 支持使用 `SSG_PUBLIC_ALBUM_IDS` 指定要预渲染的公开相册；脚本通过 `SSG_API_ORIGIN` 读取公开数据，未配置或相册不可公开时跳过，不会把私有相册写入静态产物。
+
+### 验证边界
+
+- 已补充公开相册 Service、路由、OpenAPI、前端页面和 SSG 合约测试；需要运行完整后端/前端测试并在本地数据库中用一个公开相册完成真实 HTTP 验收。
+- 当前完成的是 SPA + 可选 SSG，不是请求级 SSR；公开相册不会自动全部写入静态站点，生产构建时必须显式提供 ID 清单。
+- Redis Worker 消费/重试、真实支付回调、TLS、备份恢复、对象存储/CDN 和压力测试门禁仍未完成。
+
+## 五十七、2026-09-26：公开入口、真实控制台与 SSG 运行态修复
+
+### 本轮完成
+
+- 管理员控制台不再只展示用户、角色和权限三个占位统计；新增媒体、相册、文件夹、订单和支付流水卡片，全部读取 `/api/v1/admin/overview` 的数据库计数，并保留后台资源快捷入口。
+- 修复公开套餐卡片与当前价格契约不一致的问题：公开 `/api/v1/plans` 只返回 `prices[].amount_minor/currency/billing_period`，会员端不再读取已移除的旧计划级价格字段，游客价格不再出现 `NaN undefined`。
+- 游客路由验收通过：`/`、`/plans`、`/discover` 直接打开；首页上传按钮显示登录入口但不会发起上传，套餐目录可读，个人媒体、订单、Token 等私有页面仍由路由守卫保护。
+- 修复 `build:ssg` 产物：公开页面继续生成 description、Open Graph、canonical 和 JSON-LD，同时保留 `#app` 挂载点，Vue 脚本加载后可以继续接管真实页面；静态首屏不写入 Token、用户媒体或管理数据。
+
+### 当前 SEO 结论
+
+- 已实现：公开页面 SPA SEO 元数据、`/sitemap.xml`、`/robots.txt`、首页/套餐/发现页 SSG 首屏和公开 API 数据边界。
+- 尚未实现：真正请求级 SSR。当前仍是 Vue SPA + SSG，独立 `web/` SSR 入口、服务端渲染运行时和部署适配仍是后续切片，不能把当前实现描述为 SSR。
+
+### 验证结果
+
+- 前端专项合约测试、`vue-tsc -b --pretty false` 和 `npm run build:ssg` 通过；SSG 生成 `/`、`/plans`、`/discover` 三个入口且产物保留 `id="app"`。
+- 浏览器游客验收：三个公开路由均未跳转登录，套餐真实显示 `¥19.99/ 月`、`¥49.99/ 月`；管理员控制台显示当前数据库实数（本地验收时用户 1、媒体 27、相册 2、文件夹 0、订单 8、支付流水 0）。
+
+## 五十八、2026-09-26：注册、Turnstile 与邮箱验证
+
+### 本轮完成
+
+- 退出登录由会员端和管理员端统一回到公开首页 `/`；即使退出接口暂时不可用，也会清理本地认证状态并导航到首页，不把用户困在登录页。
+- 新增公开 `/register` 和 `/verify-email` 页面。首页、套餐、发现页继续允许游客访问；上传、媒体、订单、Token 等私有能力仍需登录。
+- 新增认证公开接口：`GET /api/v1/auth/registration-policy`、`POST /api/v1/auth/register`、`GET /api/v1/auth/verify-email`、`POST /api/v1/auth/resend-verification`。注册成功默认创建 Free 订阅，不自动赋予管理员权限。
+- 后台“注册与登录”设置支持：开放注册、全局 Cloudflare Turnstile、登录验证、注册验证、邮箱验证、邮箱域名白名单、验证链接有效期。Turnstile Site Key 可以返回给浏览器；Secret Key 使用 `APP_KEY` 加密保存，列表接口只返回已配置占位符。
+- Turnstile 适配严格使用 Cloudflare 官方 Siteverify 接口。后端在登录、注册和重发验证邮件时校验 token，限制 token 最大长度；不记录 token、Secret Key 或原始验证链接。缺少 Secret Key 返回配置错误，验证失败返回可本地化的业务错误码。
+- 邮箱验证 token 只保存 SHA-256 摘要，原始 token 只进入邮件链接；token 单次消费、默认 30 分钟过期，可在后台设置 5–1440 分钟。管理员创建的用户视为已验证，历史用户迁移时按创建时间补齐已验证状态，避免打开策略后锁死现有管理账号。
+- 邮箱白名单只在后端读取，支持换行、逗号和分号分隔的精确域名；白名单内容不进入公开策略响应。注册验证邮件统一由 `app/services/email` 发送，支持通用 SMTP、阿里云 DirectMail `SingleSendMail` 和 Resend API，后台可启用/关闭并选择当前服务。SMTP、阿里云 AccessKey 和 Resend API Key 均按 `APP_KEY` 加密保存。
+
+### 验证边界
+
+- 已通过后端认证、策略纯函数、迁移和控制器编译测试，以及前端 TypeScript 检查和生产构建。
+- 当前本地默认关闭 Turnstile 和邮箱验证，因此开发账号可继续登录，注册不要求外部服务；管理员在 `/admin/settings` 开启后才会强制执行。
+- 未登录重发验证邮件已接入可配置的邮箱/IP冷却和 UTC 自然日上限，默认分别为 60 秒、10 秒、单邮箱 5 次、单 IP 20 次；缓存不可用时拒绝发送，避免绕过限流消耗邮件额度。后台字段位于“注册与登录”设置组，触发限制返回 `AUTH_VERIFICATION_RESEND_RATE_LIMITED` 和 `retry_after_seconds`。
+- 真实 Cloudflare Widget、邮件服务投递（SMTP/阿里云/Resend）、域名白名单生产验收仍需要部署方填写正式密钥、正式域名和邮件服务配置；本地单元测试不能替代第三方服务验收。
+
+### 2026-09-27 本地运行验收补充
+
+- 按本地开发授权创建专用 PostgreSQL 角色 `fastimg_app` 和数据库 `fastimg_dev`，没有修改其他 Laragon 数据库；Redis 继续使用 Laragon 的 `127.0.0.1:6379`。
+- `fastimg_dev` 已执行全部已注册迁移和 Seeder，`migrate:status` 显示全部 `[1] Ran` 或 `[2] Ran`；已预置 Free、Creator、Pro 三个启用套餐和开发管理员账号。
+- 修复 `20260926000002_add_email_verified_at_to_users` 在 Goravel Schema Builder 与 ORM 跨连接时自持表锁的问题，Schema 变更和历史用户回填现在通过同一 PostgreSQL 命令完成，并加入迁移回归测试。
+- 当前本地进程使用后端 `http://127.0.0.1:53085`、会员/管理前端 `http://127.0.0.1:53084`；前端首页、管理入口、发现状态、套餐、注册策略、`sitemap.xml` 和 `robots.txt` 实测返回 HTTP 200。该端口分配仅适用于本次开发进程，不代表生产配置。
+
+## 五十九、2026-09-26：会员到期自动降级与通知设置
+
+### 本轮完成
+
+- 新增订阅到期生命周期：付费订单履约时根据月付/年付和试用天数写入 `subscriptions.ends_at`；运行时解析订阅发现已过期时，将旧订阅标记为 `expired`，并自动创建配置的 fallback 订阅，默认使用 `free`。
+- 新增 `grace_period_ends_at`，用于记录到期后的数据保留/续费提示窗口。宽限期不继续提供付费上传额度；默认策略是保留媒体和稳定链接，禁止超出 Free 额度的新上传，允许查看、下载和删除。
+- 新增 `subscription_notification_deliveries` 去重表，以 `subscription:{id}:expiry:{kind}` 保证提醒和到期邮件不重复发送；记录发送状态、尝试次数、下次重试时间和最后错误。
+- 新增 `subscriptions:process-expiry` 命令并加入每日调度：按后台设置发送 7/3/1 天提醒、到期通知和站内通知；邮件未配置或关闭时延后重试，不阻塞套餐降级。
+- `/admin/settings` 新增“会员到期”分组，可设置邮件通知开关、fallback 套餐编码、宽限期天数、提醒天数和超出免费额度的处理策略；中英文字段、说明和选择框已同步。
+
+### 验证结果和边界
+
+- TDD 先验证到期判定、提醒日解析、宽限期和周期计算的 RED/GREEN；`go test ./... -count=1` 通过，前端 `npm run build` 通过。
+- 已实现服务端自动降级和开发环境可配置入口；真实 SMTP、阿里云 DirectMail、Resend 投递仍需要部署方填写正式凭证、发件域名并完成 SPF/DKIM/DMARC 配置。
+- 已有历史付费订阅如果没有 `ends_at`，不会被猜测降级；需要通过真实订单履约或管理员明确设置期限后才进入到期流程。
+
+## 六十一、2026-09-27：公开相册与对象存储运行时关联
+
+### 本轮完成
+
+- 公开相册新增访客路由 `/a/:id`、公开 API 和图片内容 API；相册、媒体归属、公开状态、完成状态、删除状态和违规状态由后端逐次校验。
+- 公开发现页与公开相册内容读取统一通过对象存储 RuntimeRegistry 解析当前主存储，不再在控制器中固定使用本地磁盘；因此启用 R2、阿里云 OSS 或腾讯 COS 后，读取链路与上传链路使用同一存储配置。
+- `build:ssg` 支持 `SSG_PUBLIC_ALBUM_IDS` 和 `SSG_API_ORIGIN`，只把 API 确认公开的相册生成 `/a/:id/` 静态 SEO 入口；未公开或查询失败的相册跳过。
+
+### 验证结果和边界
+
+- 公开相册和 RuntimeRegistry 先完成 RED 测试，再通过受影响 Go 包、Go 全量测试、前端契约测试、`vue-tsc -b` 和 SSG 构建。
+- 当前本地后端 `53085` 已重启，Redis 队列启动日志显示正在消费 `default` 队列；未停止或修改 Laragon Redis。
+- 本地数据库当前没有可用于正向验收的公开相册，因此已验证私有/不存在相册返回 `PUBLIC_ALBUM_NOT_FOUND`；正向图片访问需要管理员先将测试相册设置为公开。
+- 真正 SSR、队列失败重试与 Redis 重启演练、真实支付回调、TLS、备份恢复、对象存储生产连通性、CDN 和压力测试仍属于生产门禁，不因本轮通过构建而宣称完成。
+
+## 六十二、2026-09-27：Redis 失败任务中心
+
+### 本轮完成
+
+- 新增管理员失败任务 API：`GET /api/v1/admin/tasks` 和 `POST /api/v1/admin/tasks/{uuid}/retry`。列表支持分页，重新投递复用 Goravel Queue Failer，不复制队列实现。
+- 新增 `/admin/tasks` 页面，面向非技术管理员显示任务、连接、队列和失败时间；可见权限为 `admin.tasks.view`，重新投递按钮额外需要 `admin.tasks.retry`。
+- 失败任务响应只返回必要运维摘要，不返回原始任务 payload、异常堆栈或密钥；成功重新投递写入 `queue.task.retry` 审计日志。
+- 新增中英文错误提示、OpenAPI 契约、路由导航和权限迁移 `20260927000003_add_task_permissions`。该迁移已按既有本地授权仅执行到 `fastimg_dev`。
+
+### 验证边界
+
+- RED/GREEN：失败任务权限/分页测试先失败后通过；管理员路由、API Client、页面和 OpenAPI 合约测试通过；`vue-tsc -b --pretty false` 通过。
+- 当前后端仍使用 Redis 队列，实时上传仍同步完成以保证 C 端立即得到图片链接；失败任务页面是人工运维入口，不等于完成真实故障注入验收。
+- 独立 Worker 消费、构造失败任务、重新投递、Redis 重启恢复、真实支付回调、TLS、备份恢复、对象存储/CDN 和压力测试仍是生产门禁。
+
+## 六十三、2026-09-27：设置契约与对象存储统计
+
+### 本轮完成
+
+- 修复 `/admin/settings` 选择框保存失败：`select` 只是前端展示类型，提交系统设置时统一映射为后端支持的 `string`，因此邮件服务类型等选择项不再触发 `SETTINGS_INVALID`。敏感字段仍由现有设置服务使用 `APP_KEY` 加密保存，列表接口只返回占位符。
+- 对象存储设置从通用站点设置表单中抽成独立分组，继续使用每个 Provider 自己的保存按钮；这样保存 R2、阿里云 OSS、腾讯 COS 时不会被其他站点字段阻断，也不会把云凭证混入普通设置提交。
+- 新增管理员接口 `/api/v1/admin/storage/statistics` 和 `/admin/storage` 动态统计区。只对已启用的连接生成对应 Provider 统计页卡，展示对象数、已存容量、允许访问次数和估算带宽；统计来源明确标记为 `fastimg_database`，由本站 `storage_objects` 与允许访问记录计算。
+- 不虚构云厂商账单/出口流量：R2、阿里云 OSS、腾讯 COS 的真实账单、请求计费和公网出口仍属于各厂商控制台或后续专用 Billing API 集成，不等同于本站媒体访问统计。
+- 更新对象存储注册入口：腾讯云使用 `https://curl.qcloud.com/sTyZPtN7`，阿里云使用 `https://www.aliyun.com/minisite/goods?userCode=i7hvp048`。云连接仍可并行启用，启用后管理菜单和统计页按连接动态出现。
+
+### 验证结果和边界
+
+- RED/GREEN：前端保存契约、对象存储统计页面和设置布局测试通过；后端全量 `go test ./... -count=1` 通过；前端全量 Node 测试 `113/113`、`vue-tsc -b --pretty false` 和 `npm run build:ssg` 通过。
+- 真实验收：未认证访问统计接口返回 `401 AUTH_UNAUTHORIZED`；管理员登录后统计接口返回当前启用连接及 `fastimg_database` 数据源；`email.provider` 以 `value_type=string` 成功写入；腾讯云和阿里云注册链接通过管理接口返回新地址。
+- 本轮没有新增数据库迁移，也没有修改 Laragon PostgreSQL/Redis 配置；本地后端已安全替换并重启在 `53085`，本次 Go 临时缓存已清理。
+- 仍未宣称云厂商生产凭证连通、厂商账单 API、对象存储/CDN 生产切换、真实支付回调、TLS、备份恢复和压力测试门禁完成。
+
+## 六十四、2026-09-27：对象存储统计扩展
+
+### 本轮完成
+
+- `/api/v1/admin/storage/statistics` 扩展为本站侧运营统计：对象状态分布、原图/缩略图/中图变体分布、关联媒体数、孤儿对象数、可回收容量和 24 小时健康错误数。
+- 每个已启用连接返回近 30 天每日桶，包含上传数量、上传容量、允许访问次数和估算访问流量；管理端页面展示最近 7 天明细，空日期也返回 0，避免趋势图表断线。
+- 接入已有 `storage_health_checks` 表读取最近检查状态、延迟和错误次数；不把连接配置状态误当成云厂商健康状态。
+- 管理端对象存储页面增加对象/变体分布、健康摘要、孤儿对象和趋势区域，中英文 locale 同步维护；OpenAPI 契约同步扩展。
+
+### 验证边界
+
+- RED/GREEN：新增前端统计字段契约先失败后通过；统计专项测试、双语 locale 检查、`vue-tsc -b --pretty false` 和 `npm run build:ssg` 通过。
+- 后端新构建成功并重启在 `53085`；管理员真实接口返回当前启用连接的 31 个日趋势桶、健康状态和异常字段。当前开发库没有媒体对象，所以对象、媒体和孤儿对象数量为 0。
+- 本轮 Go 定向测试启动阶段受到 Windows `Access is denied` 影响，但后端完整编译和真实 HTTP 统计接口验收通过；该测试环境问题不能等同于业务测试通过。
+- 仍未接入 R2、阿里云 OSS、腾讯 COS 的官方账单、云端真实容量、CDN 命中率和公网出口流量；这些数据必须通过各 Provider 独立凭证/API 获取，不能用本站估算值替代。
+
+## 六十五、2026-09-27：修复站点地图白屏
+
+### 本轮完成
+
+- 修复管理端 SEO 区域的 `sitemap.xml` 和 `robots.txt` 入口：开发环境不再使用前端当前端口或 `site_url` 直接拼接，而是使用 API 后端基地址打开机器可读文件。
+- Vite 开发服务器和预览服务器增加 `/sitemap.xml`、`/robots.txt` 到后端的代理，直接打开前端端口的公开文件也不会再被 SPA fallback 成空白页面。
+- 保留生产环境同源行为：未配置 `VITE_API_BASE_URL` 时使用当前站点来源；配置后使用显式后端/网关来源。
+
+### 验证结果和边界
+
+- 设置布局与开发代理测试 `10/10` 通过，`vue-tsc -b --pretty false` 通过，`npm run build` 通过。
+- 后端 `http://127.0.0.1:53085/sitemap.xml` 实测返回 `200 application/xml`；白屏根因是前端端口错误承接 XML 请求，而不是站点地图 XML 生成失败。
+- sitemap 内容仍受后台 `sitemap.enabled`、公开路径过滤和 `site_url` 规范域名设置控制；真实生产域名、TLS 和反向代理仍需部署时配置。

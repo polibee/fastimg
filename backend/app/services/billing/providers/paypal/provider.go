@@ -169,12 +169,12 @@ func (p *Provider) accessToken(ctx context.Context) (string, error) {
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := p.client.Do(request)
 	if err != nil {
-		return "", err
+		return "", &providers.RequestError{GatewayCode: "paypal", Retryable: true, ProviderMessage: "network request failed"}
 	}
 	defer response.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return "", fmt.Errorf("paypal oauth status %d", response.StatusCode)
+		return "", parseRequestError(response.StatusCode, body)
 	}
 	var token struct {
 		AccessToken string `json:"access_token"`
@@ -208,7 +208,7 @@ func (p *Provider) request(ctx context.Context, method, path string, body []byte
 	}
 	response, err := p.client.Do(request)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, &providers.RequestError{GatewayCode: "paypal", Retryable: true, ProviderMessage: "network request failed"}
 	}
 	defer response.Body.Close()
 	data, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20+1))
@@ -216,9 +216,29 @@ func (p *Provider) request(ctx context.Context, method, path string, body []byte
 		return nil, response.StatusCode, ErrInvalidResponse
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, response.StatusCode, fmt.Errorf("paypal request status %d", response.StatusCode)
+		return nil, response.StatusCode, parseRequestError(response.StatusCode, data)
 	}
 	return data, response.StatusCode, nil
+}
+
+func parseRequestError(status int, body []byte) error {
+	var payload struct {
+		Name    string `json:"name"`
+		Message string `json:"message"`
+		Error   string `json:"error_description"`
+	}
+	providerCode, providerMessage := "", ""
+	if json.Unmarshal(body, &payload) == nil {
+		providerCode = strings.TrimSpace(payload.Name)
+		providerMessage = strings.TrimSpace(payload.Message)
+		if providerMessage == "" {
+			providerMessage = strings.TrimSpace(payload.Error)
+		}
+	}
+	return &providers.RequestError{
+		GatewayCode: "paypal", StatusCode: status, ProviderCode: providerCode,
+		ProviderMessage: providerMessage, Retryable: status == http.StatusTooManyRequests || status >= 500,
+	}
 }
 
 type orderResponse struct {

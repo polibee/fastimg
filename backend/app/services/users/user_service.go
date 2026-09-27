@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/goravel/framework/contracts/database/orm"
 
@@ -82,9 +83,22 @@ func (s *UserService) Create(name, email, password, locale, status string) (*mod
 		locale = "zh-CN"
 	}
 	user := &models.User{Name: name, Email: email, Password: hash, Locale: locale, Status: status}
+	// Feature tests and older installations can create users before the
+	// verification migration is present. Only populate the new column when it
+	// exists; the migration marks existing users verified and new installations
+	// will persist administrator-created accounts as verified.
+	if facades.Schema().HasColumn("users", "email_verified_at") {
+		now := time.Now().UTC()
+		user.EmailVerifiedAt = &now
+	}
 	if err := facades.Orm().Transaction(func(tx orm.Query) error {
 		if err := tx.Create(user); err != nil {
 			return err
+		}
+		if user.EmailVerifiedAt != nil && facades.Schema().HasColumn("users", "email_verified_at") {
+			if _, err := tx.Table("users").Where("id = ?", user.ID).Update("email_verified_at", user.EmailVerifiedAt); err != nil {
+				return err
+			}
 		}
 		return planservices.EnsureFreeSubscriptionWithQuery(tx, user.ID)
 	}); err != nil {

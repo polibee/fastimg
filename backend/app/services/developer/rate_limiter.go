@@ -13,12 +13,15 @@ import (
 	"github.com/goravel/framework/contracts/database/orm"
 
 	"goravel/app/facades"
+	"goravel/app/models"
+	planservices "goravel/app/services/plans"
+	"goravel/app/services/quota"
+	rbacservices "goravel/app/services/rbac"
 )
 
 const (
-	personalTokenRateLimit = 60
-	personalIPRateLimit    = 300
-	personalRateWindow     = time.Minute
+	personalIPRateLimit = 300
+	personalRateWindow  = time.Minute
 )
 
 var ErrRateLimitStoreUnavailable = errors.New("personal api rate limit store unavailable")
@@ -66,6 +69,7 @@ func retryAfterSeconds(resetAt, now time.Time) int {
 type rateLimitSubject struct {
 	key   string
 	limit int
+	kind  string
 }
 
 type APIRateLimiter struct{}
@@ -74,16 +78,27 @@ func NewAPIRateLimiter() *APIRateLimiter { return &APIRateLimiter{} }
 
 func (r *APIRateLimiter) Allow(_ context.Context, tokenID uint, ip string) (RateLimitResult, error) {
 	if tokenID == 0 {
-		return RateLimitResult{Allowed: false, Limit: personalTokenRateLimit, Remaining: 0, RetryAfter: 1}, nil
+		return RateLimitResult{Allowed: false, Limit: 0, Remaining: 0, RetryAfter: 1}, nil
 	}
-	subjects := []rateLimitSubject{{key: "token:" + strconv.FormatUint(uint64(tokenID), 10), limit: personalTokenRateLimit}}
+	tokenLimit, err := effectiveTokenRateLimit(tokenID)
+	if err != nil {
+		return RateLimitResult{}, errors.Join(ErrRateLimitStoreUnavailable, err)
+	}
+	subjects := make([]rateLimitSubject, 0, 2)
+	if tokenLimit > 0 {
+		subjects = append(subjects, rateLimitSubject{key: "token:" + strconv.FormatUint(uint64(tokenID), 10), limit: tokenLimit, kind: "token"})
+	}
 	if trimmedIP := strings.TrimSpace(ip); trimmedIP != "" {
-		subjects = append(subjects, rateLimitSubject{key: "ip:" + trimmedIP, limit: personalIPRateLimit})
+		subjects = append(subjects, rateLimitSubject{key: "ip:" + trimmedIP, limit: personalIPRateLimit, kind: "ip"})
 	}
 
 	now := time.Now().UTC()
-	result := RateLimitResult{Allowed: true, Limit: personalTokenRateLimit, Remaining: personalTokenRateLimit, ResetAt: now.Add(personalRateWindow)}
-	err := facades.Orm().Transaction(func(tx orm.Query) error {
+	result := RateLimitResult{Allowed: true, Limit: tokenLimit, Remaining: tokenLimit, ResetAt: now.Add(personalRateWindow)}
+	if tokenLimit == 0 && len(subjects) > 0 {
+		result.Limit = subjects[0].limit
+		result.Remaining = subjects[0].limit
+	}
+	err = facades.Orm().Transaction(func(tx orm.Query) error {
 		for _, subject := range subjects {
 			current, err := r.consumeSubject(tx, subject, now)
 			if err != nil {
@@ -92,7 +107,7 @@ func (r *APIRateLimiter) Allow(_ context.Context, tokenID uint, ip string) (Rate
 			if current.Remaining < result.Remaining {
 				result.Remaining = current.Remaining
 			}
-			if current.Limit == personalTokenRateLimit || !current.Allowed {
+			if subject.kind == "token" || !current.Allowed {
 				result.Limit = current.Limit
 			}
 			if current.ResetAt.After(result.ResetAt) || !current.Allowed {
@@ -110,6 +125,36 @@ func (r *APIRateLimiter) Allow(_ context.Context, tokenID uint, ip string) (Rate
 		return RateLimitResult{}, errors.Join(ErrRateLimitStoreUnavailable, err)
 	}
 	return result, nil
+}
+
+func effectiveTokenRateLimit(tokenID uint) (int, error) {
+	var token models.ApiToken
+	if err := facades.Orm().Query().Where("id = ?", tokenID).First(&token); err != nil {
+		return 0, err
+	}
+	administrator, err := rbacservices.NewRBACService().IsAdministrator(token.UserID)
+	if err != nil {
+		return 0, err
+	}
+	if administrator {
+		return 0, nil
+	}
+	subscription, err := planservices.NewPlanService().SubscriptionForUser(token.UserID)
+	if err != nil {
+		return 0, err
+	}
+	entitlement, err := quota.ParseEntitlementJSON(subscription.EntitlementSnapshotJSON)
+	if err != nil {
+		return 0, err
+	}
+	return NormalizeRateLimit(entitlement.APIRatePerMinute)
+}
+
+func NormalizeRateLimit(limit int64) (int, error) {
+	if limit < 0 || uint64(limit) > uint64(^uint(0)>>1) {
+		return 0, errors.New("api rate limit is outside the supported range")
+	}
+	return int(limit), nil
 }
 
 func (r *APIRateLimiter) consumeSubject(tx orm.Query, subject rateLimitSubject, now time.Time) (RateLimitResult, error) {

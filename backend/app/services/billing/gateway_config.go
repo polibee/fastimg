@@ -13,9 +13,12 @@ type GatewayURLSet struct {
 
 func MissingGatewaySettings(provider string, values map[string]string) []string {
 	required := map[string][]string{
-		"paypal":      {"payment.paypal.client_id", "payment.paypal.client_secret", "payment.paypal.webhook_id"},
-		"xcash":       {"payment.xcash.app_id", "payment.xcash.hmac_key"},
-		"nowpayments": {"payment.nowpayments.api_key", "payment.nowpayments.ipn_secret"},
+		"paypal": {"payment.paypal.client_id", "payment.paypal.client_secret", "payment.paypal.webhook_id"},
+		"xcash":  {"payment.xcash.app_id", "payment.xcash.hmac_key"},
+		// The API key is required to create a NOWPayments invoice. The IPN
+		// secret is only required by the webhook verifier and must not block
+		// member checkout when webhook setup is still being completed.
+		"nowpayments": {"payment.nowpayments.api_key"},
 	}
 	missing := make([]string, 0)
 	for _, key := range required[strings.ToLower(strings.TrimSpace(provider))] {

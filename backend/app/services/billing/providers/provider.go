@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -14,6 +15,20 @@ type RequestError struct {
 	ProviderCode    string
 	ProviderMessage string
 	Retryable       bool
+}
+
+// NormalizeProviderError prevents an adapter-specific transport/protocol
+// error from leaking as an opaque 500. Known safe RequestErrors pass through;
+// unknown provider failures become a retryable, credential-safe summary.
+func NormalizeProviderError(gatewayCode string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var requestErr *RequestError
+	if errors.As(err, &requestErr) {
+		return err
+	}
+	return &RequestError{GatewayCode: gatewayCode, Retryable: true, ProviderMessage: "provider request failed"}
 }
 
 func (e *RequestError) Error() string {
@@ -32,8 +47,6 @@ type CreatePaymentRequest struct {
 	AmountMinor     int64
 	Currency        string
 	Description     string
-	CallbackURL     string
-	ReturnURL       string
 	IdempotencyKey  string
 }
 
@@ -99,6 +112,12 @@ type PaymentGateway interface {
 	CreatePayment(context.Context, CreatePaymentRequest) (PaymentSession, error)
 	QueryPayment(context.Context, QueryPaymentRequest) (GatewayPayment, error)
 	VerifyWebhook(context.Context, WebhookRequest) (GatewayEvent, error)
+}
+
+// RefundGateway is an optional provider capability. Refund support varies by
+// channel and must not make every basic payment adapter implement placeholder
+// methods just to satisfy the core gateway contract.
+type RefundGateway interface {
 	CreateRefund(context.Context, RefundRequest) (GatewayRefund, error)
 	QueryRefund(context.Context, string) (GatewayRefund, error)
 }

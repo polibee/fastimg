@@ -3,6 +3,8 @@ import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
 
+const backendTarget = process.env.FASTIMG_BACKEND_URL ?? 'http://127.0.0.1:53085'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
@@ -12,15 +14,22 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: process.env.FASTIMG_BACKEND_URL ?? 'http://127.0.0.1:53082',
+        target: backendTarget,
         changeOrigin: true,
       },
+      '/sitemap.xml': { target: backendTarget, changeOrigin: true },
+      '/robots.txt': { target: backendTarget, changeOrigin: true },
     },
   },
   preview: {
     host: '0.0.0.0',
     port: 4173,
     strictPort: true,
+    proxy: {
+      '/api': { target: backendTarget, changeOrigin: true },
+      '/sitemap.xml': { target: backendTarget, changeOrigin: true },
+      '/robots.txt': { target: backendTarget, changeOrigin: true },
+    },
   },
   resolve: {
     alias: {

@@ -7,7 +7,8 @@ import (
 )
 
 // M20260925000005AddDiscoveryStateToMedia keeps public discovery state on the
-// media asset. Public reads require all three gates: ready, public, approved.
+// media asset. Public discovery reads additionally require an explicit
+// discovery history; ordinary public links do not wait for moderation.
 type M20260925000005AddDiscoveryStateToMedia struct{}
 
 func (m *M20260925000005AddDiscoveryStateToMedia) Signature() string {
@@ -20,14 +21,14 @@ func (m *M20260925000005AddDiscoveryStateToMedia) Up() error {
 	}
 	if !facades.Schema().HasColumn("media_assets", "visibility") {
 		if err := facades.Schema().Table("media_assets", func(table schema.Blueprint) {
-			table.String("visibility", 16).Default("private")
+			table.String("visibility", 16).Default("public")
 		}); err != nil {
 			return err
 		}
 	}
 	if !facades.Schema().HasColumn("media_assets", "moderation_status") {
 		if err := facades.Schema().Table("media_assets", func(table schema.Blueprint) {
-			table.String("moderation_status", 24).Default("pending")
+			table.String("moderation_status", 24).Default("approved")
 		}); err != nil {
 			return err
 		}

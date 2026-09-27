@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (file) => readFileSync(path.join(root, file), 'utf8')
 
 test('admin media access logs stay in the admin surface with explicit permission', () => {
-  const router = read('src/router/index.ts')
+  const router = read('src/apps/admin/routes.ts')
   const shell = read('src/core/layouts/AdminShell.vue')
   const page = read('src/modules/access/pages/MediaAccessLogPage.vue')
   assert.match(router, /path: 'media-access-logs'/)

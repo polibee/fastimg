@@ -46,7 +46,7 @@ DELETE /api/v1/uploads/sessions/{id}
 
 用于大文件、网络不稳定或需要断点续传的客户端。创建会话、上传分片和完成确认只接受会员网页登录会话；Personal API Token 只开放本文最小的单文件上传和本人媒体闭环，不开放分片、批量或重试接口。
 
-普通上传和分片上传不能各自实现一套媒体写入逻辑：两者最终都必须进入同一个 `CompleteUpload` 用例，生成同样的 MediaAsset、Variant、用量流水和审核任务。
+普通上传和分片上传不能各自实现一套媒体写入逻辑：两者最终都必须进入同一个 `CompleteUpload` 用例，生成同样的 MediaAsset、Variant、用量流水和媒体状态。普通上传默认自动通过并进入发现页；发布后的举报、隐藏和拒绝由管理员治理。
 
 ## 4. Token 管理
 
@@ -92,7 +92,7 @@ media:delete
 }
 ```
 
-### 4.2 Token 列表、撤销和轮换
+### 4.2 Token 列表、删除和轮换
 
 ```http
 GET    /api/v1/tokens
@@ -107,13 +107,13 @@ id, name, prefix, scopes, status, expires_at,
 created_at, last_used_at, last_used_ip, usage_summary
 ```
 
-撤销是不可逆操作。轮换会创建新 Token 并立即撤销旧 Token；旧 Token 的请求不能因为存在旧的缓存而继续成功。
+删除是不可逆操作。轮换会创建新 Token 并立即撤销旧 Token；旧 Token 的请求不能因为存在旧的缓存而继续成功。`DELETE /api/v1/tokens/{id}` 只允许删除当前用户自己的 Token，删除后立即失效并从 Token 列表移除。
 
 当前代码已提供上述 Token 管理 API 的 Service、Controller、OpenAPI 和会员端 `/tokens` 页面。Token 仅保存 SHA-256 hash，固定 Scope 为 `upload:write`、`media:read`、`media:delete`；会员资源认证已支持 `Authorization: Bearer fst_...` 和 `X-API-Key: fst_...`，并由 own-scope 服务端逻辑推导用户归属。
 
 ### 4.3 管理端 Token 运营
 
-管理员通过 `/admin/api_tokens` 查看全站 Token 的非秘密元数据。该资源只允许查看和按权限批量停用/撤销，不提供创建、明文读取、`token_hash` 读取或完整 Token 导出，也不提供物理删除；安全运营字段仍遵循通用资源的字段权限和导出规则。管理员 Personal API Token 不能进入 `/api/v1/admin/**`，后台仍使用框架会话和 RBAC。
+管理员通过 `/admin/api_tokens` 查看全站 Token 的非秘密元数据。该资源允许具备 `admin.api_tokens.update` 的管理员批量停用/撤销，允许具备独立 `admin.api_tokens.delete` 的管理员删除 Token；不提供创建、明文读取、`token_hash` 读取或完整 Token 导出。管理员 Personal API Token 不能进入 `/api/v1/admin/**`，后台仍使用框架会话和 RBAC。
 
 ## 5. 上传图片
 
@@ -471,11 +471,11 @@ DELETE /api/image/{image_id}
 
 认证支持 `Authorization: Bearer fst_...` 和 `X-API-Key: fst_...`。两种方式都只从 Token 所属用户推导资源归属，客户端不能提交 `user_id` 改变数据范围。
 
-Personal API Token 请求按固定窗口计数：单个 Token 每分钟最多 60 次，同一来源 IP 每分钟最多 300 次。网页登录会话不使用这组 Token 限额。允许请求会返回：
+Personal API Token 请求按固定窗口计数：单个 Token 的每分钟上限读取当前套餐 `api_rate_per_minute`，同一来源 IP 每分钟最多 300 次。套餐值为 `0` 表示不限制 Token 维度，但仍保留 IP 保护；管理员 Token 不受会员套餐限额限制。网页登录会话不使用这组 Token 限额。允许请求会返回当前实际生效的上限：
 
 ```text
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 59
+X-RateLimit-Limit: 30
+X-RateLimit-Remaining: 29
 X-RateLimit-Reset: 1790296519
 ```
 
@@ -521,9 +521,9 @@ Token 明确不能调用：批量上传、上传重试、套餐/用量、订单/
 | 订单、用量、文件夹、相册、分享、防盗链、批量/重试 | 仅会话 | 拒绝 | 返回 `403 TOKEN_ENDPOINT_NOT_ALLOWED` |
 | `/api/v1/admin/**` | 管理员会话 + RBAC | 拒绝 | 管理员全站能力由后台权限和数据范围决定 |
 
-旧文档中出现的 `links:read`、`usage:read`、`webhook:manage` 和 Token 永久删除/恢复能力不再作为新 Token 的开放选项；保留旧记录只为兼容历史数据，路由以当前最小开放面为准。
+旧文档中出现的 `links:read`、`usage:read`、`webhook:manage` 和 Token 恢复能力不再作为新 Token 的开放选项；Token 删除通过会员端自己的 `DELETE /api/v1/tokens/{id}` 和后台独立删除权限提供，保留旧记录只为兼容历史数据，路由以当前最小开放面为准。
 
-管理员 API 不是 Personal API Token 的用途：`/api/v1/admin/**` 仅接受管理员登录会话，并由 `admin.*` RBAC 权限、数据范围和审计规则控制。管理端的 `api_tokens` 资源只能查看 Token 的运营元数据并执行停用/撤销，不能创建、读取明文或导出 Token；这样不会把管理员权限下放给任何 C 端 Token。
+管理员 API 不是 Personal API Token 的用途：`/api/v1/admin/**` 仅接受管理员登录会话，并由 `admin.*` RBAC 权限、数据范围和审计规则控制。管理端的 `api_tokens` 资源只能查看 Token 的运营元数据，并由独立权限控制停用/撤销和删除，不能创建、读取明文或导出 Token；这样不会把管理员权限下放给任何 C 端 Token。
 
 ## 12. 套餐、价格和支付渠道边界
 
@@ -531,7 +531,7 @@ Token 明确不能调用：批量上传、上传重试、套餐/用量、订单/
 
 - `plans` 只维护产品身份、说明、排序、状态和 `entitlements_json` 权益额度。
 - `plan_prices` 由 Seeder/结算 Service 维护可售卖的不可变价格版本：计划、版本、金额、币种、月/年周期、试用天数和生效区间。
-- 旧 `plans.price_amount/currency/billing_period` 数据字段仅作历史兼容，不再出现在计划管理表单；付费展示和下单以活动 `plan_prices` 为准。`plan_prices` 不包含 `gateway_code`，价格表不再和支付渠道耦合。
+- 公开套餐目录、当前订阅响应和管理端计划展示均不再输出 `plans.price_amount/currency/billing_period` 这组三个旧计划级价格字段；付费展示和下单只以活动 `plan_prices` 为准。`plan_prices` 不包含 `gateway_code`，价格表不再和支付渠道耦合。
 - 价格不再绑定唯一支付网关。会员创建订单后，在结算页从当前已启用且已配置的渠道中选择 PayPal、XCash、NOWPayments 或开发测试网关；订单保存价格快照，支付意图保存用户本次选择的 Provider。
 
 支付渠道的启用条件是“管理员开关 + 服务端必需密钥/API 地址配置 + 重启后注册成功”同时满足。仅勾选开关不会把未配置的渠道展示给会员。后台设置页按渠道填写 Appid/API Key、HMAC/IPN Secret、PayPal Client ID/Secret、Webhook/回调和成功/取消回跳地址；敏感值使用 `APP_KEY` 保护的 AES-GCM 密文保存，读取接口只返回“已配置”占位符，留空表示保持原值。环境变量 `PAYPAL_*`、`XCASH_*`、`NOWPAYMENTS_*` 仍作为部署级回退配置。会员结算页只展示实际注册成功的渠道，因此可以同时启用多个渠道并由会员自行选择。
@@ -539,10 +539,11 @@ Token 明确不能调用：批量上传、上传重试、套餐/用量、订单/
 ## 13. SEO、站点地图和 SSG
 
 - 后端公开提供 `/sitemap.xml` 和 `/robots.txt`，默认收录 `/`、`/plans`、`/discover`，禁止爬取 `/admin/` 和 `/api/`；生产环境通过 `APP_URL` 设置规范域名。
+- 开发环境前端与后端使用独立端口时，管理端打开按钮和 Vite 代理都必须把这两个文件转发到后端；不能让前端 SPA fallback 接管 XML/文本响应。当前本地验证端口为前端 `53084`、后端 `53085`。
 - 管理员设置的 `sitemap.enabled` 控制公开站点地图，`sitemap.extra_paths` 接受换行、逗号或分号分隔的公开路径；服务端会过滤 `/admin`、`/api`、查询串和锚点。
 - 会员首页和套餐页在 SPA 运行时同步设置 title、description、Open Graph 和 canonical。
-- 前端提供 `npm run build:ssg`：先构建 Vite，再根据公开路由清单生成 `/`、`/plans`、`/discover` 的静态 HTML、canonical、Open Graph 和 JSON-LD。公开相册必须在真实公开路由、访问策略和审核接口完成后再加入；登录、上传、个人媒体、订单等私有页面不做静态暴露。
-- SSG 页面只是公开内容的 SEO 首屏，挂载 Vue 后继续使用真实 API；不会把 Token、用户媒体或管理数据写入静态 HTML。
+- 前端提供 `npm run build:ssg`：先构建 Vite，再根据公开路由清单生成 `/`、`/plans`、`/discover` 和通过 `SSG_PUBLIC_ALBUM_IDS` 指定的 `/a/:id/` 静态 HTML、canonical、Open Graph 和 JSON-LD。登录、上传、个人媒体、订单等私有页面不做静态暴露；相册只有在 API 返回 `visibility=public` 时才会生成。
+- SSG 页面只是公开内容的 SEO 首屏，保留 Vue `#app` 挂载点后继续使用真实 API；不会把 Token、用户媒体或管理数据写入静态 HTML。当前没有请求级 SSR，不能以 SSG 产物替代 SSR 的动态首屏能力。
 
 ## 14. 公开发现 API
 
@@ -550,12 +551,11 @@ Token 明确不能调用：批量上传、上传重试、套餐/用量、订单/
 
 | 方法 | 路径 | 认证 | 说明 |
 | --- | --- | --- | --- |
-| `GET` | `/api/v1/discovery/status` | 无 | 返回 `enabled` 和 `submissions_enabled` 开关状态 |
-| `GET` | `/api/v1/discovery/feed?page=1&per_page=24` | 无 | 分页返回 `ready`、公开且已审核通过的媒体；`per_page` 限制为 1–48 |
+| `GET` | `/api/v1/discovery/status` | 无 | 返回发现页 `enabled` 状态 |
+| `GET` | `/api/v1/discovery/feed?page=1&per_page=24` | 无 | 分页返回 `ready`、公开且未被拒绝的媒体；`per_page` 限制为 1–48 |
 | `GET` | `/api/v1/discovery/media/{id}/content?variant=thumbnail` | 无 | 返回已审核媒体内容；Variant 仅允许 `thumbnail`、`medium`、`original` |
-| `POST` | `/api/v1/media/{id}/discovery-submit` | 会员会话 | 当前用户投稿自己的 ready 媒体，进入 `pending`，不自动审核 |
 
-`feed` 返回 `{data: [...], meta: {page, per_page, total}}`；每项包含媒体 ID、文件名、尺寸、类型、时间和 `thumbnail_url`/`original_url`。公开列表的服务端过滤条件固定为 `status=ready`、未软删除、`visibility=public`、`moderation_status=approved`。新上传默认 `private + pending`，管理员在 `/admin/media` 设置公开性和审核状态；举报进入 `/admin/reports`。发现页关闭时公开 feed/content 返回 `DISCOVERY_DISABLED`，未找到内容统一返回 `DISCOVERY_MEDIA_NOT_FOUND`。
+`feed` 返回 `{data: [...], meta: {page, per_page, total}}`；每项包含媒体 ID、文件名、尺寸、类型、时间和 `thumbnail_url`/`original_url`。公开列表的服务端过滤条件固定为 `status=ready`、未软删除、`visibility=public`、`moderation_status != rejected`。普通新上传默认 `public + approved`，可立即进入发现页并通过稳定链接使用；隐藏或拒绝后从发现页移除，恢复后重新出现。管理员在 `/admin/media` 执行隐藏、恢复、审核通过、审核拒绝和永久删除，不能通过通用 CRUD 直接改写状态；举报进入 `/admin/reports`。
 
 当前 `/discover` 是会员应用中的真实公开 SPA 页面，并已纳入 `build:ssg` 的公开路由清单；这不是 SSR。后续独立 `web/` SSR 入口必须继续复用以上公开 API 和审核边界，不得把管理员资源或用户私有媒体注入首屏。
 

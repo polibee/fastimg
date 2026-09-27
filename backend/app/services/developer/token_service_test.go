@@ -10,9 +10,11 @@ import (
 )
 
 type fakeTokenRepository struct {
-	created models.ApiToken
-	raw     string
-	items   []models.ApiToken
+	created       models.ApiToken
+	raw           string
+	items         []models.ApiToken
+	deletedUserID uint
+	deletedID     uint
 }
 
 func (f *fakeTokenRepository) Create(_ context.Context, input CreateInput) (models.ApiToken, string, error) {
@@ -32,6 +34,14 @@ func (f *fakeTokenRepository) ListOwned(context.Context, uint) ([]models.ApiToke
 }
 
 func (f *fakeTokenRepository) Revoke(context.Context, uint, uint) error { return nil }
+
+func (f *fakeTokenRepository) Delete(_ context.Context, userID, id uint) error {
+	f.deletedUserID = userID
+	f.deletedID = id
+	return nil
+}
+
+func (f *fakeTokenRepository) DeleteAdmin(context.Context, uint) error { return nil }
 
 func (f *fakeTokenRepository) Rotate(context.Context, uint, uint) (models.ApiToken, string, error) {
 	return f.created, f.raw, nil
@@ -87,5 +97,24 @@ func TestHasScopeOnlyMatchesExactScope(t *testing.T) {
 	service := NewService(&fakeTokenRepository{})
 	if !service.HasScope([]string{ScopeUploadWrite}, ScopeUploadWrite) || service.HasScope([]string{ScopeUploadWrite}, "upload") {
 		t.Fatal("scope checks must be exact")
+	}
+}
+
+func TestDeleteRemovesOnlyTheOwnedToken(t *testing.T) {
+	repository := &fakeTokenRepository{}
+	if err := NewService(repository).Delete(context.Background(), 7, 9); err != nil {
+		t.Fatal(err)
+	}
+	if repository.deletedUserID != 7 || repository.deletedID != 9 {
+		t.Fatalf("delete target = user %d token %d, want user 7 token 9", repository.deletedUserID, repository.deletedID)
+	}
+}
+
+func TestCheckTokenLimitTreatsZeroAsUnlimited(t *testing.T) {
+	if err := CheckTokenLimit(2, 2); err == nil {
+		t.Fatal("expected active token limit to reject the next token")
+	}
+	if err := CheckTokenLimit(0, 2); err != nil {
+		t.Fatalf("zero token limit should be unlimited: %v", err)
 	}
 }

@@ -74,7 +74,12 @@ func (s *RefundService) Request(ctx context.Context, userID, orderID uint, amoun
 	if err != nil {
 		return nil, err
 	}
-	result, err := gateway.CreateRefund(ctx, providers.RefundRequest{OrderNo: order.PublicOrderNo, ProviderPaymentID: intent.ProviderPaymentID, AmountMinor: amount, Currency: order.Currency, IdempotencyKey: idempotencyKey, Reason: reason})
+	refundGateway, ok := gateway.(providers.RefundGateway)
+	if !ok {
+		_, _ = facades.Orm().Query().Where("id = ?", refund.ID).Update(map[string]any{"status": "failed"})
+		return nil, ErrRefundUnavailable
+	}
+	result, err := refundGateway.CreateRefund(ctx, providers.RefundRequest{OrderNo: order.PublicOrderNo, ProviderPaymentID: intent.ProviderPaymentID, AmountMinor: amount, Currency: order.Currency, IdempotencyKey: idempotencyKey, Reason: reason})
 	if err != nil {
 		_, _ = facades.Orm().Query().Where("id = ?", refund.ID).Update(map[string]any{"status": "failed"})
 		return nil, fmt.Errorf("create refund: %w", err)

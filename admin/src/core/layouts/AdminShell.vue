@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Activity, ArrowRight, BarChart3, ClipboardList, Languages, LayoutDashboard, LogOut, Search, Settings2, ShieldCheck, Unplug, WalletCards } from '@lucide/vue'
+import { Activity, ArrowRight, BarChart3, ClipboardList, HardDrive, Languages, LayoutDashboard, ListTodo, LogOut, Search, Settings2, ShieldCheck, Unplug, WalletCards } from '@lucide/vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
@@ -16,12 +16,15 @@ import { adminResourcePath, dashboardResourceRoute, visibleDashboardResources } 
 import { groupResourceNavigation } from '@/lib/resource-navigation'
 import NotificationMenu from '@/core/notifications/NotificationMenu.vue'
 import { localizedResourceLabel } from '@/core/resource/resource-i18n'
+import { storageConnections, type StorageOverview } from '@/modules/settings/storage-api'
 
 const { t, te, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const resourceManifests = ref<ResourceManifest[]>([])
+const storageOverview = ref<StorageOverview>()
+const hasEnabledStorage = computed(() => Boolean(storageOverview.value?.connections.some((connection) => connection.enabled)))
 const adminResourceManifests = computed(() => resourceManifests.value.filter((item) => item.data_scope !== 'own'))
 const searchOpen = ref(false)
 const searchResults = computed(() => visibleDashboardResources(adminResourceManifests.value, auth.user?.permissions || []))
@@ -45,11 +48,13 @@ const breadcrumbLabel = computed(() => {
   if (route.name === 'rbac') return t('rbac.title')
   if (route.name === 'audit-logs') return t('auth.auditLogs')
   if (route.name === 'media-access-logs') return t('auth.mediaAccessLogs')
+  if (route.name === 'admin-tasks') return t('tasks.title')
   if (route.name === 'admin-orders') return t('billing.admin.orders')
   if (route.name === 'admin-payment-transactions') return t('billing.admin.transactions')
   if (route.name === 'admin-payment-events') return t('billing.admin.events')
   if (route.name === 'admin-refunds') return t('billing.admin.refunds')
   if (route.name === 'admin-settings') return t('settings.title')
+  if (route.name === 'admin-storage') return t('storage.title')
   if (route.name === 'admin-statistics') return t('statistics.title')
   const resource = resourceManifests.value.find((item) => item.name === breadcrumbResource.value)
   return resource ? localizedResourceLabel(t, te, resource.name, resource.label) : breadcrumbResource.value || t('auth.dashboard')
@@ -65,13 +70,19 @@ function toggleLocale() {
 }
 
 async function logout() {
-  await auth.logout()
-  await router.replace({ name: 'login' })
+  try {
+    await auth.logout()
+  } finally {
+    await router.replace({ path: '/' })
+  }
 }
 
 async function logoutAll() {
-  await auth.logoutAll()
-  await router.replace({ name: 'login' })
+  try {
+    await auth.logoutAll()
+  } finally {
+    await router.replace({ path: '/' })
+  }
 }
 
 function openResource(resource: { name: string; route: string }) {
@@ -124,6 +135,9 @@ onMounted(async () => {
   window.addEventListener('keydown', handleSearchShortcut)
   if (!auth.token) return
   try { resourceManifests.value = await generatedApi.resourceRegistry(auth.token) } catch { resourceManifests.value = [] }
+  if (auth.can('admin.storage.view')) {
+    try { storageOverview.value = await storageConnections(auth.token) } catch { storageOverview.value = undefined }
+  }
 })
 
 onBeforeUnmount(() => {
@@ -175,12 +189,18 @@ onBeforeUnmount(() => {
                   <RouterLink to="/admin/media-access-logs"><Activity /><span>{{ t('auth.mediaAccessLogs') }}</span></RouterLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.tasks.view')">
+                <SidebarMenuButton as-child :is-active="$route.name === 'admin-tasks'" :tooltip="t('tasks.title')">
+                  <RouterLink to="/admin/tasks"><ListTodo /><span>{{ t('tasks.title') }}</span></RouterLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.orders.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-orders'" :tooltip="t('billing.admin.orders')"><RouterLink to="/admin/orders"><WalletCards /><span>{{ t('billing.admin.orders') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.payment_transactions.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-payment-transactions'" :tooltip="t('billing.admin.transactions')"><RouterLink to="/admin/payment-transactions"><WalletCards /><span>{{ t('billing.admin.transactions') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.payment_events.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-payment-events'" :tooltip="t('billing.admin.events')"><RouterLink to="/admin/payment-events"><WalletCards /><span>{{ t('billing.admin.events') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.refunds.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-refunds'" :tooltip="t('billing.admin.refunds')"><RouterLink to="/admin/refunds"><WalletCards /><span>{{ t('billing.admin.refunds') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.users.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-statistics'" :tooltip="t('statistics.title')"><RouterLink to="/admin/statistics"><BarChart3 /><span>{{ t('statistics.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.settings.manage')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-settings'" :tooltip="t('settings.title')"><RouterLink to="/admin/settings"><Settings2 /><span>{{ t('settings.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.storage.view') && hasEnabledStorage"><SidebarMenuButton as-child :is-active="$route.name === 'admin-storage'" :tooltip="t('storage.title')"><RouterLink to="/admin/storage"><HardDrive /><span>{{ t('storage.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

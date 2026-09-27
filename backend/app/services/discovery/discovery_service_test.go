@@ -1,6 +1,26 @@
 package discovery
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	storageservices "goravel/app/services/storage"
+)
+
+func TestServiceResolvesStoragePerContentRequest(t *testing.T) {
+	want := &storageservices.LocalProvider{}
+	service := NewServiceWithStorageResolver(nil, func(context.Context) (storageservices.StorageProvider, error) {
+		return want, nil
+	})
+
+	got, err := service.resolveStorage(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("resolved storage = %p, want %p", got, want)
+	}
+}
 
 func TestNormalizePageBoundsPublicFeedRequests(t *testing.T) {
 	tests := []struct {
@@ -32,5 +52,28 @@ func TestPublicDiscoveryOnlyAcceptsKnownVariants(t *testing.T) {
 		if validVariant(variant) {
 			t.Fatalf("variant %q should be rejected", variant)
 		}
+	}
+}
+
+func TestIsDiscoverableUsesPostModerationRule(t *testing.T) {
+	tests := []struct {
+		name       string
+		visibility string
+		moderation string
+		want       bool
+	}{
+		{name: "new approved upload", visibility: VisibilityPublic, moderation: ModerationApproved, want: true},
+		{name: "public upload awaiting post moderation", visibility: VisibilityPublic, moderation: ModerationPending, want: true},
+		{name: "public upload under review", visibility: VisibilityPublic, moderation: "manual_review", want: true},
+		{name: "link only media", visibility: VisibilityLink, moderation: ModerationApproved, want: false},
+		{name: "private media", visibility: VisibilityPrivate, moderation: ModerationApproved, want: false},
+		{name: "rejected public media", visibility: VisibilityPublic, moderation: ModerationRejected, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsDiscoverable(tt.visibility, tt.moderation); got != tt.want {
+				t.Fatalf("IsDiscoverable(%q, %q) = %v, want %v", tt.visibility, tt.moderation, got, tt.want)
+			}
+		})
 	}
 }

@@ -10,10 +10,13 @@ const read = (relativePath) => readFileSync(path.join(adminRoot, relativePath), 
 test('member media route is nested under the dedicated MemberShell at a flat URL', () => {
   const router = read('src/router/index.ts')
   const memberRoutes = read('src/apps/member/routes.ts')
+  const memberRouteParts = read('src/apps/member/route-parts.ts')
+  const memberRoutePublic = read('src/apps/member/route-public.ts')
+  const memberRoutePrivate = read('src/apps/member/route-private.ts')
   assert.match(router, /memberRoutes/)
   assert.match(memberRoutes, /path:\s*'\/'[\s\S]*?MemberShell\.vue/)
-  assert.match(memberRoutes, /path:\s*'media',\s*name:\s*'member-media',[\s\S]*?modules\/member\/pages\/MemberMediaPage\.vue/)
-  assert.match(memberRoutes, /path:\s*'media\/:id',\s*name:\s*'member-media-detail',[\s\S]*?MemberMediaDetailPage\.vue/)
+  assert.match(`${memberRoutePublic}\n${memberRoutePrivate}`, /path:\s*['"]media['"],\s*name:\s*['"]member-media['"][\s\S]*?MemberMediaPage/)
+  assert.match(`${memberRoutePublic}\n${memberRoutePrivate}`, /path:\s*['"]media\/:id['"],\s*name:\s*['"]member-media-detail['"][\s\S]*?MemberMediaDetailPage/)
 })
 
 test('member media details use the authenticated owner-scoped API and private content previews', () => {
@@ -172,4 +175,12 @@ test('member media details expose signed URL and hotlink policy controls', () =>
     assert.equal(typeof locale.media?.hotlinkModes?.off, 'string')
     assert.equal(typeof locale.media?.hotlinkModes?.hybrid, 'string')
   }
+})
+
+test('member media visibility is owner-controlled and admin media details use an all-user preview endpoint', () => {
+  const page = read('src/modules/member/pages/MemberMediaDetailPage.vue')
+  const detail = read('src/core/resource/pages/ResourceDetailPage.vue')
+  assert.match(page, /\/api\/v1\/media\/\$\{item\.value\.id\}\/visibility/)
+  assert.match(page, /v-model="visibility"/)
+  assert.match(detail, /\/api\/v1\/admin\/media\/\$\{String\(route\.params\.id\)\}\/content/)
 })

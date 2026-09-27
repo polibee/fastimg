@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/goravel/framework/contracts/http"
 
@@ -33,6 +34,10 @@ func (r *AuthController) Login(ctx http.Context) http.Response {
 			"message": "email and password are required",
 		})
 	}
+	policy := authservices.LoadRegistrationPolicy()
+	if response := verifyTurnstilePolicy(ctx, policy.LoginTurnstile, ctx.Request().Input("turnstile_token")); response != nil {
+		return response
+	}
 	rateLimiter := authservices.NewLoginRateLimiter()
 	allowed, err := rateLimiter.Allow(email, ctx.Request().Ip())
 	if err != nil {
@@ -53,6 +58,13 @@ func (r *AuthController) Login(ctx http.Context) http.Response {
 		return ctx.Response().Status(403).Json(http.Json{
 			"code":    "AUTH_USER_DISABLED",
 			"message": "user is disabled",
+		})
+	}
+	loadUserEmailVerification(&user)
+	if policy.EmailVerificationRequired && user.EmailVerifiedAt == nil {
+		return ctx.Response().Status(403).Json(http.Json{
+			"code":    "AUTH_EMAIL_UNVERIFIED",
+			"message": "email verification is required",
 		})
 	}
 
@@ -99,6 +111,7 @@ func (r *AuthController) Me(ctx http.Context) http.Response {
 	if err := facades.Auth(ctx).User(&user); err != nil {
 		return unauthorized(ctx)
 	}
+	loadUserEmailVerification(&user)
 
 	publicUser, err := authUserPublic(&user)
 	if err != nil {
@@ -173,6 +186,11 @@ func (r *AuthController) Refresh(ctx http.Context) http.Response {
 	if err := facades.Orm().Query().Find(&user, userID); err != nil || !loginAllowedForStatus(user.Status) {
 		return unauthorized(ctx)
 	}
+	policy := authservices.LoadRegistrationPolicy()
+	loadUserEmailVerification(&user)
+	if policy.EmailVerificationRequired && user.EmailVerifiedAt == nil {
+		return ctx.Response().Status(403).Json(http.Json{"code": "AUTH_EMAIL_UNVERIFIED"})
+	}
 	token, err := facades.Auth(ctx).Login(&user)
 	if err != nil {
 		return unauthorized(ctx)
@@ -187,8 +205,6 @@ func (r *AuthController) Refresh(ctx http.Context) http.Response {
 			"message": "could not rotate refresh token",
 		})
 	}
-	recordAudit(user.ID, "auth.refresh", nil)
-
 	return ctx.Response().Cookie(refreshTokenCookie(rotatedToken)).Success().Json(http.Json{
 		"data": http.Json{
 			"access_token": token,
@@ -241,4 +257,16 @@ func sessionStoreUnavailable(ctx http.Context) http.Response {
 		"code":    "AUTH_SESSION_STORE_UNAVAILABLE",
 		"message": "authentication session storage is unavailable",
 	})
+}
+
+func loadUserEmailVerification(user *models.User) {
+	if user == nil || !facades.Schema().HasColumn("users", "email_verified_at") {
+		return
+	}
+	var row struct {
+		EmailVerifiedAt *time.Time `gorm:"column:email_verified_at"`
+	}
+	if err := facades.Orm().Query().Table("users").Where("id = ?", user.ID).First(&row); err == nil {
+		user.EmailVerifiedAt = row.EmailVerifiedAt
+	}
 }

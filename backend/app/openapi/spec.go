@@ -10,6 +10,9 @@ func Spec() map[string]any {
 			"securitySchemes": map[string]any{"bearerAuth": map[string]any{"type": "http", "scheme": "bearer", "bearerFormat": "Personal API Token or session"}, "apiKeyAuth": map[string]any{"type": "apiKey", "in": "header", "name": "X-API-Key"}},
 			"schemas": map[string]any{
 				"UserStatus":                      map[string]any{"type": "string", "enum": []string{"active", "disabled", "locked"}},
+				"RegistrationPolicy":              map[string]any{"type": "object", "required": []string{"registration_enabled", "registration_turnstile", "login_turnstile", "email_verification_required", "turnstile_site_key"}, "properties": map[string]any{"registration_enabled": map[string]any{"type": "boolean"}, "registration_turnstile": map[string]any{"type": "boolean"}, "login_turnstile": map[string]any{"type": "boolean"}, "email_verification_required": map[string]any{"type": "boolean"}, "turnstile_site_key": map[string]any{"type": "string"}}},
+				"RegistrationResponse":            map[string]any{"type": "object", "required": []string{"user", "verification_required"}, "properties": map[string]any{"user": map[string]any{"type": "object"}, "verification_required": map[string]any{"type": "boolean"}}},
+				"EmailVerificationResponse":       map[string]any{"type": "object", "required": []string{"verified"}, "properties": map[string]any{"verified": map[string]any{"type": "boolean"}, "sent": map[string]any{"type": "boolean"}}},
 				"DataScope":                       map[string]any{"type": "string", "enum": []string{"all", "own"}},
 				"FieldPermissionOverride":         map[string]any{"type": "object", "required": []string{"readable", "writable"}, "properties": map[string]any{"readable": map[string]any{"type": "boolean"}, "writable": map[string]any{"type": "boolean"}}},
 				"Error":                           map[string]any{"type": "object", "required": []string{"code", "request_id", "retryable"}, "properties": map[string]any{"code": map[string]any{"type": "string"}, "request_id": map[string]any{"type": "string"}, "retryable": map[string]any{"type": "boolean"}}},
@@ -63,13 +66,22 @@ func Spec() map[string]any {
 				"DiscoveryStatus":                 discoveryStatusSchema(),
 				"DiscoveryFeedItem":               discoveryFeedItemSchema(),
 				"DiscoveryFeedResponse":           discoveryFeedResponseSchema(),
-				"DiscoverySubmissionResponse":     discoverySubmissionResponseSchema(),
+				"PublicAlbum":                     publicAlbumSchema(),
 				"SitePresentation":                map[string]any{"type": "object", "required": []string{"watermark_fallback_image_url"}, "properties": map[string]any{"watermark_fallback_image_url": map[string]any{"type": "string", "format": "uri", "description": "Safe public fallback image URL; empty when the built-in member fallback is used."}}},
+				"StorageConnection":               storageConnectionSchema(),
+				"StorageOverview":                 storageOverviewSchema(),
+				"StorageStatisticsOverview":       storageStatisticsOverviewSchema(),
+				"AdminTask":                       adminTaskSchema(),
+				"AdminTaskRetryResponse":          adminTaskRetryResponseSchema(),
 			},
 		},
 		"paths": map[string]any{
+			"/auth/registration-policy": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getRegistrationPolicy", "responses": map[string]any{"200": jsonResponse("RegistrationPolicy")}}},
+			"/auth/register":            map[string]any{"post": map[string]any{"security": []any{}, "operationId": "register", "requestBody": jsonBody("RegistrationRequest", map[string]any{"type": "object", "required": []string{"name", "email", "password", "password_confirmation"}, "properties": map[string]any{"name": map[string]any{"type": "string", "minLength": 2, "maxLength": 80}, "email": map[string]any{"type": "string", "format": "email"}, "password": map[string]any{"type": "string", "format": "password", "minLength": 8}, "password_confirmation": map[string]any{"type": "string", "format": "password"}, "turnstile_token": map[string]any{"type": "string", "writeOnly": true}}}), "responses": map[string]any{"201": jsonResponse("RegistrationResponse"), "403": errorResponse(), "409": errorResponse(), "422": errorResponse(), "503": errorResponse()}}},
+			"/auth/verify-email":        map[string]any{"get": map[string]any{"security": []any{}, "operationId": "verifyEmail", "parameters": []map[string]any{{"name": "token", "in": "query", "required": true, "schema": map[string]any{"type": "string"}}}, "responses": map[string]any{"200": jsonResponse("EmailVerificationResponse"), "422": errorResponse()}}},
+			"/auth/resend-verification": map[string]any{"post": map[string]any{"security": []any{}, "operationId": "resendVerificationEmail", "requestBody": jsonBody("ResendVerificationRequest", map[string]any{"type": "object", "required": []string{"email"}, "properties": map[string]any{"email": map[string]any{"type": "string", "format": "email"}, "turnstile_token": map[string]any{"type": "string", "writeOnly": true}}}), "responses": map[string]any{"200": jsonResponse("EmailVerificationResponse"), "422": errorResponse(), "503": errorResponse()}}},
 			"/auth/login": map[string]any{"post": map[string]any{
-				"security": []any{}, "operationId": "login", "requestBody": jsonBody("LoginRequest", map[string]any{"type": "object", "required": []string{"email", "password"}, "properties": map[string]any{"email": map[string]any{"type": "string", "format": "email"}, "password": map[string]any{"type": "string", "format": "password"}}}),
+				"security": []any{}, "operationId": "login", "requestBody": jsonBody("LoginRequest", map[string]any{"type": "object", "required": []string{"email", "password"}, "properties": map[string]any{"email": map[string]any{"type": "string", "format": "email"}, "password": map[string]any{"type": "string", "format": "password"}, "turnstile_token": map[string]any{"type": "string", "writeOnly": true}}}),
 				"responses": map[string]any{"200": jsonResponse("LoginResponse"), "403": errorResponse(), "429": errorResponse(), "503": errorResponse()},
 			}},
 			"/auth/refresh": map[string]any{"post": map[string]any{
@@ -82,7 +94,9 @@ func Spec() map[string]any {
 			"/discovery/status":             map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryStatus", "responses": map[string]any{"200": jsonResponse("DiscoveryStatus"), "500": errorResponse()}}},
 			"/discovery/feed":               map[string]any{"get": map[string]any{"security": []any{}, "operationId": "listDiscoveryFeed", "parameters": []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer")}, "responses": map[string]any{"200": jsonResponse("DiscoveryFeedResponse"), "404": errorResponse(), "500": errorResponse()}}},
 			"/discovery/media/{id}/content": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryMediaContent", "parameters": []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}, "default": "thumbnail"}}}, "responses": map[string]any{"200": map[string]any{"description": "Public discovery media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()}}},
-			"/payment-gateways":             map[string]any{"get": map[string]any{"operationId": "listAvailablePaymentGateways", "responses": map[string]any{"200": map[string]any{"description": "Available configured gateway codes"}, "401": errorResponse()}}},
+			"/public/albums/{id}":           map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getPublicAlbum", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("PublicAlbum"), "404": errorResponse()}}},
+			"/public/albums/{id}/media/{media_id}/content": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getPublicAlbumMediaContent", "parameters": []map[string]any{pathParameter("id"), pathParameter("media_id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original", "thumbnail", "medium"}, "default": "thumbnail"}}}, "responses": map[string]any{"200": map[string]any{"description": "Public album media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()}}},
+			"/payment-gateways":                            map[string]any{"get": map[string]any{"operationId": "listAvailablePaymentGateways", "responses": map[string]any{"200": map[string]any{"description": "Available configured gateway codes"}, "401": errorResponse()}}},
 			"/ads": map[string]any{"get": map[string]any{
 				"operationId": "listPublishedAds",
 				"parameters":  []map[string]any{{"name": "placement", "in": "query", "required": false, "schema": map[string]any{"type": "string", "enum": []string{"header", "footer", "left", "right"}}}},
@@ -184,7 +198,6 @@ func Spec() map[string]any {
 				"requestBody": jsonBody("MediaFolderRequest", map[string]any{"type": "object", "properties": map[string]any{"folder_id": map[string]any{"type": "integer", "format": "int64", "nullable": true}}}),
 				"responses":   map[string]any{"200": jsonResponse("MediaFolderResponse"), "401": errorResponse(), "404": errorResponse(), "422": errorResponse()},
 			}},
-			"/media/{id}/discovery-submit": map[string]any{"post": map[string]any{"operationId": "submitOwnMediaToDiscovery", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"202": jsonResponse("DiscoverySubmissionResponse"), "401": errorResponse(), "404": errorResponse(), "409": errorResponse()}}},
 			"/media/{id}/share-links": map[string]any{"post": map[string]any{
 				"operationId": "createOwnShareLink", "parameters": []map[string]any{pathParameter("id")},
 				"requestBody": jsonBody("ShareLinkRequest", map[string]any{"type": "object", "properties": map[string]any{"expires_at": map[string]any{"type": "string", "format": "date-time", "nullable": true}, "password": map[string]any{"type": "string", "format": "password", "minLength": 8, "maxLength": 72, "description": "Optional password; the server stores only a hash."}}}),
@@ -224,8 +237,8 @@ func Spec() map[string]any {
 				},
 			},
 			"/tokens/{id}": map[string]any{"delete": map[string]any{
-				"operationId": "revokePersonalAPIToken", "parameters": []map[string]any{pathParameter("id")},
-				"responses": map[string]any{"204": map[string]any{"description": "Token revoked"}, "401": errorResponse(), "404": errorResponse()},
+				"operationId": "deletePersonalAPIToken", "parameters": []map[string]any{pathParameter("id")},
+				"responses": map[string]any{"204": map[string]any{"description": "Token deleted"}, "401": errorResponse(), "404": errorResponse()},
 			}},
 			"/tokens/{id}/rotate": map[string]any{"post": map[string]any{
 				"operationId": "rotatePersonalAPIToken", "parameters": []map[string]any{pathParameter("id")},
@@ -254,16 +267,38 @@ func Spec() map[string]any {
 				"put":    resourceWriteOperation("updateResource", "200", true),
 				"delete": map[string]any{"operationId": "deleteResource", "parameters": []map[string]any{pathParameter("resource"), pathParameter("id")}, "responses": map[string]any{"204": map[string]any{"description": "Resource deleted"}, "401": errorResponse(), "403": errorResponse(), "404": errorResponse()}},
 			},
-			"/admin/overview":             map[string]any{"get": operation("adminOverview")},
-			"/admin/audit-logs":           map[string]any{"get": listOperation("auditLogs", []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer"), queryParameter("action", "string"), queryParameter("user_id", "integer")})},
-			"/admin/media-access-logs":    map[string]any{"get": listOperation("listAdminMediaAccessLogs", []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer"), queryParameter("media_id", "integer"), queryParameter("variant", "string"), queryParameter("delivery_mode", "string"), queryParameter("result", "string"), queryParameter("referer_host", "string")})},
-			"/admin/audit-logs/cleanup":   map[string]any{"post": map[string]any{"operationId": "cleanupAuditLogs", "requestBody": jsonBody("AuditCleanupRequest", map[string]any{"$ref": "#/components/schemas/AuditCleanupRequest"}), "responses": map[string]any{"200": jsonResponse("AuditCleanupResponse"), "401": errorResponse(), "403": errorResponse(), "422": errorResponse()}}},
-			"/notifications":              map[string]any{"get": listOperation("notifications", []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer"), queryParameter("unread", "boolean")})},
-			"/notifications/unread-count": map[string]any{"get": operation("notificationUnreadCount")},
-			"/notifications/{id}/read":    map[string]any{"put": map[string]any{"operationId": "markNotificationRead", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("NotificationReadResponse"), "401": errorResponse(), "404": errorResponse(), "422": errorResponse()}}},
-			"/notifications/read-all":     map[string]any{"put": map[string]any{"operationId": "markAllNotificationsRead", "responses": map[string]any{"200": jsonResponse("NotificationMarkAllReadResponse"), "401": errorResponse()}}},
-			"/admin/settings":             map[string]any{"get": operation("systemSettings")},
-			"/admin/settings/{key}":       map[string]any{"put": map[string]any{"operationId": "updateSystemSetting", "parameters": []map[string]any{{"name": "key", "in": "path", "required": true, "schema": map[string]any{"type": "string"}}}, "requestBody": jsonBody("SystemSettingRequest", map[string]any{"type": "object", "required": []string{"value"}, "properties": map[string]any{"value": map[string]any{"type": "string"}, "value_type": map[string]any{"type": "string", "enum": []string{"string", "boolean", "integer", "json"}}, "group": map[string]any{"type": "string"}, "description": map[string]any{"type": "string"}}}), "responses": map[string]any{"200": jsonResponse("SystemSettingResponse"), "422": errorResponse()}}},
+			"/admin/overview":          map[string]any{"get": operation("adminOverview")},
+			"/admin/statistics/trends": map[string]any{"get": listOperation("adminStatisticsTrends", []map[string]any{queryParameter("from", "string"), queryParameter("to", "string")})},
+			"/admin/albums/{id}/media": map[string]any{
+				"get": listOperation("listAdminAlbumMedia", []map[string]any{pathParameter("id")}),
+				"post": map[string]any{
+					"operationId": "addAdminAlbumMedia",
+					"parameters":  []map[string]any{pathParameter("id")},
+					"requestBody": jsonBody("AdminAlbumMediaRequest", map[string]any{"type": "object", "required": []string{"media_ids"}, "properties": map[string]any{"media_ids": map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "items": map[string]any{"type": "integer", "format": "int64", "minimum": 1}}}}),
+					"responses":   map[string]any{"200": jsonResponse("AdminAlbumMediaMutation"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse(), "422": errorResponse()},
+				},
+				"delete": map[string]any{
+					"operationId": "removeAdminAlbumMedia",
+					"parameters":  []map[string]any{pathParameter("id")},
+					"requestBody": jsonBody("AdminAlbumMediaRequest", map[string]any{"type": "object", "required": []string{"media_ids"}, "properties": map[string]any{"media_ids": map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "items": map[string]any{"type": "integer", "format": "int64", "minimum": 1}}}}),
+					"responses":   map[string]any{"200": jsonResponse("AdminAlbumMediaMutation"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse(), "422": errorResponse()},
+				},
+			},
+			"/admin/audit-logs":                          map[string]any{"get": listOperation("auditLogs", []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer"), queryParameter("action", "string"), queryParameter("user_id", "integer")})},
+			"/admin/media-access-logs":                   map[string]any{"get": listOperation("listAdminMediaAccessLogs", []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer"), queryParameter("media_id", "integer"), queryParameter("variant", "string"), queryParameter("delivery_mode", "string"), queryParameter("result", "string"), queryParameter("referer_host", "string")})},
+			"/admin/tasks":                               map[string]any{"get": listOperation("listAdminTasks", []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer")})},
+			"/admin/tasks/{uuid}/retry":                  map[string]any{"post": map[string]any{"operationId": "retryAdminTask", "parameters": []map[string]any{pathParameter("uuid")}, "responses": map[string]any{"200": jsonResponse("AdminTaskRetryResponse"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse(), "503": errorResponse()}}},
+			"/admin/audit-logs/cleanup":                  map[string]any{"post": map[string]any{"operationId": "cleanupAuditLogs", "requestBody": jsonBody("AuditCleanupRequest", map[string]any{"$ref": "#/components/schemas/AuditCleanupRequest"}), "responses": map[string]any{"200": jsonResponse("AuditCleanupResponse"), "401": errorResponse(), "403": errorResponse(), "422": errorResponse()}}},
+			"/notifications":                             map[string]any{"get": listOperation("notifications", []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer"), queryParameter("unread", "boolean")})},
+			"/notifications/unread-count":                map[string]any{"get": operation("notificationUnreadCount")},
+			"/notifications/{id}/read":                   map[string]any{"put": map[string]any{"operationId": "markNotificationRead", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("NotificationReadResponse"), "401": errorResponse(), "404": errorResponse(), "422": errorResponse()}}},
+			"/notifications/read-all":                    map[string]any{"put": map[string]any{"operationId": "markAllNotificationsRead", "responses": map[string]any{"200": jsonResponse("NotificationMarkAllReadResponse"), "401": errorResponse()}}},
+			"/admin/settings":                            map[string]any{"get": operation("systemSettings")},
+			"/admin/settings/{key}":                      map[string]any{"put": map[string]any{"operationId": "updateSystemSetting", "parameters": []map[string]any{{"name": "key", "in": "path", "required": true, "schema": map[string]any{"type": "string"}}}, "requestBody": jsonBody("SystemSettingRequest", map[string]any{"type": "object", "required": []string{"value"}, "properties": map[string]any{"value": map[string]any{"type": "string"}, "value_type": map[string]any{"type": "string", "enum": []string{"string", "boolean", "integer", "json"}}, "group": map[string]any{"type": "string"}, "description": map[string]any{"type": "string"}}}), "responses": map[string]any{"200": jsonResponse("SystemSettingResponse"), "422": errorResponse()}}},
+			"/admin/storage/connections":                 map[string]any{"get": map[string]any{"operationId": "listStorageConnections", "responses": map[string]any{"200": jsonResponse("StorageOverview"), "401": errorResponse(), "403": errorResponse()}}},
+			"/admin/storage/statistics":                  map[string]any{"get": map[string]any{"operationId": "getStorageStatistics", "responses": map[string]any{"200": jsonResponse("StorageStatisticsOverview"), "401": errorResponse(), "403": errorResponse(), "500": errorResponse()}}},
+			"/admin/storage/connections/{provider}":      map[string]any{"put": map[string]any{"operationId": "updateStorageConnection", "parameters": []map[string]any{pathParameter("provider")}, "requestBody": jsonBody("StorageConnectionRequest", map[string]any{"type": "object", "required": []string{"enabled", "config"}, "properties": map[string]any{"name": map[string]any{"type": "string"}, "enabled": map[string]any{"type": "boolean"}, "is_primary": map[string]any{"type": "boolean"}, "public_base_url": map[string]any{"type": "string", "format": "uri"}, "path_prefix": map[string]any{"type": "string"}, "signed_url_ttl_seconds": map[string]any{"type": "integer", "minimum": 60, "maximum": 86400}, "config": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string", "writeOnly": true}}}}), "responses": map[string]any{"200": jsonResponse("StorageConnection"), "409": errorResponse(), "422": errorResponse()}}},
+			"/admin/storage/connections/{provider}/test": map[string]any{"post": map[string]any{"operationId": "testStorageConnection", "parameters": []map[string]any{pathParameter("provider")}, "responses": map[string]any{"200": jsonResponse("StorageConnection"), "404": errorResponse(), "409": errorResponse(), "422": errorResponse()}}},
 			"/admin/roles/{id}/permissions": map[string]any{"put": map[string]any{
 				"operationId": "replaceRolePermissions",
 				"parameters":  []map[string]any{pathParameter("id")},
@@ -323,8 +358,8 @@ func mediaListResponseSchema() map[string]any {
 }
 
 func discoveryStatusSchema() map[string]any {
-	return map[string]any{"type": "object", "required": []string{"enabled", "submissions_enabled"}, "properties": map[string]any{
-		"enabled": map[string]any{"type": "boolean"}, "submissions_enabled": map[string]any{"type": "boolean"},
+	return map[string]any{"type": "object", "required": []string{"enabled"}, "properties": map[string]any{
+		"enabled": map[string]any{"type": "boolean"},
 	}}
 }
 
@@ -343,10 +378,30 @@ func discoveryFeedResponseSchema() map[string]any {
 	}}
 }
 
-func discoverySubmissionResponseSchema() map[string]any {
-	return map[string]any{"type": "object", "required": []string{"data"}, "properties": map[string]any{
-		"data": map[string]any{"type": "object", "required": []string{"media_id", "status"}, "properties": map[string]any{"media_id": map[string]any{"type": "integer", "format": "int64"}, "status": map[string]any{"type": "string", "enum": []string{"pending"}}}},
+func publicAlbumSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"id", "name", "visibility", "media"}, "properties": map[string]any{
+		"id": map[string]any{"type": "integer", "format": "int64"}, "name": map[string]any{"type": "string"},
+		"visibility": map[string]any{"type": "string", "enum": []string{"public"}},
+		"created_at": map[string]any{"type": "string"}, "updated_at": map[string]any{"type": "string"},
+		"media": map[string]any{"type": "array", "items": map[string]any{"type": "object", "required": []string{"id", "original_name", "content_type", "thumbnail_url", "original_url"}, "properties": map[string]any{
+			"id": map[string]any{"type": "integer", "format": "int64"}, "original_name": map[string]any{"type": "string"}, "content_type": map[string]any{"type": "string"},
+			"width": map[string]any{"type": "integer"}, "height": map[string]any{"type": "integer"}, "size_bytes": map[string]any{"type": "integer", "format": "int64"},
+			"created_at": map[string]any{"type": "string"}, "thumbnail_url": map[string]any{"type": "string"}, "original_url": map[string]any{"type": "string"},
+		}}},
 	}}
+}
+
+func adminTaskSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"uuid", "connection", "queue", "signature", "failed_at"}, "properties": map[string]any{
+		"uuid": map[string]any{"type": "string"}, "connection": map[string]any{"type": "string"}, "queue": map[string]any{"type": "string"},
+		"signature": map[string]any{"type": "string"}, "failed_at": map[string]any{"type": "string"},
+	}}
+}
+
+func adminTaskRetryResponseSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"data"}, "properties": map[string]any{"data": map[string]any{
+		"type": "object", "required": []string{"uuid", "status"}, "properties": map[string]any{"uuid": map[string]any{"type": "string"}, "status": map[string]any{"type": "string", "enum": []string{"queued"}}},
+	}}}
 }
 
 func mediaUploadResponseSchema() map[string]any {
@@ -613,6 +668,38 @@ func globalSearchResultSchema() map[string]any {
 func globalSearchResponseSchema() map[string]any {
 	return map[string]any{"type": "object", "required": []string{"data"}, "properties": map[string]any{
 		"data": map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/GlobalSearchResult"}},
+	}}
+}
+
+func storageConnectionSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"id", "provider_code", "enabled", "is_primary", "status", "config"}, "properties": map[string]any{
+		"id": map[string]any{"type": "integer", "format": "int64"}, "provider_code": map[string]any{"type": "string", "enum": []string{"local", "cloudflare_r2", "aliyun_oss", "tencent_cos"}},
+		"name": map[string]any{"type": "string"}, "enabled": map[string]any{"type": "boolean"}, "is_primary": map[string]any{"type": "boolean"}, "status": map[string]any{"type": "string"},
+		"public_base_url": map[string]any{"type": "string", "format": "uri", "nullable": true}, "path_prefix": map[string]any{"type": "string"}, "default_visibility": map[string]any{"type": "string", "enum": []string{"public", "private"}}, "signed_url_ttl_seconds": map[string]any{"type": "integer"},
+		"last_checked_at": map[string]any{"type": "string", "format": "date-time", "nullable": true}, "last_success_at": map[string]any{"type": "string", "format": "date-time", "nullable": true}, "last_error_code": map[string]any{"type": "string", "nullable": true}, "last_error_message": map[string]any{"type": "string", "nullable": true},
+		"config": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
+	}}
+}
+
+func storageOverviewSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"providers", "connections"}, "properties": map[string]any{
+		"providers":   map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "object"}},
+		"connections": map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/StorageConnection"}},
+	}}
+}
+
+func storageStatisticsOverviewSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"generated_at", "connections"}, "properties": map[string]any{
+		"generated_at": map[string]any{"type": "string", "format": "date-time"},
+		"connections": map[string]any{"type": "array", "items": map[string]any{"type": "object", "required": []string{"connection_id", "provider_code", "object_count", "stored_bytes", "allowed_request_count", "estimated_bandwidth_bytes", "data_source", "generated_at"}, "properties": map[string]any{
+			"connection_id": map[string]any{"type": "integer", "format": "int64"}, "provider_code": map[string]any{"type": "string"}, "name": map[string]any{"type": "string"}, "status": map[string]any{"type": "string"}, "is_primary": map[string]any{"type": "boolean"},
+			"object_count": map[string]any{"type": "integer", "format": "int64"}, "stored_bytes": map[string]any{"type": "integer", "format": "int64"}, "allowed_request_count": map[string]any{"type": "integer", "format": "int64"}, "estimated_bandwidth_bytes": map[string]any{"type": "integer", "format": "int64"},
+			"media_count": map[string]any{"type": "integer", "format": "int64"}, "object_status_counts": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "integer", "format": "int64"}}, "variant_counts": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "integer", "format": "int64"}},
+			"orphan_object_count": map[string]any{"type": "integer", "format": "int64"}, "orphan_bytes": map[string]any{"type": "integer", "format": "int64"},
+			"daily":       map[string]any{"type": "array", "items": map[string]any{"type": "object", "required": []string{"date", "upload_count", "upload_bytes", "allowed_request_count", "estimated_bandwidth_bytes"}, "properties": map[string]any{"date": map[string]any{"type": "string", "format": "date"}, "upload_count": map[string]any{"type": "integer", "format": "int64"}, "upload_bytes": map[string]any{"type": "integer", "format": "int64"}, "allowed_request_count": map[string]any{"type": "integer", "format": "int64"}, "estimated_bandwidth_bytes": map[string]any{"type": "integer", "format": "int64"}}}},
+			"health":      map[string]any{"type": "object", "required": []string{"last_status", "error_count_24h"}, "properties": map[string]any{"last_status": map[string]any{"type": "string"}, "last_latency_ms": map[string]any{"type": "integer", "format": "int64"}, "last_checked_at": map[string]any{"type": "string", "format": "date-time"}, "error_count_24h": map[string]any{"type": "integer", "format": "int64"}}},
+			"data_source": map[string]any{"type": "string"}, "generated_at": map[string]any{"type": "string", "format": "date-time"},
+		}}},
 	}}
 }
 

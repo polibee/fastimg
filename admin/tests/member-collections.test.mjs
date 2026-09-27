@@ -8,7 +8,7 @@ const adminRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const read = (relativePath) => readFileSync(path.join(adminRoot, relativePath), 'utf8')
 
 test('member navigation exposes owner-scoped folders and albums without admin URLs', () => {
-  const router = read('src/router/index.ts')
+  const router = read('src/apps/member/route-private.ts')
   const shell = read('src/core/layouts/MemberShell.vue')
   assert.match(router, /path:\s*'folders',\s*name:\s*'member-folders'/)
   assert.match(router, /path:\s*'albums',\s*name:\s*'member-albums'/)

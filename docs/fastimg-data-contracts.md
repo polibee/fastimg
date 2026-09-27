@@ -24,13 +24,13 @@
 | mime_type | 枚举/字符串 | 以服务端检测为准 |
 | size_bytes | 非负整数 | 原始对象大小 |
 | width/height | 非负整数 | 图片尺寸 |
-| visibility | private/link/public | 默认 private |
-| moderation_status | pending/approved/rejected/manual_review | 审核状态 |
+| visibility | private/link/public | 默认 public；用户可在媒体详情切换为 private 或 link |
+| moderation_status | pending/approved/rejected/manual_review | 普通上传默认为 approved；举报或后台治理可在发布后进入复核状态 |
 | processing_status | pending/processing/ready/failed | 处理状态 |
 | deleted_at | 可空时间 | 回收站时间 |
 | created_at/updated_at | UTC 时间 | 审计和排序 |
 
-媒体对外“可访问”不能只判断一个字段，必须同时满足：未删除、处理 ready、分享/公开策略允许、审核状态允许。
+媒体对外“可访问”不能只判断一个字段，必须同时满足：未删除、处理 ready、分享/公开策略允许，且不是被管理员拒绝。普通上传默认 `public + approved`，可立即通过稳定绝对链接访问并进入发现页；`link` 媒体不参与发现页但持有链接即可访问；`private` 媒体不生成稳定外部链接，只允许媒体所有者登录后访问，管理员预览必须经过 `admin.media.view`。发现页不需要单独投稿字段，采用发布后举报和治理。所有显式创建的临时签名 URL/分享链接仍受过期、撤销和违规状态控制；被拒绝媒体不得通过任何公开投递路径返回。
 
 文件夹归档规则：`folder_id` 可为空；非空时必须引用同一 `user_id` 的文件夹。清空归档只更新媒体所属关系，不改变媒体处理状态、存储用量或链接权限。会员端只能修改自己的 `ready` 媒体，管理员跨用户调整必须走后台授权用例并记录审计。
 
@@ -122,11 +122,13 @@ Token 原文只存在于创建响应和用户当前页面内存中；服务端�
 
 当前不向 Personal API Token 开放 `links:read`、`usage:read`、`webhook:manage`、批量上传、上传重试、套餐/用量、文件夹、相册、分享链接、防盗链和任何管理员接口。链接属于本人媒体详情/上传结果的一部分，由 `media:read` 统一保护；删除能力由 `media:delete` 单独保护。上传完成后的 `links` 使用 `APP_URL` 生成带 APP_KEY 签名的绝对公开地址，支持 `url`、`markdown`、`html`、`bbcode` 及 `original`、`thumbnail`、`medium` 三个 Variant；不暴露对象存储地址。
 
+公开相册使用 `GET /api/v1/public/albums/{id}`，不接受会员 Token 或管理员身份作为绕过条件。只有相册 `visibility=public` 且媒体同时满足 `ready`、未删除、`visibility=public`、`moderation_status != rejected` 时才出现在响应；公开图片内容地址绑定相册 ID 与媒体 ID，服务端每次读取都会重新校验关系和公开状态。
+
 公开媒体、分享链接、发现页和会员自己的媒体读取都会在返回内容前按实际响应字节写入 `bandwidth/download` 流水。当前 UTC 月累计值通过 `/api/v1/me/usage` 的 `usage.bandwidth` 返回，响应同时提供 `bandwidth_metered: true`；超出套餐非零 `monthly_bandwidth_bytes` 时拒绝本次响应，不允许把套餐流量限制当作展示字段。
 
 会员网页登录会话与 Personal API Token 是两种不同的认证边界。网页登录会话可以访问会员端的订单、套餐用量、文件夹、相册、分享链接和防盗链页面；Personal API Token 只用于脚本、PicGo、ShareX、CI 等自动化上传和本人媒体闭环。
 
-管理员后台使用独立的登录会话和 `admin.*` RBAC 权限。管理员不会通过 Personal API Token 调用 `/api/v1/admin/**`；后台的 `api_tokens` 资源只允许授权管理员查看 Token 的非敏感运营元数据，并执行停用/撤销，不能创建、读取明文或导出 Token。
+管理员后台使用独立的登录会话和 `admin.*` RBAC 权限。管理员不会通过 Personal API Token 调用 `/api/v1/admin/**`；后台的 `api_tokens` 资源只允许授权管理员查看 Token 的非敏感运营元数据，并按独立的更新/删除权限执行停用、撤销或删除，不能创建、读取明文或导出 Token。
 
 ## 6. 状态机
 
@@ -209,7 +211,7 @@ active -> refunded
 ### ModerationTask
 
 ```text
-pending -> processing -> approved
+ordinary upload: approved; post-publication report/review: pending | manual_review -> approved
 pending -> processing -> rejected
 processing -> manual_review
 manual_review -> approved | rejected
@@ -235,7 +237,6 @@ manual_review -> approved | rejected
 
 ```text
 enabled: boolean
-submissions_enabled: boolean
 moderation_mode: manual | automatic | hybrid
 default_sort: latest | random | popular
 report_threshold: integer

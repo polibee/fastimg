@@ -17,6 +17,7 @@ func NewWebhookController() *WebhookController {
 }
 
 func (c *WebhookController) Receive(ctx httpcontract.Context) httpcontract.Response {
+	billing.RefreshGatewayRegistry()
 	body, err := io.ReadAll(io.LimitReader(ctx.Request().Origin().Body, 1<<20+1))
 	if err != nil || len(body) > 1<<20 {
 		return ctx.Response().Status(http.StatusRequestEntityTooLarge).Json(httpcontract.Json{"code": "WEBHOOK_BODY_TOO_LARGE"})

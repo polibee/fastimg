@@ -1,0 +1,17 @@
+{
+  "title": "Failed tasks",
+  "description": "Review jobs that permanently failed in Redis and requeue them after checking the cause.",
+  "empty": "No failed tasks",
+  "emptyDescription": "The queue is healthy and no manual recovery is needed.",
+  "job": "Job",
+  "connection": "Connection",
+  "queue": "Queue",
+  "failedAt": "Failed at",
+  "retry": "Requeue",
+  "retrying": "Requeuing…",
+  "retryDone": "Task requeued",
+  "retryConfirm": "Requeue this task?",
+  "loadFailed": "Failed tasks are temporarily unavailable.",
+  "retryFailed": "The task could not be requeued. Check Redis and the Worker.",
+  "unknown": "Unknown task"
+}

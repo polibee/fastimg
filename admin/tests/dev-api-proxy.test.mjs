@@ -11,8 +11,13 @@ const apiClient = readFileSync(path.join(adminRoot, 'src', 'lib', 'api.ts'), 'ut
 
 test('Vite forwards API requests to the separately configured backend', () => {
   assert.match(viteConfig, /proxy:\s*\{\s*['"]\/api['"]:\s*\{/s)
-  assert.match(viteConfig, /target:\s*process\.env\.FASTIMG_BACKEND_URL\s*\?\?\s*['"]http:\/\/127\.0\.0\.1:53082['"]/)
+  assert.match(viteConfig, /const backendTarget = process\.env\.FASTIMG_BACKEND_URL\s*\?\?\s*['"]http:\/\/127\.0\.0\.1:53085['"]/)
   assert.match(viteConfig, /changeOrigin:\s*true/)
+})
+
+test('Vite forwards machine-readable SEO files to the backend', () => {
+  assert.match(viteConfig, /['"]\/sitemap\.xml['"]:\s*\{\s*target:\s*backendTarget/)
+  assert.match(viteConfig, /['"]\/robots\.txt['"]:\s*\{\s*target:\s*backendTarget/)
 })
 
 test('Vite refuses to silently share its configured frontend port', () => {
@@ -26,6 +31,7 @@ test('FastImg isolated Vite config keeps Tailwind utility generation enabled', (
 
 test('browser API calls stay same-origin by default and can be explicitly overridden', () => {
   assert.match(apiClient, /VITE_API_BASE_URL/)
-  assert.match(apiClient, /location\?\.port\s*===\s*'53083'/)
+  assert.match(apiClient, /previewPorts\s*=\s*new Set\(\['53083',\s*'53084'\]\)/)
+  assert.match(apiClient, /previewPorts\.has\(globalThis\.location\?\.port\s*\?\?\s*''\)/)
   assert.match(apiClient, /VITE_API_BASE_URL\s*\?\?/)
 })

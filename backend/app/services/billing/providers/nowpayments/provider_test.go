@@ -41,6 +41,26 @@ func TestProviderCreatesInvoiceAndQueriesPayment(t *testing.T) {
 	}
 }
 
+func TestProviderCanCreatePaymentWithAPIKeyBeforeIPNSecretIsConfigured(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/invoice" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get("x-api-key") != "api-key" {
+			t.Fatal("missing API key")
+		}
+		_, _ = w.Write([]byte(`{"id":12345,"invoice_url":"https://now.test/i/12345","payment_status":"waiting"}`))
+	}))
+	defer server.Close()
+
+	provider := New(Config{Enabled: true, BaseURL: server.URL, APIKey: "api-key", Timeout: time.Second})
+	session, err := provider.CreatePayment(context.Background(), providers.CreatePaymentRequest{OrderNo: "FST-1", PaymentIntentID: 7, AmountMinor: 1999, Currency: "CNY"})
+	if err != nil || session.ProviderPaymentID != "12345" || session.CheckoutURL == "" {
+		t.Fatalf("create session = %+v, err=%v", session, err)
+	}
+}
+
 func TestVerifyIPNUsesCanonicalJSONAndRejectsPartialPayment(t *testing.T) {
 	provider := New(Config{Enabled: true, BaseURL: "http://127.0.0.1:1", APIKey: "api-key", IPNSecret: "ipn"})
 	body := []byte(`{"price_currency":"CNY","price_amount":19.99,"payment_status":"partially_paid","payment_id":12345,"order_id":"FST-1"}`)

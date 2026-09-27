@@ -5,7 +5,7 @@ import test from 'node:test'
 const read = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
 
 test('admin surface exposes finance, settings and all-user media management', () => {
-  const router = read('src/router/index.ts')
+  const router = read('src/apps/admin/routes.ts')
   const shell = read('src/core/layouts/AdminShell.vue')
   const generated = read('src/core/resource/generated.ts')
   const media = read('src/modules/media/resource.ts')

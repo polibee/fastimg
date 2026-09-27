@@ -34,13 +34,6 @@ func (p *PlanController) Index(ctx http.Context) http.Response {
 		if err != nil {
 			return ctx.Response().Status(500).Json(http.Json{"code": "PLANS_UNAVAILABLE"})
 		}
-		if len(prices) > 0 {
-			// Plan owns identity and entitlements; the first active price is only
-			// a compatibility display summary. Checkout always uses a PlanPrice row.
-			public["price_amount"] = prices[0].AmountMinor
-			public["currency"] = prices[0].Currency
-			public["billing_period"] = prices[0].BillingPeriod
-		}
 		public["prices"] = publicPlanPrices(prices)
 		data = append(data, public)
 	}
@@ -72,8 +65,7 @@ func (p *PlanController) Subscription(ctx http.Context) http.Response {
 	if snapshot.HasPlan {
 		public = map[string]any{
 			"id": snapshot.Plan.ID, "code": snapshot.Plan.Code, "name": snapshot.Plan.Name,
-			"description": snapshot.Plan.Description, "price_amount": snapshot.Plan.PriceAmount,
-			"currency": snapshot.Plan.Currency, "billing_period": snapshot.Plan.BillingPeriod,
+			"description":  snapshot.Plan.Description,
 			"entitlements": snapshot.Entitlements,
 		}
 	} else {
@@ -190,7 +182,7 @@ func adminSubscriptionData(subscription *models.Subscription, plans []models.Pla
 		}
 	}
 	return map[string]any{
-		"subscription": map[string]any{"id": subscription.ID, "user_id": subscription.UserID, "plan_id": subscription.PlanID, "status": subscription.Status, "starts_at": subscription.StartsAt, "ends_at": subscription.EndsAt},
+		"subscription": map[string]any{"id": subscription.ID, "user_id": subscription.UserID, "plan_id": subscription.PlanID, "status": subscription.Status, "starts_at": subscription.StartsAt, "ends_at": subscription.EndsAt, "grace_period_ends_at": subscription.GracePeriodEndsAt},
 		"plans":        items,
 	}
 }
@@ -218,8 +210,7 @@ func (p *PlanController) UsageLedger(ctx http.Context) http.Response {
 func publicPlan(plan models.Plan) (map[string]any, error) {
 	result := map[string]any{
 		"id": plan.ID, "code": plan.Code, "name": plan.Name, "description": plan.Description,
-		"price_amount": plan.PriceAmount, "currency": plan.Currency,
-		"billing_period": plan.BillingPeriod, "status": plan.Status, "sort_order": plan.SortOrder,
+		"status": plan.Status, "sort_order": plan.SortOrder,
 	}
 	entitlements, err := quota.ParseEntitlementJSON(plan.EntitlementsJSON)
 	if err != nil {

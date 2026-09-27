@@ -89,7 +89,12 @@ func (s *WebhookService) IngestVerified(_ context.Context, gatewayCode string, e
 		if err := tx.Create(&stored); err != nil {
 			return err
 		}
-		return applyGatewayEvent(tx, event)
+		if err := applyGatewayEvent(tx, event); err != nil {
+			return err
+		}
+		processedAt := time.Now().UTC()
+		_, err := tx.Where("id = ?", stored.ID).Update(map[string]any{"processing_status": "processed", "processed_at": processedAt})
+		return err
 	})
 	if err != nil {
 		return event, duplicate, err
@@ -122,6 +127,21 @@ func applyGatewayEvent(tx orm.Query, event providers.GatewayEvent) error {
 		if transactionID == "" {
 			transactionID = event.EventID
 		}
+		var existing models.PaymentTransaction
+		exists, err := tx.Model(&models.PaymentTransaction{}).Where("provider_code = ? AND provider_transaction_id = ?", event.GatewayCode, transactionID).Exists()
+		if err != nil {
+			return err
+		}
+		if exists {
+			if err := tx.Where("provider_code = ? AND provider_transaction_id = ?", event.GatewayCode, transactionID).First(&existing); err != nil || !paymentTransactionMatches(existing, event, order.ID, intent.ID) {
+				return ErrPaymentEventRejected
+			}
+			if _, err := tx.Where("id = ?", intent.ID).Update(map[string]any{"status": "succeeded", "succeeded_at": now}); err != nil {
+				return err
+			}
+			_, err := tx.Where("id = ?", order.ID).Update(map[string]any{"status": "paid", "paid_at": now})
+			return err
+		}
 		transaction := models.PaymentTransaction{OrderID: order.ID, PaymentIntentID: intent.ID, ProviderCode: event.GatewayCode, Type: "payment", Direction: "credit", AmountMinor: event.AmountMinor, Currency: event.Currency, Status: "settled", ProviderTransaction: transactionID, ProviderEventID: event.EventID, OccurredAt: now}
 		if err := tx.Create(&transaction); err != nil {
 			return fmt.Errorf("append payment transaction: %w", err)
@@ -138,4 +158,12 @@ func applyGatewayEvent(tx orm.Query, event providers.GatewayEvent) error {
 		return err
 	}
 	return nil
+}
+
+func paymentTransactionMatches(existing models.PaymentTransaction, event providers.GatewayEvent, orderID, intentID uint) bool {
+	transactionID := event.ProviderPaymentTx
+	if transactionID == "" {
+		transactionID = event.EventID
+	}
+	return existing.OrderID == orderID && existing.PaymentIntentID == intentID && existing.ProviderCode == event.GatewayCode && existing.ProviderTransaction == transactionID && existing.AmountMinor == event.AmountMinor && strings.EqualFold(existing.Currency, event.Currency)
 }

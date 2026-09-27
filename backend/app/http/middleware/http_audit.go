@@ -32,6 +32,9 @@ func (httpAuditMiddleware) Handle(ctx httpcontract.Context) {
 
 	origin := ctx.Response().Origin()
 	input.Status = origin.Status()
+	if !auditservices.ShouldRecordHTTP(input.Method, input.Path, input.Status) {
+		return
+	}
 	input.ContentType = origin.Header().Get("Content-Type")
 	if origin.Body() != nil {
 		body := origin.Body().Bytes()

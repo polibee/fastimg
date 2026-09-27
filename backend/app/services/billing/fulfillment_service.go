@@ -39,7 +39,13 @@ func (s *FulfillmentService) EnqueuePaidOrder(orderID uint) error {
 	if err != nil || exists {
 		return err
 	}
-	return facades.Orm().Query().Create(&models.FulfillmentTask{OrderID: orderID, Status: "pending", AvailableAt: timePtr(time.Now().UTC())})
+	if err := facades.Orm().Query().Create(&models.FulfillmentTask{OrderID: orderID, Status: "pending", AvailableAt: timePtr(time.Now().UTC())}); err != nil {
+		return err
+	}
+	// The database task is the durable business state; Redis only schedules the
+	// retryable worker. A later admin retry or scheduled reconciler can enqueue
+	// the same order again without creating a second fulfillment task.
+	return DispatchFulfillment(orderID)
 }
 
 func (s *FulfillmentService) Process(orderID uint) error {
@@ -76,6 +82,11 @@ func (s *FulfillmentService) Process(orderID uint) error {
 		if err != nil {
 			return err
 		}
+		startsAt := time.Now().UTC()
+		endsAt, err := planservices.SubscriptionTermEndsAt(startsAt, snapshot.BillingPeriod, snapshot.TrialDays)
+		if err != nil {
+			return err
+		}
 		var subscription models.Subscription
 		if exists, findErr := tx.Model(&models.Subscription{}).Where("user_id = ? AND status = ?", order.UserID, "active").Exists(); findErr != nil {
 			return findErr
@@ -83,12 +94,12 @@ func (s *FulfillmentService) Process(orderID uint) error {
 			if err := tx.Where("user_id = ? AND status = ?", order.UserID, "active").First(&subscription); err != nil {
 				return err
 			}
-			subscription.PlanID, subscription.Status, subscription.StartsAt, subscription.EntitlementSnapshotJSON = snapshot.PlanID, "active", timePtr(time.Now().UTC()), subscriptionSnapshot
-			if _, err := tx.Where("id = ?", subscription.ID).Update(map[string]any{"plan_id": subscription.PlanID, "status": subscription.Status, "starts_at": subscription.StartsAt, "entitlement_snapshot_json": subscription.EntitlementSnapshotJSON}); err != nil {
+			subscription.PlanID, subscription.Status, subscription.StartsAt, subscription.EndsAt, subscription.EntitlementSnapshotJSON = snapshot.PlanID, "active", &startsAt, &endsAt, subscriptionSnapshot
+			if _, err := tx.Where("id = ?", subscription.ID).Update(map[string]any{"plan_id": subscription.PlanID, "status": subscription.Status, "starts_at": subscription.StartsAt, "ends_at": subscription.EndsAt, "grace_period_ends_at": nil, "entitlement_snapshot_json": subscription.EntitlementSnapshotJSON}); err != nil {
 				return err
 			}
 		} else {
-			subscription = models.Subscription{UserID: order.UserID, PlanID: snapshot.PlanID, Status: "active", StartsAt: timePtr(time.Now().UTC()), EntitlementSnapshotJSON: subscriptionSnapshot}
+			subscription = models.Subscription{UserID: order.UserID, PlanID: snapshot.PlanID, Status: "active", StartsAt: &startsAt, EndsAt: &endsAt, EntitlementSnapshotJSON: subscriptionSnapshot}
 			if err := tx.Create(&subscription); err != nil {
 				return err
 			}

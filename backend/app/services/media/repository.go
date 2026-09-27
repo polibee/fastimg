@@ -19,17 +19,19 @@ import (
 )
 
 var (
-	ErrAccountUnavailable      = errors.New("account is not available for uploads")
-	ErrSubscriptionUnavailable = errors.New("active subscription is unavailable")
-	ErrIdempotencyConflict     = errors.New("idempotency key was already used for different content")
-	ErrUploadInProgress        = errors.New("upload with this idempotency key is still processing")
-	ErrDailyUploadLimit        = errors.New("daily upload limit reached")
-	ErrMonthlyAPIUploadLimit   = errors.New("monthly API upload limit reached")
-	ErrMonthlyTransformLimit   = errors.New("monthly image transform limit reached")
-	ErrMediaNotFound           = errors.New("media not found")
-	ErrFolderNotFound          = errors.New("folder not found")
-	ErrMediaSharedStorage      = errors.New("media shares a storage object with another asset")
-	ErrVariantNotFound         = errors.New("media variant not found")
+	ErrAccountUnavailable           = errors.New("account is not available for uploads")
+	ErrSubscriptionUnavailable      = errors.New("active subscription is unavailable")
+	ErrIdempotencyConflict          = errors.New("idempotency key was already used for different content")
+	ErrUploadInProgress             = errors.New("upload with this idempotency key is still processing")
+	ErrDailyUploadLimit             = errors.New("daily upload limit reached")
+	ErrMonthlyAPIUploadLimit        = errors.New("monthly API upload limit reached")
+	ErrMonthlyTransformLimit        = errors.New("monthly image transform limit reached")
+	ErrMediaNotFound                = errors.New("media not found")
+	ErrFolderNotFound               = errors.New("folder not found")
+	ErrMediaSharedStorage           = errors.New("media shares a storage object with another asset")
+	ErrVariantNotFound              = errors.New("media variant not found")
+	ErrInvalidVisibility            = errors.New("invalid media visibility")
+	ErrStorageConnectionUnavailable = errors.New("storage connection is unavailable")
 )
 
 type DatabaseRepository struct{}
@@ -73,6 +75,14 @@ func (r *DatabaseRepository) CheckUploadAllowance(_ context.Context, input Uploa
 
 func (r *DatabaseRepository) BeginUpload(_ context.Context, input UploadMetadata, objects []PreparedObject) (reservation UploadReservation, err error) {
 	err = facades.Orm().Transaction(func(tx orm.Query) error {
+		storageConnectionID := input.StorageConnectionID
+		if storageConnectionID == 0 {
+			var local models.StorageConnection
+			if err := tx.Where("provider_code = ? AND name = ?", models.StorageProviderLocal, "Local").First(&local); err != nil || local.ID == 0 {
+				return ErrStorageConnectionUnavailable
+			}
+			storageConnectionID = local.ID
+		}
 		var user models.User
 		if err := tx.Where("id = ?", input.UserID).LockForUpdate().First(&user); err != nil {
 			return err
@@ -141,7 +151,7 @@ func (r *DatabaseRepository) BeginUpload(_ context.Context, input UploadMetadata
 			ContentType: input.ContentType, Format: input.Format,
 			SizeBytes: input.SizeBytes, SHA256: input.SHA256,
 			Width: input.Width, Height: input.Height, Status: "processing",
-			Visibility: "private", ModerationStatus: "pending",
+			Visibility: DefaultVisibility, ModerationStatus: DefaultModerationStatus,
 		}
 		if err := tx.Create(&asset); err != nil {
 			return err
@@ -157,8 +167,9 @@ func (r *DatabaseRepository) BeginUpload(_ context.Context, input UploadMetadata
 		objectKeys := make(map[string]string, len(objects))
 		for _, prepared := range objects {
 			object := models.StorageObject{
-				Provider: "local", ObjectKey: prepared.Key, ContentType: prepared.ContentType,
-				SizeBytes: prepared.SizeBytes, SHA256: prepared.SHA256, Status: "pending",
+				StorageConnectionID: storageConnectionID, ObjectKey: prepared.Key,
+				ContentType: prepared.ContentType, SizeBytes: prepared.SizeBytes,
+				SHA256: prepared.SHA256, Status: "pending",
 			}
 			if err := tx.Create(&object); err != nil {
 				return err
@@ -409,10 +420,12 @@ func checkUploadQuota(tx orm.Query, input UploadMetadata, requestedStorageBytes 
 			return err
 		}
 	}
-	if err := quota.CheckMonthlyAPIUploadsWithQuery(tx, input.UserID, now, entitlement.MonthlyAPIUploads); errors.Is(err, quota.ErrQuotaExceeded) {
-		return ErrMonthlyAPIUploadLimit
-	} else if err != nil {
-		return err
+	if CountsTowardMonthlyAPIUploads(input.Channel) {
+		if err := quota.CheckMonthlyAPIUploadsWithQuery(tx, input.UserID, now, entitlement.MonthlyAPIUploads); errors.Is(err, quota.ErrQuotaExceeded) {
+			return ErrMonthlyAPIUploadLimit
+		} else if err != nil {
+			return err
+		}
 	}
 	if err := quota.CheckMonthlyTransformsWithQuery(tx, input.UserID, now, entitlement.TransformCount); errors.Is(err, quota.ErrQuotaExceeded) {
 		return ErrMonthlyTransformLimit
@@ -505,8 +518,23 @@ type MediaLibraryRepository interface {
 	ListOwned(ctx context.Context, userID uint, trash bool, search string, page, perPage int) ([]MediaListItem, int64, error)
 	FindOwned(ctx context.Context, userID, mediaID uint, includeDeleted bool) (models.MediaAsset, error)
 	FindOwnedVariant(ctx context.Context, userID, mediaID uint, name string) (MediaVariantObject, error)
+	UpdateVisibility(ctx context.Context, userID, mediaID uint, visibility string) (models.MediaAsset, error)
 	SoftDelete(ctx context.Context, userID, mediaID uint) (models.MediaAsset, error)
 	Restore(ctx context.Context, userID, mediaID uint) (models.MediaAsset, error)
+}
+
+func (r *DatabaseRepository) UpdateVisibility(_ context.Context, userID, mediaID uint, visibility string) (asset models.MediaAsset, err error) {
+	if !ValidVisibility(visibility) {
+		return models.MediaAsset{}, ErrInvalidVisibility
+	}
+	if err = facades.Orm().Query().Where("id = ? AND user_id = ? AND status = ?", mediaID, userID, "ready").First(&asset); err != nil {
+		return models.MediaAsset{}, ErrMediaNotFound
+	}
+	if _, err = facades.Orm().Query().Model(&models.MediaAsset{}).Where("id = ? AND user_id = ? AND status = ?", mediaID, userID, "ready").Update(map[string]any{"visibility": visibility, "updated_at": time.Now().UTC()}); err != nil {
+		return models.MediaAsset{}, err
+	}
+	asset.Visibility = visibility
+	return asset, nil
 }
 
 func (r *DatabaseRepository) AssignFolder(_ context.Context, userID, mediaID uint, folderID *uint) (asset models.MediaAsset, err error) {

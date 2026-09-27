@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* Generated from http://127.0.0.1:3000/api/openapi.json. DO NOT EDIT. */
-/* Contract paths: /admin/audit-logs, /admin/audit-logs/cleanup, /admin/media-access-logs, /admin/overview, /admin/registry, /admin/search, /admin/settings, /admin/settings/{key}, /admin/{resource}, /admin/{resource}/actions/{action}, /admin/{resource}/export, /admin/{resource}/relations/{relation}/options, /admin/{resource}/{id}, /admin/{resource}/{id}/relations/{relation}, /auth/login, /auth/logout-all, /auth/me, /auth/refresh */
+/* Contract paths: /admin/audit-logs, /admin/audit-logs/cleanup, /admin/media-access-logs, /admin/tasks, /admin/tasks/{uuid}/retry, /admin/storage/statistics, /admin/overview, /admin/statistics/trends, /admin/registry, /admin/search, /admin/settings, /admin/settings/{key}, /admin/{resource}, /admin/{resource}/actions/{action}, /admin/{resource}/export, /admin/{resource}/relations/{relation}/options, /admin/{resource}/{id}, /admin/{resource}/{id}/relations/{relation}, /auth/registration-policy, /auth/register, /auth/verify-email, /auth/resend-verification, /auth/login, /auth/logout-all, /auth/me, /auth/refresh */
 
 import { ApiError, apiDownload, apiFetch, apiFetchEnvelope } from '@/lib/api'
 
@@ -8,10 +8,13 @@ export type UserStatus = "active" | "disabled" | "locked"
 export type DataScope = "all" | "own"
 export interface ResourceField { name: string; label: string; type: string; hint?: string; required?: boolean; visible: boolean; readable: boolean; writable: boolean; sensitive: boolean; options?: Array<{ value: string; label: string }> }
 export interface ResourceFilter { name: string; label: string; type: 'select' | 'multi-select' | 'boolean' | 'text' | 'date-range' | 'relation'; options?: Array<{ value: string; label: string }>; relation?: string }
-export interface AuthUser { id: number; name: string; email: string; status: UserStatus; locale: string; permissions: string[] }
-export interface LoginRequest { email: string; password: string }
+export interface AuthUser { id: number; name: string; email: string; status: UserStatus; locale: string; email_verified_at?: string | null; permissions: string[] }
+export interface LoginRequest { email: string; password: string; turnstile_token?: string }
 export interface LoginResponse { access_token: string; token_type: string; user: AuthUser }
 export interface RefreshResponse { access_token: string; token_type: string }
+export interface RegistrationPolicy { registration_enabled: boolean; registration_turnstile: boolean; login_turnstile: boolean; email_verification_required: boolean; turnstile_site_key: string }
+export interface RegistrationRequest { name: string; email: string; password: string; password_confirmation: string; turnstile_token?: string }
+export interface RegistrationResponse { user: AuthUser; verification_required: boolean }
 export interface ActionPayloadField { name: string; label: string; type: 'text' | 'number' | 'boolean' | 'select'; required?: boolean; options?: Array<{ value: string; label: string }> }
 export interface ResourceManifest { name: string; label: string; route: string; page_mode?: 'generic' | 'custom'; permissions: string[]; navigation?: { group: string; order: number; hidden?: boolean }; data_scope?: DataScope; owner_field?: string; soft_delete?: boolean; fields: ResourceField[]; columns: Array<{ name: string; label: string; sortable: boolean }>; actions?: Array<{ name: string; label: string; kind: string; permission: string; batch: boolean; payload?: string; payload_fields?: ActionPayloadField[] }>; filters?: ResourceFilter[]; relations?: ResourceRelation[]; form_groups?: ResourceFormGroup[]; details?: ResourceDetailSection[]; dependencies?: ResourceFieldDependency[] }
 export interface ResourceRelation { name: string; kind: 'belongsTo' | 'hasMany'; resource: string; field: string; foreign_field: string; label_field: string; selectable: boolean; multiple: boolean; permission?: string; filter_fields?: string[] }
@@ -27,9 +30,12 @@ export interface ActionRequest { ids?: number[]; selection?: ActionSelection; pa
 export interface ActionFailure { id: number; code: string }
 export interface ActionResponse { action: string; requested: number; succeeded: number; failed: number; skipped: number; failures: ActionFailure[]; skips: ActionFailure[] }
 export interface AdminOverview { users: number; roles: number; permissions: number; media?: number; albums?: number; folders?: number; orders?: number; payment_transactions?: number }
+export interface AdminTrendPoint { date: string; users: number; media: number; albums: number; bandwidth_bytes: number; orders: number; payment_transactions: number }
+export interface AdminTrendReport { from: string; to: string; points: AdminTrendPoint[] }
 export interface SystemSetting { id: number; key: string; value: string; value_type: string; group: string; description?: string }
 export interface AuditLog { id: number; user_id: number; action: string; metadata: Record<string, unknown> | string | null; created_at: string }
 export interface MediaAccessLog { id: number; media_asset_id: number; share_link_id?: number | null; variant: string; delivery_mode: string; result: string; referer_host?: string | null; accessed_at: string; created_at?: string | null }
+export interface AdminTask { uuid: string; connection: string; queue: string; signature: string; failed_at: string }
 export type AuditCleanupMode = 'retention' | 'selected' | 'filtered' | 'all'
 export interface AuditCleanupRequest { mode?: AuditCleanupMode; retention_days?: number; ids?: number[]; action?: string; user_id?: string; confirmation?: string }
 export interface AuditCleanupResponse { deleted: number; mode: AuditCleanupMode; retention_days?: number; cutoff?: string | null }
@@ -47,6 +53,10 @@ export interface AdminSubscriptionResponse { subscription: AdminSubscription; pl
 
 export const generatedApi = {
   login(request: LoginRequest) { return apiFetch<LoginResponse>('/api/v1/auth/login', { method: 'POST', body: JSON.stringify(request) }) },
+  registrationPolicy() { return apiFetch<RegistrationPolicy>('/api/v1/auth/registration-policy') },
+  register(request: RegistrationRequest) { return apiFetch<RegistrationResponse>('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(request) }) },
+  verifyEmail(token: string) { return apiFetch<{ verified: boolean }>('/api/v1/auth/verify-email?token=' + encodeURIComponent(token)) },
+  resendVerification(email: string, turnstile_token?: string) { return apiFetch<{ sent: boolean }>('/api/v1/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email, turnstile_token }) }) },
   refresh() { return apiFetch<RefreshResponse>('/api/v1/auth/refresh', { method: 'POST' }) },
   currentUser(token: string) { return apiFetch<AuthUser>('/api/v1/auth/me', {}, token) },
   logout(token: string) { return apiFetch<void>('/api/v1/auth/logout', { method: 'POST' }, token) },
@@ -61,10 +71,13 @@ export const generatedApi = {
     return apiFetch<GlobalSearchResult[]>('/api/v1/admin/search?q=' + encodeURIComponent(query), {}, token)
   },
   overview(token: string) { return apiFetch<AdminOverview>('/api/v1/admin/overview', {}, token) },
+  statisticsTrends(query: URLSearchParams, token: string) { return apiFetch<AdminTrendReport>('/api/v1/admin/statistics/trends?' + query, {}, token) },
   settings(token: string) { return apiFetch<SystemSetting[]>('/api/v1/admin/settings', {}, token) },
   updateSetting(key: string, payload: { value: string; value_type: string; group: string; description: string }, token: string) { return apiFetch<SystemSetting>('/api/v1/admin/settings/' + encodeURIComponent(key), { method: 'PUT', body: JSON.stringify(payload) }, token) },
   auditLogs(token: string, query: URLSearchParams) { return apiFetchEnvelope<AuditLog[]>('/api/v1/admin/audit-logs?' + query, {}, token) as unknown as Promise<ResourceList<AuditLog>> },
   mediaAccessLogs(token: string, query: URLSearchParams) { return apiFetchEnvelope<MediaAccessLog[]>('/api/v1/admin/media-access-logs?' + query, {}, token) as unknown as Promise<ResourceList<MediaAccessLog>> },
+  failedTasks(token: string, query: URLSearchParams) { return apiFetchEnvelope<AdminTask[]>('/api/v1/admin/tasks?' + query, {}, token) as unknown as Promise<ResourceList<AdminTask>> },
+  retryFailedTask(uuid: string, token: string) { return apiFetch<{ uuid: string; status: 'queued' }>('/api/v1/admin/tasks/' + encodeURIComponent(uuid) + '/retry', { method: 'POST' }, token) },
   cleanupAuditLogs(request: AuditCleanupRequest, token: string) { return apiFetch<AuditCleanupResponse>('/api/v1/admin/audit-logs/cleanup', { method: 'POST', body: JSON.stringify(request) }, token) },
   notifications(token: string, query: URLSearchParams = new URLSearchParams()) { return apiFetchEnvelope<Notification[]>('/api/v1/notifications?' + query, {}, token) as unknown as Promise<NotificationList> },
   notificationUnreadCount(token: string) { return apiFetch<NotificationUnreadCount>('/api/v1/notifications/unread-count', {}, token) },

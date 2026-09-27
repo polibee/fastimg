@@ -24,6 +24,9 @@ func TestPublicPlanUsesStableEntitlementFieldNames(t *testing.T) {
 	if !strings.Contains(string(encoded), `"storage_bytes":1000`) || strings.Contains(string(encoded), `"StorageBytes"`) {
 		t.Fatalf("public plan entitlement contract is not canonical: %s", encoded)
 	}
+	if strings.Contains(string(encoded), `"price_amount"`) || strings.Contains(string(encoded), `"billing_period"`) || strings.Contains(string(encoded), `"currency"`) {
+		t.Fatalf("public plan must not expose legacy plan-level price fields: %s", encoded)
+	}
 }
 
 func TestPublicPlanRejectsMalformedEntitlements(t *testing.T) {

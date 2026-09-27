@@ -13,6 +13,7 @@ import (
 
 	"goravel/app/facades"
 	"goravel/app/models"
+	mediaservices "goravel/app/services/media"
 	planservices "goravel/app/services/plans"
 	storageservices "goravel/app/services/storage"
 )
@@ -154,6 +155,9 @@ func (s *Service) CreateStableURLs(_ context.Context, userID, mediaID uint) (map
 	if err := facades.Orm().Query().Where("id = ? AND user_id = ? AND status = ?", mediaID, userID, "ready").First(&asset); err != nil {
 		return nil, ErrMediaNotFound
 	}
+	if !mediaservices.AllowsPublicDelivery(asset.Visibility, asset.ModerationStatus) {
+		return nil, ErrMediaNotFound
+	}
 	urls := make(map[string]string, len(supportedVariants))
 	for variant := range supportedVariants {
 		var mediaVariant models.MediaVariant
@@ -200,6 +204,10 @@ func (s *Service) PublicSignedContent(ctx context.Context, mediaID uint, variant
 	var asset models.MediaAsset
 	if err := facades.Orm().Query().Where("id = ? AND status = ?", mediaID, "ready").First(&asset); err != nil {
 		s.recordAccess(mediaID, 0, variant, policy.Mode, "media_not_found", referer, userAgent)
+		return PublicMedia{}, ErrLinkNotFound
+	}
+	if !mediaservices.AllowsSignedDelivery(asset.Visibility, asset.ModerationStatus, stable, expires != "") {
+		s.recordAccess(mediaID, 0, variant, policy.Mode, "visibility_denied", referer, userAgent)
 		return PublicMedia{}, ErrLinkNotFound
 	}
 	var mediaVariant models.MediaVariant

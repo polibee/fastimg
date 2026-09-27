@@ -3,6 +3,7 @@ package controllers
 import (
 	h "github.com/goravel/framework/contracts/http"
 	"goravel/app/facades"
+	mediaservices "goravel/app/services/media"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,7 +39,7 @@ func createReport(x h.Context) h.Response {
 		return re(x, 422, "REPORT_INVALID")
 	}
 	var m rm
-	if e = facades.Orm().Query().Table("media_assets").Where("id = ? AND status = ? AND deleted_at IS NULL AND visibility = ? AND moderation_status = ?", mid, "ready", "public", "approved").First(&m); e != nil || m.UserID == 0 {
+	if e = facades.Orm().Query().Table("media_assets").Where("id = ? AND status = ? AND deleted_at IS NULL AND visibility = ? AND moderation_status <> ?", mid, "ready", "public", mediaservices.ModerationRejected).First(&m); e != nil || m.UserID == 0 {
 		return re(x, 404, "MEDIA_NOT_FOUND")
 	}
 	if m.UserID == uint(uid) {
@@ -48,6 +49,13 @@ func createReport(x h.Context) h.Response {
 		return re(x, 500, "REPORT_UNAVAILABLE")
 	}
 	return x.Response().Status(http.StatusCreated).Json(h.Json{"data": map[string]any{"media_asset_id": mid, "status": "pending"}})
+}
+
+// ReportablePublicMedia mirrors discovery's post-moderation policy: uploads
+// are public immediately and can be reported after publication; a rejected
+// item is the only moderation state excluded from public reporting.
+func ReportablePublicMedia(moderationStatus string) bool {
+	return strings.TrimSpace(moderationStatus) != mediaservices.ModerationRejected
 }
 func re(x h.Context, s int, c string) h.Response {
 	return x.Response().Status(s).Json(h.Json{"code": c})

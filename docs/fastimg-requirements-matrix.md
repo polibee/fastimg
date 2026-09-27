@@ -22,10 +22,10 @@
 | FR-029 | Token 支持批量上传 | P1 | 每个文件独立返回 ready/processing/failed 结果 |
 | FR-030 | Token 可查询自己的媒体列表 | P1 | 需要 `media:read`，返回统一分页和媒体链接 |
 | FR-031 | 开发者 API 采用版本化兼容规则 | P0 | `/api/v1`、链接键和错误码保持向后兼容 |
-| FR-032 | 后台可以开启、停用或关闭发现页投稿 | P0 | 开关立即影响发现页展示和投稿接口 |
+| FR-032 | 公开 ready 图片自动进入发现页并支持事后治理 | P0 | 普通上传不等待审核；隐藏、拒绝或设为私有后移除，恢复后重新展示 |
 | FR-033 | 用户可以提交图片举报 | P0 | 举报进入后台队列并记录原因 |
 | FR-034 | 管理员可以处理违规图片 | P0 | 支持隐藏、删除、恢复和处理记录 |
-| FR-035 | 管理员可以处理违规账户 | P0 | 支持限制投稿、限制上传、暂停和封禁 |
+| FR-035 | 管理员可以处理违规账户 | P0 | 支持限制上传、暂停和封禁 |
 | FR-036 | 违规处理必须可审计和可追溯 | P0 | 记录原因、证据、操作者、时间和处罚期限 |
 | FR-037 | 发现页停用不影响私有媒体 | P0 | 私有访问和用户自己的分享策略保持有效 |
 | FR-038 | 相同用户对同一媒体的重复举报可去重 | P0 | 返回原举报记录，不重复创建任务 |
@@ -151,8 +151,7 @@
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
 | GET | `/api/v1/discovery/status` | 查询发现页状态 |
-| GET | `/api/v1/discovery/feed` | 查询公开且审核通过的媒体 |
-| POST | `/api/v1/media/{id}/discovery-submit` | 投稿到发现页 |
+| GET | `/api/v1/discovery/feed` | 查询公开、ready 且未被拒绝的媒体 |
 | POST | `/api/v1/media/{id}/reports` | 举报媒体 |
 | POST | `/api/v1/me/moderation-appeals` | 提交申诉 |
 | GET | `/api/v1/me/moderation-actions` | 查看自己的处罚记录 |
@@ -161,7 +160,7 @@
 | POST | `/api/v1/admin/moderation/reports/{id}/resolve` | 处理举报 |
 | POST | `/api/v1/admin/moderation/media/{id}/hide` | 隐藏违规图片 |
 | POST | `/api/v1/admin/moderation/media/{id}/restore` | 恢复图片 |
-| POST | `/api/v1/admin/moderation/users/{id}/restrict` | 限制投稿/上传 |
+| POST | `/api/v1/admin/moderation/users/{id}/restrict` | 限制上传 |
 | POST | `/api/v1/admin/moderation/users/{id}/suspend` | 暂停账户 |
 | POST | `/api/v1/admin/moderation/users/{id}/ban` | 封禁账户 |
 | POST | `/api/v1/admin/moderation/appeals/{id}/resolve` | 处理申诉 |

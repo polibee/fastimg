@@ -26,7 +26,13 @@ func IsSecretKey(key string) bool {
 	switch strings.TrimSpace(key) {
 	case "payment.xcash.app_id", "payment.xcash.hmac_key",
 		"payment.nowpayments.api_key", "payment.nowpayments.ipn_secret",
-		"payment.paypal.client_id", "payment.paypal.client_secret", "payment.paypal.webhook_id":
+		"payment.paypal.client_id", "payment.paypal.client_secret", "payment.paypal.webhook_id",
+		"auth.turnstile.secret_key",
+		"email.smtp.password", "email.resend.api_key",
+		"email.aliyun.access_key_id", "email.aliyun.access_key_secret",
+		"storage.cloudflare_r2.access_key_id", "storage.cloudflare_r2.secret_access_key",
+		"storage.aliyun_oss.access_key_id", "storage.aliyun_oss.access_key_secret",
+		"storage.tencent_cos.secret_id", "storage.tencent_cos.secret_key":
 		return true
 	default:
 		return false
@@ -34,6 +40,13 @@ func IsSecretKey(key string) bool {
 }
 
 func SecretPlaceholder() string { return secretPlaceholder }
+
+// EncryptSecret and DecryptSecret are the shared reversible-secret boundary
+// for encrypted provider configuration stored outside system_settings. They
+// intentionally keep the cipher implementation private to this package.
+func EncryptSecret(value string) (string, error) { return encryptSecret(value) }
+
+func DecryptSecret(value string) (string, error) { return decryptSecret(value) }
 
 func encryptSecret(value string) (string, error) {
 	key := applicationKey()

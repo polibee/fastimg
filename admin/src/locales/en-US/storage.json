@@ -1,0 +1,66 @@
+{
+  "title": "Object storage",
+  "description": "Review enabled media storage connections, health, and capacity snapshots.",
+  "settingsTitle": "Object storage connections",
+  "settingsDescription": "Configure each cloud connection independently. Credentials are encrypted at rest and never returned in plaintext. Saved connections are visible in the Object storage menu.",
+  "providers": {
+    "local": { "title": "Local storage", "description": "Media is stored on the application server." },
+    "cloudflare_r2": { "title": "Cloudflare R2", "description": "Connect Cloudflare object storage with R2 S3 API credentials." },
+    "aliyun_oss": { "title": "Alibaba Cloud OSS", "description": "Connect Alibaba Cloud Object Storage with a RAM AccessKey." },
+    "tencent_cos": { "title": "Tencent COS", "description": "Connect Tencent Cloud Object Storage with APPID, SecretId, and SecretKey." }
+  },
+  "fields": {
+    "account_id": "Account ID", "jurisdiction": "Jurisdiction", "access_key_id": "Access Key ID", "secret_access_key": "Secret Access Key",
+    "access_key_secret": "AccessKey Secret", "bucket": "Bucket", "region": "Region", "app_id": "APPID", "secret_id": "SecretId", "secret_key": "SecretKey", "endpoint": "Endpoint"
+  },
+  "enabled": "Enable connection",
+  "primary": "Use as primary storage",
+  "publicBaseURL": "Public base URL (optional)",
+  "pathPrefix": "Object path prefix (optional)",
+  "signedURLTTL": "Signed URL lifetime (seconds)",
+  "save": "Save connection",
+  "test": "Test connection",
+  "registration": "Register / console",
+  "configured": "Configured",
+  "notConfigured": "Not configured",
+  "healthy": "Healthy",
+  "degraded": "Adapter pending",
+  "disabled": "Disabled",
+  "incomplete": "Incomplete",
+  "error": "Error",
+  "saved": "Connection saved",
+  "tested": "Connection status updated",
+  "loadFailed": "Object storage configuration could not be loaded",
+  "saveFailed": "Object storage connection could not be saved",
+  "testFailed": "Object storage connection test failed",
+  "adapterPending": "Configuration was saved; this build does not enable the cloud SDK adapter yet, so media is not switched to this connection.",
+  "overview": "Runtime overview",
+  "enabledConnections": "Enabled connections",
+  "primaryConnection": "Primary storage",
+  "providerAdapter": "SDK adapter",
+  "available": "Available",
+  "pending": "Pending",
+  "noPrimary": "No primary storage is selected",
+  "openSettings": "Manage connections"
+  ,"statisticsTitle": "Storage statistics"
+  ,"statisticsDescription": "Show FastImg's recorded objects, accesses, and estimated traffic for each enabled connection. Provider billing is not fabricated here."
+  ,"statisticsSource": "Source: FastImg object metadata and access records"
+  ,"statisticsEmpty": "No object storage connection is enabled"
+  ,"objectCount": "Objects"
+  ,"storedBytes": "Stored capacity"
+  ,"allowedRequests": "Allowed requests"
+  ,"estimatedBandwidth": "Estimated traffic"
+  ,"mediaCount": "Linked media"
+  ,"orphanObjects": "Orphan objects"
+  ,"orphanBytes": "Reclaimable capacity"
+  ,"healthErrors24h": "Errors in 24h"
+  ,"objectBreakdown": "Object and variant breakdown"
+  ,"healthTitle": "Connection health"
+  ,"lastHealth": "Latest check"
+  ,"notAvailable": "No record"
+  ,"trendTitle": "30-day trend (latest 7 days shown)"
+  ,"date": "Date"
+  ,"uploads": "Uploads"
+  ,"objectStatuses": { "ready": "Ready", "processing": "Processing", "pending": "Pending", "deleted": "Deleted", "failed": "Failed", "cleanup_pending": "Cleanup pending" }
+  ,"variants": { "original": "Original", "thumbnail": "Thumbnail", "medium": "Medium" }
+}

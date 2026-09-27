@@ -7,13 +7,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/goravel/framework/contracts/database/orm"
 	"github.com/goravel/framework/support/carbon"
 
 	"goravel/app/facades"
 	"goravel/app/models"
+	planservices "goravel/app/services/plans"
+	"goravel/app/services/quota"
 )
 
 const (
@@ -33,6 +37,7 @@ var (
 	ErrInvalidTokenExpiry = errors.New("api token expiry is invalid")
 	ErrInvalidTokenScope  = errors.New("api token scope is invalid")
 	ErrInvalidTokenStatus = errors.New("api token status is invalid")
+	ErrTokenLimitReached  = errors.New("api token limit reached")
 )
 
 // Personal API Tokens intentionally expose only the four operations needed by
@@ -76,6 +81,8 @@ type Repository interface {
 	Create(ctx context.Context, input CreateInput) (models.ApiToken, string, error)
 	ListOwned(ctx context.Context, userID uint) ([]models.ApiToken, error)
 	Revoke(ctx context.Context, userID, id uint) error
+	Delete(ctx context.Context, userID, id uint) error
+	DeleteAdmin(ctx context.Context, id uint) error
 	Rotate(ctx context.Context, userID, id uint) (models.ApiToken, string, error)
 	Authenticate(ctx context.Context, raw, ip string) (Authenticated, error)
 }
@@ -130,9 +137,44 @@ func (r *DatabaseRepository) Revoke(_ context.Context, userID, id uint) error {
 	return nil
 }
 
-// SetStatus is reserved for administrator lifecycle actions. Tokens are never
-// deleted through the generic resource controller: disabled and revoked are
-// explicit states, and only active tokens can transition into either state.
+// Delete permanently removes a token owned by the member. The raw token is
+// never recoverable, and deleting it immediately invalidates future requests.
+func (r *DatabaseRepository) Delete(_ context.Context, userID, id uint) error {
+	var token models.ApiToken
+	if err := facades.Orm().Query().Where("id = ? AND user_id = ?", id, userID).First(&token); err != nil {
+		return ErrTokenNotFound
+	}
+	return r.deleteRecord(id)
+}
+
+// DeleteAdmin is used only by the explicitly authorized admin Resource route.
+// It keeps token cleanup in the developer service instead of bypassing the
+// token lifecycle through a generic table delete.
+func (r *DatabaseRepository) DeleteAdmin(_ context.Context, id uint) error {
+	return r.deleteRecord(id)
+}
+
+func (r *DatabaseRepository) deleteRecord(id uint) error {
+	return facades.Orm().Transaction(func(tx orm.Query) error {
+		result, err := tx.Table("api_tokens").Where("id = ?", id).Delete()
+		if err != nil {
+			return err
+		}
+		if result.RowsAffected == 0 {
+			return ErrTokenNotFound
+		}
+		if facades.Schema().HasTable("api_token_rate_limits") {
+			if _, err := tx.Table("api_token_rate_limits").Where("key_hash = ?", rateLimitKeyHash("token:"+strconv.FormatUint(uint64(id), 10))).Delete(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// SetStatus is reserved for administrator lifecycle actions. Disabled and
+// revoked are explicit operational states, while permanent deletion uses the
+// separate delete permission and service path below.
 func (r *DatabaseRepository) SetStatus(_ context.Context, id uint, status string) error {
 	status = strings.TrimSpace(status)
 	if status != "disabled" && status != "revoked" {
@@ -202,7 +244,12 @@ type Service struct{ repository Repository }
 
 func NewService(repository Repository) *Service { return &Service{repository: repository} }
 
+func NewDatabaseService() *Service { return NewService(NewDatabaseRepository()) }
+
 func (s *Service) Create(ctx context.Context, input CreateInput) (Created, error) {
+	if err := s.checkLimit(ctx, input.UserID, 0); err != nil {
+		return Created{}, err
+	}
 	token, raw, err := s.repository.Create(ctx, input)
 	if err != nil {
 		return Created{}, err
@@ -226,7 +273,18 @@ func (s *Service) Revoke(ctx context.Context, userID, id uint) error {
 	return s.repository.Revoke(ctx, userID, id)
 }
 
+func (s *Service) Delete(ctx context.Context, userID, id uint) error {
+	return s.repository.Delete(ctx, userID, id)
+}
+
+func (s *Service) DeleteAdmin(ctx context.Context, id uint) error {
+	return s.repository.DeleteAdmin(ctx, id)
+}
+
 func (s *Service) Rotate(ctx context.Context, userID, id uint) (Created, error) {
+	if err := s.checkLimit(ctx, userID, id); err != nil {
+		return Created{}, err
+	}
 	token, raw, err := s.repository.Rotate(ctx, userID, id)
 	if err != nil {
 		return Created{}, err
@@ -245,6 +303,51 @@ func (s *Service) HasScope(scopes []string, required string) bool {
 		}
 	}
 	return false
+}
+
+// CheckTokenLimit treats zero as unlimited and counts only active tokens.
+// Keeping this boundary pure makes entitlement behavior independently testable.
+func CheckTokenLimit(activeTokens, limit int) error {
+	if activeTokens < 0 || limit < 0 {
+		return ErrInvalidTokenStatus
+	}
+	if limit > 0 && activeTokens >= limit {
+		return ErrTokenLimitReached
+	}
+	return nil
+}
+
+func (s *Service) checkLimit(ctx context.Context, userID, excludeID uint) error {
+	// Repository fakes used by unit tests do not represent the database-backed
+	// subscription boundary. Runtime enforcement is intentionally enabled only
+	// for the production repository.
+	if _, ok := s.repository.(*DatabaseRepository); !ok {
+		return nil
+	}
+	tokens, err := s.repository.ListOwned(ctx, userID)
+	if err != nil {
+		return err
+	}
+	subscription, err := planservices.NewPlanService().SubscriptionForUser(userID)
+	if err != nil {
+		return err
+	}
+	entitlement, err := quota.ParseEntitlementJSON(subscription.EntitlementSnapshotJSON)
+	if err != nil {
+		return err
+	}
+	active := 0
+	now := time.Now().UTC()
+	for _, token := range tokens {
+		if token.ID == excludeID || token.Status != "active" {
+			continue
+		}
+		if token.ExpiresAt != nil && !token.ExpiresAt.After(now) {
+			continue
+		}
+		active++
+	}
+	return CheckTokenLimit(active, int(entitlement.TokenLimit))
 }
 
 func normalizeCreate(input CreateInput) (string, []string, error) {

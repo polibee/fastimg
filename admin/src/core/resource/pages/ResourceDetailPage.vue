@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Pencil, Trash2 } from '@lucide/vue'
+import { ArrowLeft, Images, Pencil, Trash2 } from '@lucide/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ApiError, errorMessageKey } from '@/lib/api'
+import { ApiError, apiFetchBlob, errorMessageKey } from '@/lib/api'
 import { generatedApi, type RelationOption, type ResourceDetailSection, type ResourceManifest } from '@/generated/api'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
@@ -25,6 +25,7 @@ const manifest = ref<ResourceManifest>()
 const relationRecords = ref<Record<string, RelationOption[]>>({})
 const loading = ref(true)
 const error = ref('')
+const mediaPreviewURL = ref('')
 const deleteDialogOpen = ref(false)
 const deleting = ref(false)
 const resourceName = computed(() => props.resource || String(route.params.resource || 'users'))
@@ -52,6 +53,14 @@ onMounted(async () => {
     ])
     manifest.value = manifests.find((item) => item.name === resourceName.value)
     data.value = record
+    if (resourceName.value === 'media') {
+      try {
+        const blob = await apiFetchBlob(`/api/v1/admin/media/${String(route.params.id)}/content?variant=thumbnail`, auth.token)
+        mediaPreviewURL.value = URL.createObjectURL(blob)
+      } catch {
+        mediaPreviewURL.value = ''
+      }
+    }
     for (const relation of hasManyRelations.value) {
       const response = await generatedApi.resourceRelationRecords(resourceName.value, String(route.params.id), relation.name, auth.token)
       relationRecords.value = { ...relationRecords.value, [relation.name]: response.data }
@@ -61,6 +70,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onBeforeUnmount(() => {
+  if (mediaPreviewURL.value) URL.revokeObjectURL(mediaPreviewURL.value)
 })
 
 function fieldLabel(name: string) {
@@ -88,12 +101,13 @@ async function deleteRecord() {
   <div class="flex flex-col gap-6">
     <div class="flex items-center gap-3">
       <Button variant="ghost" size="icon" :aria-label="t('resource.back')" @click="router.back()"><ArrowLeft /></Button>
-      <div class="flex-1"><h1 class="text-2xl font-semibold tracking-tight">{{ t('resource.detail') }}</h1><p class="text-sm text-muted-foreground">{{ resourceLabel }} #{{ route.params.id }}</p></div><div v-if="canEdit || canDelete" class="flex gap-2"><Button v-if="canEdit" variant="outline" @click="router.push(`/${resourceName}/${route.params.id}/edit`)"><Pencil data-icon="inline-start" />{{ t('resource.edit') }}</Button><Button v-if="canDelete" variant="destructive" @click="deleteDialogOpen = true"><Trash2 data-icon="inline-start" />{{ t('resource.delete') }}</Button></div>
+      <div class="flex-1"><h1 class="text-2xl font-semibold tracking-tight">{{ t('resource.detail') }}</h1><p class="text-sm text-muted-foreground">{{ resourceLabel }} #{{ route.params.id }}</p></div><div class="flex gap-2"><Button v-if="resourceName === 'albums'" variant="outline" @click="router.push(`/admin/albums/${route.params.id}/media`)"><Images data-icon="inline-start" />{{ t('resource.manageMedia') }}</Button><Button v-if="canEdit" variant="outline" @click="router.push(`/${resourceName}/${route.params.id}/edit`)"><Pencil data-icon="inline-start" />{{ t('resource.edit') }}</Button><Button v-if="canDelete" variant="destructive" @click="deleteDialogOpen = true"><Trash2 data-icon="inline-start" />{{ t('resource.delete') }}</Button></div>
     </div>
     <Alert v-if="error" variant="destructive"><AlertTitle>{{ t('states.errorTitle') }}</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert>
     <Card v-if="loading"><CardHeader><Skeleton class="h-6 w-40" /><Skeleton class="h-4 w-64" /></CardHeader><CardContent class="flex flex-col gap-3"><Skeleton v-for="item in 4" :key="item" class="h-10" /></CardContent></Card>
     <Empty v-else-if="error"><EmptyHeader><EmptyTitle>{{ t('states.errorTitle') }}</EmptyTitle><EmptyDescription>{{ error }}</EmptyDescription></EmptyHeader></Empty>
     <Card v-else-if="Object.keys(displayData).length"><CardHeader><CardTitle>{{ String(data.display_name || data.name || data.email || route.params.id) }}</CardTitle><CardDescription>{{ t('resource.detailDescription') }}</CardDescription></CardHeader><CardContent><dl class="grid gap-4 sm:grid-cols-2"> <div v-for="(value, key) in displayData" :key="key" class="rounded-md border p-3"><dt class="text-xs text-muted-foreground">{{ fieldLabel(String(key)) }}</dt><dd class="mt-1 break-words text-sm font-medium">{{ value === null || value === undefined ? '—' : String(value) }}</dd></div></dl></CardContent></Card>
+    <Card v-if="resourceName === 'media' && mediaPreviewURL"><CardHeader><CardTitle>{{ t('resource.mediaPreview') }}</CardTitle><CardDescription>{{ t('resource.mediaPreviewDescription') }}</CardDescription></CardHeader><CardContent><div class="flex min-h-56 items-center justify-center rounded-lg bg-muted/40 p-4"><img :src="mediaPreviewURL" :alt="String(data.original_name || route.params.id)" class="max-h-96 max-w-full object-contain" /></div></CardContent></Card>
     <Card v-for="section in detailSections" :key="section.name"><CardHeader><CardTitle>{{ section.label }}</CardTitle></CardHeader><CardContent><dl class="grid gap-4 sm:grid-cols-2"><div v-for="field in section.fields" v-show="displayData[field] !== undefined" :key="field" class="rounded-md border p-3"><dt class="text-xs text-muted-foreground">{{ fieldLabel(field) }}</dt><dd class="mt-1 break-words text-sm font-medium">{{ displayData[field] === null || displayData[field] === undefined ? '—' : String(displayData[field]) }}</dd></div></dl></CardContent></Card>
     <Card v-for="relation in hasManyRelations" :key="relation.name"><CardHeader><CardTitle>{{ relation.name }}</CardTitle><CardDescription>{{ t('resource.relatedRecords') }}</CardDescription></CardHeader><CardContent><div v-if="relationRecords[relation.name]?.length" class="flex flex-wrap gap-2"><Button v-for="item in relationRecords[relation.name]" :key="item.value" variant="outline" size="sm">{{ item.label }}</Button></div><p v-else class="text-sm text-muted-foreground">{{ t('resource.noRelatedRecords') }}</p></CardContent></Card>
     <Empty v-if="!loading && !error && !Object.keys(displayData).length && !detailSections.length"><EmptyHeader><EmptyTitle>{{ t('states.emptyTitle') }}</EmptyTitle><EmptyDescription>{{ t('resource.noData') }}</EmptyDescription></EmptyHeader></Empty>

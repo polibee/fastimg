@@ -10,7 +10,7 @@ func TestGatewaySettingsRequireOnlyProviderCredentials(t *testing.T) {
 	}{
 		{provider: "paypal", values: map[string]string{"payment.paypal.environment": "sandbox"}, want: []string{"payment.paypal.client_id", "payment.paypal.client_secret", "payment.paypal.webhook_id"}},
 		{provider: "xcash", values: map[string]string{}, want: []string{"payment.xcash.app_id", "payment.xcash.hmac_key"}},
-		{provider: "nowpayments", values: map[string]string{"payment.nowpayments.api_key": "key"}, want: []string{"payment.nowpayments.ipn_secret"}},
+		{provider: "nowpayments", values: map[string]string{"payment.nowpayments.api_key": "key"}, want: []string{}},
 	}
 	for _, tt := range tests {
 		got := MissingGatewaySettings(tt.provider, tt.values)

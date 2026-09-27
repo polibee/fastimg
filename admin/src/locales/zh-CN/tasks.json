@@ -1,0 +1,17 @@
+{
+  "title": "失败任务",
+  "description": "查看 Redis 队列中最终失败的任务，并在确认原因后重新投递。",
+  "empty": "当前没有失败任务",
+  "emptyDescription": "队列运行正常，暂时没有需要人工处理的任务。",
+  "job": "任务",
+  "connection": "连接",
+  "queue": "队列",
+  "failedAt": "失败时间",
+  "retry": "重新投递",
+  "retrying": "投递中…",
+  "retryDone": "任务已重新投递",
+  "retryConfirm": "确认将此任务重新投递到队列吗？",
+  "loadFailed": "失败任务暂时无法加载。",
+  "retryFailed": "任务重新投递失败，请检查 Redis 和 Worker。",
+  "unknown": "未知任务"
+}

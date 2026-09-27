@@ -1,7 +1,6 @@
 package auditservices
 
 import (
-	"strings"
 	"time"
 
 	"goravel/app/facades"
@@ -16,7 +15,7 @@ func (s *AuditService) Record(userID uint, action string, metadata map[string]an
 }
 
 func (s *AuditService) RecordHTTP(userID *uint, input HTTPAuditInput) error {
-	return s.record(userID, "http."+strings.ToUpper(input.Method), BuildHTTPAuditMetadata(input))
+	return s.record(userID, ClassifyHTTPAction(input.Method, input.Path), BuildHTTPAuditMetadata(input))
 }
 
 func (s *AuditService) record(userID *uint, action string, metadata map[string]any) error {

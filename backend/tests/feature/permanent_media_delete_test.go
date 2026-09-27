@@ -24,9 +24,19 @@ func TestPermanentMediaDeleteReleasesStorageOnlyAfterCleanupAndIsIdempotent(t *t
 		if err := tx.Create(&asset); err != nil {
 			return err
 		}
+		connection := models.StorageConnection{
+			ProviderCode: models.StorageProviderLocal,
+			Name:         fmt.Sprintf("Local-%d", user.ID),
+			Enabled:      true,
+			IsPrimary:    true,
+			Status:       models.StorageConnectionHealthy,
+		}
+		if err := tx.Create(&connection); err != nil {
+			return err
+		}
 		objects := []models.StorageObject{
-			{Provider: "local", ObjectKey: fmt.Sprintf("fixture/%d/original.png", user.ID), ContentType: "image/png", SizeBytes: 100, SHA256: "original", Status: "ready"},
-			{Provider: "local", ObjectKey: fmt.Sprintf("fixture/%d/thumbnail.png", user.ID), ContentType: "image/png", SizeBytes: 20, SHA256: "thumbnail", Status: "ready"},
+			{StorageConnectionID: connection.ID, ObjectKey: fmt.Sprintf("fixture/%d/original.png", user.ID), ContentType: "image/png", SizeBytes: 100, SHA256: "original", Status: "ready"},
+			{StorageConnectionID: connection.ID, ObjectKey: fmt.Sprintf("fixture/%d/thumbnail.png", user.ID), ContentType: "image/png", SizeBytes: 20, SHA256: "thumbnail", Status: "ready"},
 		}
 		for index := range objects {
 			if err := tx.Create(&objects[index]); err != nil {

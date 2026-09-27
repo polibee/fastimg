@@ -96,6 +96,10 @@ POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
 POST /api/v1/auth/logout-all
 GET  /api/v1/auth/me
+GET  /api/v1/auth/registration-policy
+POST /api/v1/auth/register
+GET  /api/v1/auth/verify-email?token=...
+POST /api/v1/auth/resend-verification
 ~~~
 
 ## 当前实现状态
@@ -123,3 +127,24 @@ GET  /api/v1/auth/me
 ## 测试
 
 必须验证登录、刷新、轮换、撤销、过期、重放检测、停用用户、权限变更和跨来源 Cookie 配置。
+
+## 注册与登录安全策略
+
+注册邮箱验证统一使用 `app/services/email` 的 EmailService。当前支持通用 SMTP、阿里云 DirectMail `SingleSendMail` 和 Resend API 三种传输方式，由后台 `/admin/settings` 的“邮件服务”分组选择并启用。开发阶段可以关闭 `email.enabled`，不要求填写真实凭证；开启 `auth.registration.email_verification_enabled` 前必须先配置一个可用的邮件服务。
+
+SMTP、阿里云 AccessKey 和 Resend API Key 按系统设置密钥策略使用 `APP_KEY` 加密保存，设置列表接口只返回 `__configured__` 占位符。阿里云使用官方 `2015-11-23` API 的 HMAC-SHA1 请求签名，Resend 使用官方 `/emails` Bearer API，注册控制器不直接依赖供应商协议。
+
+游客可以访问首页、套餐、发现页和注册页；只有上传、个人媒体、订单、Token 等用户数据能力需要认证。会员端和管理员端退出后都返回 `/`，认证接口失败也不会阻止本地退出导航。
+
+公开认证接口：
+
+| 方法 | 路径 | 作用 |
+| --- | --- | --- |
+| `GET` | `/api/v1/auth/registration-policy` | 返回注册、Turnstile、邮箱验证开关和公开 Site Key；不返回 Secret Key 或白名单域名 |
+| `POST` | `/api/v1/auth/register` | 创建普通会员并自动分配 Free 订阅 |
+| `GET` | `/api/v1/auth/verify-email?token=...` | 消费一次性邮箱验证 token |
+| `POST` | `/api/v1/auth/resend-verification` | 重新发送邮箱验证链接 |
+
+后台设置键位于 `auth.*`：`auth.registration.enabled` 控制注册、`auth.turnstile.enabled` 控制 Turnstile 总开关，`auth.turnstile.site_key` / `auth.turnstile.secret_key` 配置 Cloudflare Widget（Secret Key 使用 APP_KEY 加密），`auth.login.turnstile_enabled` 和 `auth.registration.turnstile_enabled` 分别控制登录与注册验证，`auth.registration.email_verification_enabled` 控制新用户邮箱验证，`auth.registration.email_whitelist_enabled` 与 `auth.registration.email_whitelist_domains` 控制后端域名白名单，`auth.registration.verification_expiry_minutes` 控制 5–1440 分钟的链接有效期。验证邮件重发保护由 `auth.registration.verification_resend_protection_enabled` 控制；`auth.registration.verification_resend_email_cooldown_seconds`、`auth.registration.verification_resend_ip_cooldown_seconds` 分别控制邮箱/IP 冷却时间，`auth.registration.verification_resend_daily_email_limit`、`auth.registration.verification_resend_daily_ip_limit` 控制 UTC 自然日发送上限。
+
+Turnstile 必须由后端调用官方 Siteverify 接口完成最终判断，浏览器 token 不能直接作为可信结果。邮箱验证 token 只保存摘要、一次消费并过期；生产启用邮箱验证前必须配置 SMTP 并完成真实收信验收。

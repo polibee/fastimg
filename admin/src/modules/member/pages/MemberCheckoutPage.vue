@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ApiError } from '@/lib/api'
 import { cancelMemberOrder, completeFakeMemberPayment, getMemberOrder, listMemberPaymentGateways, startMemberPayment, type MemberOrder } from '@/modules/billing/api'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
@@ -25,6 +26,7 @@ const canceling = ref(false)
 const confirmingFake = ref(false)
 type CheckoutError = 'order' | 'gateway' | 'payment' | 'cancel'
 const error = ref<CheckoutError>()
+const paymentErrorCode = ref<string>()
 
 function formatAmount(value = 0, currency = 'USD') {
   try { return new Intl.NumberFormat(locale.value, { style: 'currency', currency }).format(value / 100) } catch { return `${(value / 100).toFixed(2)} ${currency}` }
@@ -34,6 +36,7 @@ async function load() {
   if (!auth.token) { await router.replace({ name: 'login', query: { redirect: route.fullPath } }); return }
   loading.value = true
   error.value = undefined
+  paymentErrorCode.value = undefined
   try {
     order.value = await getMemberOrder(String(route.params.orderId), auth.token)
   } catch { error.value = 'order'; loading.value = false; return }
@@ -51,7 +54,14 @@ async function pay() {
   if (!auth.token || !order.value) return
   paying.value = true
   error.value = undefined
-  try { payment.value = await startMemberPayment(String(order.value.id), selectedGateway.value, auth.token) } catch { error.value = 'payment' } finally { paying.value = false }
+  paymentErrorCode.value = undefined
+  try {
+    payment.value = await startMemberPayment(String(order.value.id), selectedGateway.value, auth.token)
+    if (payment.value?.checkout_url) window.location.assign(payment.value.checkout_url)
+  } catch (value) {
+    paymentErrorCode.value = value instanceof ApiError ? value.code : undefined
+    error.value = 'payment'
+  } finally { paying.value = false }
 }
 
 async function cancel() {
@@ -79,13 +89,22 @@ function statusLabel(status: string) {
   return t(`member.billing.statuses.${status}`, status)
 }
 
+function errorDescription() {
+  if (error.value === 'order') return t('member.billing.orderErrorDescription')
+  if (error.value === 'gateway') return t('member.billing.gatewayErrorDescription')
+  if (error.value === 'cancel') return t('member.billing.cancelErrorDescription')
+  if (paymentErrorCode.value === 'PAYMENT_PROVIDER_UNAVAILABLE') return t('member.billing.paymentProviderUnavailableDescription')
+  if (paymentErrorCode.value === 'PAYMENT_PROVIDER_REJECTED') return t('member.billing.paymentProviderRejectedDescription')
+  return t('member.billing.paymentErrorDescription')
+}
+
 onMounted(load)
 </script>
 
 <template>
   <div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
     <Button variant="ghost" class="w-fit" @click="router.push('/plans')"><ArrowLeft class="mr-2 size-4" />{{ t('member.billing.backToPlans') }}</Button>
-    <Alert v-if="error" variant="destructive"><AlertCircle /><AlertTitle>{{ t(error === 'order' ? 'member.billing.orderErrorTitle' : error === 'gateway' ? 'member.billing.gatewayErrorTitle' : error === 'cancel' ? 'member.billing.cancelErrorTitle' : 'member.billing.paymentErrorTitle') }}</AlertTitle><AlertDescription>{{ t(error === 'order' ? 'member.billing.orderErrorDescription' : error === 'gateway' ? 'member.billing.gatewayErrorDescription' : error === 'cancel' ? 'member.billing.cancelErrorDescription' : 'member.billing.paymentErrorDescription') }}</AlertDescription></Alert>
+    <Alert v-if="error" variant="destructive"><AlertCircle /><AlertTitle>{{ t(error === 'order' ? 'member.billing.orderErrorTitle' : error === 'gateway' ? 'member.billing.gatewayErrorTitle' : error === 'cancel' ? 'member.billing.cancelErrorTitle' : paymentErrorCode === 'PAYMENT_PROVIDER_UNAVAILABLE' ? 'member.billing.paymentProviderUnavailableTitle' : 'member.billing.paymentErrorTitle') }}</AlertTitle><AlertDescription>{{ errorDescription() }}</AlertDescription></Alert>
     <Skeleton v-if="loading" class="h-64" />
     <Card v-else-if="order">
       <CardHeader><CardTitle class="flex items-center gap-2"><CreditCard class="size-5" />{{ t('member.billing.checkoutTitle') }}</CardTitle><CardDescription>{{ order.public_order_no }}</CardDescription></CardHeader>

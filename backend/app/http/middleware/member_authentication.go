@@ -26,6 +26,14 @@ func RequireMemberAuthentication() httpcontract.Middleware { return memberAuthen
 // reach routes that explicitly declare one of the API scopes.
 func RequireMemberSession() httpcontract.Middleware { return memberSessionMiddleware{} }
 
+// IsMemberTokenRequest exposes only the request source. Controllers use this
+// to pass the source into domain services; token authentication and scopes
+// remain enforced by middleware.
+func IsMemberTokenRequest(ctx httpcontract.Context) bool {
+	_, ok := ctx.Value(memberTokenContextKey{}).(memberTokenContext)
+	return ok
+}
+
 func (m memberAuthenticationMiddleware) Signature() string { return "fastimg:member-authentication" }
 
 func (m memberAuthenticationMiddleware) Handle(ctx httpcontract.Context) {

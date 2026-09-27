@@ -15,9 +15,12 @@ func init() {
 		//
 		// To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 		"paths":                []string{},
-		"allowed_methods":      []string{"*"},
-		"allowed_origins":      []string{"*"},
-		"allowed_headers":      []string{"*"},
+		// The FastImg middleware applies the exact CORS_ALLOWED_ORIGINS
+		// allowlist. Keep the framework fallback fail-closed as well; a wildcard
+		// origin is unsafe for authenticated browser requests.
+		"allowed_methods":      []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		"allowed_origins":      []string{},
+		"allowed_headers":      []string{"Content-Type", "Authorization", "X-API-Key", "Idempotency-Key"},
 		"exposed_headers":      []string{},
 		"max_age":              0,
 		"supports_credentials": false,

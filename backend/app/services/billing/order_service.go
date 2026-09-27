@@ -57,6 +57,10 @@ type OrderService struct{}
 
 func NewOrderService() *OrderService { return &OrderService{} }
 
+func CanCancelOrder(status string) bool {
+	return status == "created" || status == "pending_payment"
+}
+
 func (s *OrderService) CreatePlanOrder(_ context.Context, userID uint, input CreateOrderRequest) (*models.Order, error) {
 	if userID == 0 {
 		return nil, ErrInvalidOrderRequest
@@ -160,12 +164,18 @@ func (s *OrderService) CancelOwnOrder(_ context.Context, userID, orderID uint) e
 	if err != nil {
 		return err
 	}
-	if order.Status != "created" && order.Status != "pending_payment" {
+	if !CanCancelOrder(order.Status) {
 		return ErrOrderAlreadyCanceled
 	}
 	now := time.Now().UTC()
-	_, err = facades.Orm().Query().Where("id = ? AND user_id = ?", orderID, userID).Update(map[string]any{"status": "canceled", "canceled_at": now})
-	return err
+	result, err := facades.Orm().Query().Where("id = ? AND user_id = ? AND (status = ? OR status = ?)", orderID, userID, "created", "pending_payment").Update(map[string]any{"status": "canceled", "canceled_at": now})
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return ErrOrderAlreadyCanceled
+	}
+	return nil
 }
 
 func generatePublicOrderNo() string {

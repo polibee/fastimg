@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"goravel/app/facades"
+	planservices "goravel/app/services/plans"
+	"goravel/app/services/quota"
 )
 
 const (
@@ -44,6 +47,9 @@ type storedAd struct {
 	CreativeType    string
 	CreativeContent string
 	TargetURL       string
+	PlanCode        string
+	StartsAt        string
+	EndsAt          string
 }
 
 type legacyStoredAd struct {
@@ -107,7 +113,27 @@ func ValidCreativeType(value string) bool {
 	}
 }
 
+// AdAvailableForUser is the single delivery predicate for plan-targeted and
+// scheduled ads. Empty plan code means the ad is global. The end boundary is
+// exclusive so an ad never remains visible after its configured expiry.
+func AdAvailableForUser(userPlanCode, adPlanCode string, startsAt, endsAt *time.Time, now time.Time) bool {
+	if adPlanCode = strings.TrimSpace(adPlanCode); adPlanCode != "" && !strings.EqualFold(adPlanCode, strings.TrimSpace(userPlanCode)) {
+		return false
+	}
+	if startsAt != nil && now.Before(startsAt.UTC()) {
+		return false
+	}
+	if endsAt != nil && !now.Before(endsAt.UTC()) {
+		return false
+	}
+	return true
+}
+
 func (s *Service) ListPublished(placement string) ([]PublicAd, error) {
+	return s.listPublished(placement, "", time.Now().UTC())
+}
+
+func (s *Service) listPublished(placement, planCode string, now time.Time) ([]PublicAd, error) {
 	if placement != "" && !ValidPlacement(placement) {
 		return nil, ErrInvalidPlacement
 	}
@@ -123,7 +149,7 @@ func (s *Service) ListPublished(placement string) ([]PublicAd, error) {
 		if err := query.Get(&rows); err != nil {
 			return nil, err
 		}
-		return publicAds(rows), nil
+		return publicAds(filterAds(rows, planCode, now)), nil
 	}
 
 	var rows []legacyStoredAd
@@ -135,6 +161,34 @@ func (s *Service) ListPublished(placement string) ([]PublicAd, error) {
 		result = append(result, PublicAd{ID: row.ID, Name: row.Name, Placement: row.Placement, CreativeType: CreativeTypeImage, CreativeContent: row.CreativeURL, TargetURL: row.TargetURL})
 	}
 	return result, nil
+}
+
+// ShouldShowAds is the single runtime decision boundary for member ads.
+// Administrators may still preview/manage ads, but member delivery must use
+// the effective subscription entitlement.
+func ShouldShowAds(enabled bool) bool { return enabled }
+
+func (s *Service) ListPublishedForUser(userID uint, placement string) ([]PublicAd, error) {
+	subscription, err := planservices.NewPlanService().SubscriptionForUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	entitlement, err := quota.ParseEntitlementJSON(subscription.EntitlementSnapshotJSON)
+	if err != nil {
+		return nil, err
+	}
+	if !ShouldShowAds(entitlement.AdsEnabled) {
+		return []PublicAd{}, nil
+	}
+	snapshot, err := planservices.ParseSubscriptionSnapshot(subscription.EntitlementSnapshotJSON)
+	if err != nil {
+		return nil, err
+	}
+	planCode := ""
+	if snapshot.HasPlan {
+		planCode = snapshot.Plan.Code
+	}
+	return s.listPublished(placement, planCode, time.Now().UTC())
 }
 
 type Service struct{}
@@ -155,6 +209,30 @@ func publicAds(rows []storedAd) []PublicAd {
 		result = append(result, PublicAd{ID: row.ID, Name: row.Name, Placement: row.Placement, CreativeType: creativeType, CreativeContent: content, TargetURL: row.TargetURL})
 	}
 	return result
+}
+
+func filterAds(rows []storedAd, planCode string, now time.Time) []storedAd {
+	filtered := make([]storedAd, 0, len(rows))
+	for _, row := range rows {
+		if AdAvailableForUser(planCode, row.PlanCode, parseScheduleTime(row.StartsAt), parseScheduleTime(row.EndsAt), now) {
+			filtered = append(filtered, row)
+		}
+	}
+	return filtered
+}
+
+func parseScheduleTime(value string) *time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02T15:04:05"} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			parsed = parsed.UTC()
+			return &parsed
+		}
+	}
+	return nil
 }
 
 func stringValue(value any) string {

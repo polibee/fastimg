@@ -38,6 +38,7 @@ func Manifest() resource.Manifest {
 		Actions: []resource.Action{
 			{Name: "view", Label: "View", Permission: "admin.api_tokens.view"},
 			{Name: "set-status", Label: "Set status", Kind: "api-token-status", Permission: "admin.api_tokens.update", Batch: true, Payload: "api-token-status", PayloadFields: []resource.ActionPayloadField{{Name: "status", Label: "Status", Type: "select", Required: true, Options: []resource.Option{{Value: "disabled", Label: "Disabled"}, {Value: "revoked", Label: "Revoked"}}}}},
+			{Name: "delete", Label: "Delete", Permission: "admin.api_tokens.delete"},
 		},
 		Filters: []resource.Filter{{Name: "status", Label: "Status", Type: "select", Options: []resource.Option{{Value: "active", Label: "Active"}, {Value: "disabled", Label: "Disabled"}, {Value: "revoked", Label: "Revoked"}}}},
 	}

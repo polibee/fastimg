@@ -7,7 +7,7 @@ FastImg 是面向开发者、站长和内容创作者的免费媒体托管平台
 核心价值不是“把上传按钮做出来”，而是提供稳定、可追踪、可控制的媒体资产生命周期：
 
 ```text
-上传 -> 校验 -> 存储 -> 处理 -> 审核 -> 发布 -> 分享/访问 -> 统计 -> 删除/恢复
+上传 -> 校验 -> 存储 -> 处理 -> 自动可用并进入发现页 -> 分享/访问 -> 举报治理 -> 统计 -> 删除/恢复
 ```
 
 ## 2. 免费商业模型
@@ -144,7 +144,7 @@ admin/src/modules/
 
 用户可以在个人中心生成 Personal API Token，用于 PicGo、ShareX、脚本、CI 和自建应用。
 
-管理端对应 `/admin/api_tokens` 仅用于全站运营查看和状态处置：按用户查看非敏感 Token 元数据，按权限停用或撤销；不显示明文、不读取摘要、不允许通用删除。会员端 `/tokens` 只管理当前用户，两套页面和权限边界保持独立。
+管理端对应 `/admin/api_tokens` 仅用于全站运营查看和状态处置：按用户查看非敏感 Token 元数据，按 `admin.api_tokens.update` 停用或撤销，按独立的 `admin.api_tokens.delete` 删除；不显示明文、不读取摘要。会员端 `/tokens` 只管理当前用户，两套页面和权限边界保持独立。
 
 API 同时支持单图和批量上传。批量上传按文件返回 `ready`、`processing` 或 `failed`，单个文件失败不能掩盖其他文件的成功结果。
 
@@ -184,9 +184,8 @@ Authorization: Bearer fst_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 - 按用户、状态、格式、大小、哈希、时间查询
 - 待审核、举报、人工复核、隐藏、恢复和封禁
 - 批量删除必须二次确认并产生审计记录
-- 未审核或审核失败的公开媒体不能进入发现页
+- 普通上传不等待审核即可使用，并自动进入发现页；被隐藏、拒绝或设为私有后不再展示
 - 后台可以全局开启/停用发现页
-- 后台可以配置是否允许用户投稿到发现页
 - 后台可以配置审核模式、默认排序和举报阈值
 - 处理举报时可以隐藏图片、删除图片、恢复图片、限制用户或封禁账户
 
@@ -207,10 +206,10 @@ Authorization: Bearer fst_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 #### 发现页治理
 
-- 后台显示发现页状态、投稿量、待审核量、举报量和违规用户数
+- 后台显示发现页状态、公开媒体量、举报量和违规用户数
 - 停用发现页后，公共发现接口关闭，但私有媒体和已有私有分享链接不受影响
-- 可以只关闭新投稿，保留已审核内容继续展示
-- 可以完全停用展示，同时保留举报和后台审核入口
+- 发现页没有单独的投稿开关；举报和后台审核入口始终可以保留
+- 隐藏或拒绝已公开媒体后立即从发现页移除，恢复后重新展示
 - 支持人工审核、自动审核和混合审核模式
 - 支持按图片、用户、IP、时间和举报原因筛选
 - 支持批量隐藏图片、批量删除图片、批量限制用户和批量封禁账户
@@ -249,7 +248,7 @@ Authorization: Bearer fst_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```text
 UploadSession: created -> uploading -> uploaded -> processing -> completed
 MediaAsset: pending -> processing -> ready -> deleted -> expired
-Moderation: pending -> approved | rejected | manual_review
+Moderation: ordinary upload approved; post-publication report/review pending -> approved | rejected | manual_review
 Order: created -> pending_payment -> paid -> active -> refunded
 ```
 
@@ -264,13 +263,10 @@ Order: created -> pending_payment -> paid -> active -> refunded
 
 ```text
 disabled -> enabled
-enabled -> submissions_closed
-submissions_closed -> enabled
-enabled/submissions_closed -> disabled
+enabled -> disabled
 ```
 
-- `enabled`：展示审核通过内容，并允许符合条件的用户投稿。
-- `submissions_closed`：继续展示已有内容，但不接受新投稿。
+- `enabled`：展示公开且未被拒绝的 ready 内容，举报进入后台治理。
 - `disabled`：公共发现接口关闭；私有媒体、用户自己的分享链接和后台审核不受影响。
 
 ### 账户处罚等级
@@ -279,8 +275,8 @@ enabled/submissions_closed -> disabled
 normal -> upload_limited -> discovery_banned -> suspended -> banned
 ```
 
-- `upload_limited`：限制投稿或 API 上传，但允许查看、导出和删除自己的媒体。
-- `discovery_banned`：禁止投稿和公开展示，已有违规媒体进入审核处理。
+- `upload_limited`：限制上传或 API 上传，但允许查看、导出和删除自己的媒体。
+- `discovery_banned`：禁止公开展示，已有违规媒体进入审核处理。
 - `suspended`：暂时禁止登录后的写操作，保留申诉和导出窗口。
 - `banned`：禁止登录和所有新写操作，下载策略由站点合规设置决定。
 
@@ -311,12 +307,15 @@ normal -> upload_limited -> discovery_banned -> suspended -> banned
   -> 创建 UploadSession
   -> 浏览器上传对象
   -> Complete 校验对象、哈希和配额
-  -> 创建 MediaAsset(pending)
-  -> 异步处理和审核
-  -> ready 后展示链接
+  -> 创建 MediaAsset(processing, moderation=approved)
+  -> 处理并完成用量入账
+  -> ready 后立即展示链接
+  -> ready 后立即进入公开发现页
+  -> 用户或游客可以举报公开图片
+  -> 管理员事后隐藏、拒绝、恢复或永久删除
 ```
 
-用户在图片进入 `ready` 前可以看到进度和失败原因，但不能获得一个看似可用的永久链接。处理失败必须提供重试，不允许静默丢失。
+用户在图片进入 `ready` 前可以看到进度和失败原因；进入 `ready` 后即可获得稳定链接。处理失败必须提供重试，不允许静默丢失。
 
 ### 9.2 分享私有图片
 
@@ -424,7 +423,6 @@ User
 ```text
 GET  /api/v1/discovery/status
 GET  /api/v1/discovery/feed
-POST /api/v1/media/{id}/discovery-submit
 POST /api/v1/media/{id}/reports
 POST /api/v1/me/moderation-appeals
 GET  /api/v1/me/moderation-actions
@@ -450,7 +448,7 @@ POST /api/v1/admin/moderation/appeals/{id}/resolve
 建议权限拆分为：
 
 ```text
-admin.discovery.manage       发现页设置和投稿开关
+ admin.discovery.manage       发现页启停和展示设置
 admin.moderation.view        查看举报和审核队列
 admin.moderation.resolve     驳回/通过/隐藏/恢复媒体
 admin.moderation.enforce     限制、暂停和封禁账户
@@ -542,7 +540,7 @@ Idempotency-Key: <client-generated-key>
 | `file` | 是 | 图片文件 |
 | `folder_id` | 否 | 用户自己的文件夹 |
 | `album_id` | 否 | 用户自己的相册 |
-| `visibility` | 否 | `private`、`link`、`public`，默认 `private` |
+| `visibility` | 否 | `private`、`link`、`public`，新上传默认 `public`；用户可在媒体详情改为 `private` 或 `link` |
 | `expires_at` | 否 | 分享过期时间，必须满足套餐权益 |
 | `title` | 否 | 图片标题 |
 | `tags` | 否 | 标签数组或逗号分隔值 |
@@ -651,3 +649,15 @@ bbcode
 | P3 | 团队空间、企业套餐、AI 标签、社交功能、视频 | 后续 |
 
 任何 P2/P3 功能都不能阻塞 P0 的免费闭环；如果存储成本或审核成本上升，优先调整额度和流量，而不是删除免费核心能力。
+
+## 15. 会员到期、自动降级和通知
+
+会员订阅到期后不删除用户数据，也不撤销用户账号。系统将原订阅标记为 `expired`，保留订单、支付流水和权益快照，并创建或激活配置的 fallback 套餐，默认是 `free`。
+
+- 付费订单履约时根据价格快照的月付/年付周期和试用天数写入 `ends_at`；没有结束时间的管理员手动分配视为人工维护的长期订阅。
+- 运行时每次解析订阅都会检查 `ends_at`，定时任务只负责批量补偿、提前提醒和发送邮件，不能作为唯一的过期判断机制。
+- 到期后新的上传、API 速率、Token 数量、带宽、图片处理、广告和水印等能力按 fallback 套餐执行。
+- 已有媒体、相册、文件夹、Token 和历史链接保留。超出 Free 存储时默认禁止继续上传，但允许查看、下载和删除；续费或清理空间后恢复上传。
+- Personal API Token 不因套餐到期自动删除；请求仍经过当前套餐权益检查。管理员 RBAC 与会员套餐是两个独立维度。
+- 到期前默认在 7、3、1 天发送事务性邮件，并写入站内通知；到期当天发送自动降级通知。邮件事件使用唯一键和重试状态，邮件服务关闭时不阻塞降级。
+- `/admin/settings` 的“会员到期”设置管理邮件开关、fallback 套餐编码、宽限期、提醒天数和超额策略。宽限期用于续费提示与数据保留，不延长付费上传额度。

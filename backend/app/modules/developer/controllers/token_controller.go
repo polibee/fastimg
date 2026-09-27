@@ -24,7 +24,7 @@ type tokenRequest struct {
 }
 
 func NewTokenController() *TokenController {
-	return &TokenController{service: developerservices.NewService(developerservices.NewDatabaseRepository())}
+	return &TokenController{service: developerservices.NewDatabaseService()}
 }
 
 func (c *TokenController) Index(ctx httpcontract.Context) httpcontract.Response {
@@ -55,7 +55,7 @@ func (c *TokenController) Create(ctx httpcontract.Context) httpcontract.Response
 	return ctx.Response().Status(http.StatusCreated).Json(httpcontract.Json{"data": created})
 }
 
-func (c *TokenController) Revoke(ctx httpcontract.Context) httpcontract.Response {
+func (c *TokenController) Delete(ctx httpcontract.Context) httpcontract.Response {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
 		return tokenFailure(ctx, http.StatusUnauthorized, "AUTH_UNAUTHORIZED")
@@ -64,7 +64,7 @@ func (c *TokenController) Revoke(ctx httpcontract.Context) httpcontract.Response
 	if id <= 0 {
 		return tokenFailure(ctx, http.StatusNotFound, "TOKEN_NOT_FOUND")
 	}
-	if err := c.service.Revoke(ctx.Context(), userID, uint(id)); err != nil {
+	if err := c.service.Delete(ctx.Context(), userID, uint(id)); err != nil {
 		return tokenServiceFailure(ctx, err)
 	}
 	return ctx.Response().NoContent(http.StatusNoContent)
@@ -104,6 +104,8 @@ func tokenServiceFailure(ctx httpcontract.Context, err error) httpcontract.Respo
 		return tokenFailure(ctx, http.StatusNotFound, "TOKEN_NOT_FOUND")
 	case errors.Is(err, developerservices.ErrInvalidTokenName), errors.Is(err, developerservices.ErrInvalidTokenExpiry), errors.Is(err, developerservices.ErrInvalidTokenScope):
 		return tokenFailure(ctx, http.StatusUnprocessableEntity, "TOKEN_VALIDATION_FAILED")
+	case errors.Is(err, developerservices.ErrTokenLimitReached):
+		return tokenFailure(ctx, http.StatusConflict, "TOKEN_LIMIT_REACHED")
 	default:
 		return tokenFailure(ctx, http.StatusInternalServerError, "TOKEN_OPERATION_FAILED")
 	}

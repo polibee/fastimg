@@ -14,8 +14,9 @@ import (
 )
 
 var (
-	ErrPaymentNotAllowed     = errors.New("payment is not allowed for this order")
-	ErrPaymentIntentNotFound = errors.New("payment intent not found")
+	ErrPaymentNotAllowed          = errors.New("payment is not allowed for this order")
+	ErrPaymentIntentNotFound      = errors.New("payment intent not found")
+	ErrPaymentIdempotencyConflict = errors.New("payment idempotency key belongs to another payment")
 )
 
 type StartPaymentRequest struct {
@@ -46,7 +47,7 @@ func (s *PaymentService) StartPayment(ctx context.Context, userID, orderID uint,
 			return ErrPaymentNotAllowed
 		}
 		if err := tx.Where("user_id = ? AND idempotency_key = ?", userID, idempotencyKey).First(&intent); err == nil {
-			return nil
+			return ValidatePaymentIdempotency(intent, orderID, input.GatewayCode, idempotencyKey)
 		}
 		intent = models.PaymentIntent{OrderID: order.ID, UserID: userID, ProviderCode: input.GatewayCode, AmountMinor: order.TotalAmountMinor, Currency: order.Currency, Status: "created", AttemptNo: 1, IdempotencyKey: idempotencyKey}
 		return tx.Create(&intent)
@@ -60,11 +61,23 @@ func (s *PaymentService) StartPayment(ctx context.Context, userID, orderID uint,
 	session, err := gateway.CreatePayment(ctx, providers.CreatePaymentRequest{OrderNo: order.PublicOrderNo, PaymentIntentID: intent.ID, AmountMinor: order.TotalAmountMinor, Currency: order.Currency, Description: "FastImg plan order", IdempotencyKey: idempotencyKey})
 	if err != nil {
 		_, _ = facades.Orm().Query().Model(&models.PaymentIntent{}).Where("id = ?", intent.ID).Update(map[string]any{"status": "failed", "failed_at": time.Now().UTC()})
-		return nil, fmt.Errorf("create gateway payment: %w", err)
+		if errors.Is(err, providers.ErrGatewayUnavailable) {
+			return nil, err
+		}
+		return nil, providers.NormalizeProviderError(input.GatewayCode, fmt.Errorf("create gateway payment: %w", err))
 	}
 	if _, err := facades.Orm().Query().Model(&models.PaymentIntent{}).Where("id = ?", intent.ID).Update(map[string]any{"status": session.Status, "provider_payment_id": session.ProviderPaymentID, "checkout_url": session.CheckoutURL}); err != nil {
 		return nil, err
 	}
 	intent.Status, intent.ProviderPaymentID, intent.CheckoutURL = session.Status, session.ProviderPaymentID, session.CheckoutURL
 	return &intent, nil
+}
+
+// ValidatePaymentIdempotency prevents a client from replaying a key created
+// for a different order or provider and receiving the wrong checkout session.
+func ValidatePaymentIdempotency(existing models.PaymentIntent, orderID uint, gatewayCode, key string) error {
+	if existing.OrderID != orderID || existing.ProviderCode != gatewayCode || existing.IdempotencyKey != key {
+		return ErrPaymentIdempotencyConflict
+	}
+	return nil
 }

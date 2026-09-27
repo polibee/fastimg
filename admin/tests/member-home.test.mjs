@@ -12,10 +12,10 @@ const read = (relativePath) => {
 
 test('member home is the default route and owns the flat member links', () => {
   const router = read('src/router/index.ts')
-  const memberRoutes = read('src/apps/member/routes.ts')
+  const memberRoutes = read('src/apps/member/route-public.ts')
   const home = read('src/modules/member/pages/MemberHomePage.vue')
   assert.match(router, /memberRoutes/)
-  assert.match(memberRoutes, /name:\s*'member-home'[\s\S]*?MemberHomePage\.vue/)
+  assert.match(memberRoutes, /name:\s*['"]member-home['"][\s\S]*?MemberHomePage/)
   assert.match(home, /MemberUploadPanel/)
   assert.match(home, /to="\/media"/)
   assert.match(home, /to="\/plans"/)

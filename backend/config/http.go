@@ -26,8 +26,11 @@ func init() {
 		"host": config.Env("APP_HOST", "127.0.0.1"),
 		// HTTP Port
 		"port": config.Env("APP_PORT", "3000"),
-		// HTTP Timeout, default is 3 seconds
-		"request_timeout": 3,
+		// Payment providers and image processing can legitimately exceed the
+		// framework's historical 3-second default. Provider clients still keep
+		// their own 10-second outbound timeout; this is only the inbound request
+		// budget. Override with HTTP_REQUEST_TIMEOUT when deploying.
+		"request_timeout": config.Env("HTTP_REQUEST_TIMEOUT", 30),
 		// HTTPS Configuration
 		"tls": map[string]any{
 			// HTTPS Host

@@ -1,6 +1,9 @@
 package advertising
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestPrepareAdvertisingWriteValidatesAdminCreative(t *testing.T) {
 	valid := map[string]any{
@@ -44,5 +47,30 @@ func TestPrepareAdvertisingWriteRejectsUnsafeOrIncompleteCreative(t *testing.T) 
 				t.Fatal("expected validation error")
 			}
 		})
+	}
+}
+
+func TestShouldShowAdsUsesTheEffectivePlanEntitlement(t *testing.T) {
+	if ShouldShowAds(false) {
+		t.Fatal("a plan with ads disabled must not receive ads")
+	}
+	if !ShouldShowAds(true) {
+		t.Fatal("a plan with ads enabled should receive ads")
+	}
+}
+
+func TestAdAvailabilityUsesPlanAndSchedule(t *testing.T) {
+	now := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
+	start := now.Add(-time.Hour)
+	end := now.Add(time.Hour)
+
+	if !AdAvailableForUser("creator", "creator", &start, &end, now) {
+		t.Fatal("matching plan inside schedule should receive the ad")
+	}
+	if AdAvailableForUser("free", "creator", &start, &end, now) {
+		t.Fatal("different plan must not receive a plan-specific ad")
+	}
+	if AdAvailableForUser("creator", "creator", nil, &start, now) {
+		t.Fatal("expired ad must not be published")
 	}
 }

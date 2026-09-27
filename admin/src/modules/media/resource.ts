@@ -11,8 +11,8 @@ export const resourceDefinition = {
   filters: [{ name: 'user_id', label: 'User ID', type: 'select' }, { name: 'status', label: 'Status', type: 'select', options: [{ value: 'processing', label: 'Processing' }, { value: 'ready', label: 'Ready' }, { value: 'blocked', label: 'Blocked' }, { value: 'deleted', label: 'Deleted' }] }, { name: 'visibility', label: 'Visibility', type: 'select', options: [{ value: 'private', label: 'Private' }, { value: 'link', label: 'Unlisted' }, { value: 'public', label: 'Public' }] }, { name: 'moderation_status', label: 'Moderation status', type: 'select', options: [{ value: 'pending', label: 'Pending' }, { value: 'manual_review', label: 'Manual review' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }] }],
   actions: [
     { name: 'view', label: 'View', kind: '', permission: 'admin.media.view', batch: false, payload: '' },
-    { name: 'update', label: 'Moderate', kind: '', permission: 'admin.media.update', batch: false, payload: '' },
-    { name: 'delete', label: 'Delete', kind: '', permission: 'admin.media.delete', batch: false, payload: '' },
+    { name: 'moderate', label: 'Moderate media', kind: 'media-moderation', permission: 'admin.media.update', batch: true, payload: 'media-moderation', payload_fields: [{ name: 'operation', label: 'Operation', type: 'select', required: true, options: [{ value: 'hide', label: 'Hide' }, { value: 'restore', label: 'Restore' }, { value: 'approve', label: 'Approve' }, { value: 'reject', label: 'Reject' }] }] },
+    { name: 'permanent-delete', label: 'Permanently delete', kind: 'media-permanent-delete', permission: 'admin.media.delete', batch: true, payload: 'media-permanent-delete', payload_fields: [{ name: 'confirmation', label: 'Confirmation', type: 'text', required: true }] },
   ],
   relations: [], form_groups: [], details: [],
   fields: [
@@ -24,10 +24,9 @@ export const resourceDefinition = {
     { name: 'size_bytes', label: 'Size (bytes)', type: 'integer', visible: true, readable: true, writable: false, sensitive: false },
     { name: 'width', label: 'Width', type: 'integer', visible: true, readable: true, writable: false, sensitive: false },
     { name: 'height', label: 'Height', type: 'integer', visible: true, readable: true, writable: false, sensitive: false },
-    { name: 'status', label: 'Status', type: 'select', required: true, visible: true, readable: true, writable: true, sensitive: false, options: [{ value: 'processing', label: 'Processing' }, { value: 'ready', label: 'Ready' }, { value: 'blocked', label: 'Blocked' }, { value: 'deleted', label: 'Deleted' }] },
-    { name: 'visibility', label: 'Visibility', type: 'select', required: true, visible: true, readable: true, writable: true, sensitive: false, options: [{ value: 'private', label: 'Private' }, { value: 'link', label: 'Unlisted' }, { value: 'public', label: 'Public' }] },
-    { name: 'moderation_status', label: 'Moderation status', type: 'select', required: true, visible: true, readable: true, writable: true, sensitive: false, options: [{ value: 'pending', label: 'Pending' }, { value: 'manual_review', label: 'Manual review' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }] },
-    { name: 'discovery_submitted_at', label: 'Discovery submitted at', type: 'datetime-local', visible: true, readable: true, writable: false, sensitive: false },
+    { name: 'status', label: 'Status', type: 'select', required: true, visible: true, readable: true, writable: false, sensitive: false, options: [{ value: 'processing', label: 'Processing' }, { value: 'ready', label: 'Ready' }, { value: 'blocked', label: 'Blocked' }, { value: 'deleted', label: 'Deleted' }] },
+    { name: 'visibility', label: 'Visibility', type: 'select', required: true, visible: true, readable: true, writable: false, sensitive: false, options: [{ value: 'private', label: 'Private' }, { value: 'link', label: 'Unlisted' }, { value: 'public', label: 'Public' }] },
+    { name: 'moderation_status', label: 'Moderation status', type: 'select', required: true, visible: true, readable: true, writable: false, sensitive: false, options: [{ value: 'pending', label: 'Pending' }, { value: 'manual_review', label: 'Manual review' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }] },
     { name: 'deleted_at', label: 'Deleted at', type: 'datetime-local', visible: true, readable: true, writable: false, sensitive: false },
   ],
 } as const

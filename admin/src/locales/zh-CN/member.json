@@ -49,6 +49,21 @@
       "other": "其他违规内容"
     }
   },
+  "publicAlbum": {
+    "siteName": "FastImg",
+    "title": "公开相册",
+    "eyebrow": "公开相册",
+    "description": "浏览公开相册“{name}”中的图片。",
+    "backToDiscover": "返回发现",
+    "loading": "正在加载相册…",
+    "retry": "重试",
+    "errorTitle": "相册暂时不可用",
+    "errorDescription": "公开相册加载失败，请稍后重试。",
+    "notFoundTitle": "相册不存在或不可公开",
+    "notFoundDescription": "该相册可能已设为私有、被删除，或尚未公开。",
+    "emptyTitle": "相册还没有公开图片",
+    "emptyDescription": "相册所有者公开的图片会显示在这里。"
+  },
   "reports": {
     "title": "我的举报",
     "workspace": "内容反馈",

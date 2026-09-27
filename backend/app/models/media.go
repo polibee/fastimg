@@ -36,12 +36,12 @@ type MediaVariant struct {
 
 type StorageObject struct {
 	orm.Model
-	Provider    string `json:"provider"`
-	ObjectKey   string `json:"object_key"`
-	ContentType string `json:"content_type"`
-	SizeBytes   int64  `json:"size_bytes"`
-	SHA256      string `json:"sha256"`
-	Status      string `json:"status"`
+	StorageConnectionID uint   `json:"storage_connection_id"`
+	ObjectKey           string `json:"object_key"`
+	ContentType         string `json:"content_type"`
+	SizeBytes           int64  `json:"size_bytes"`
+	SHA256              string `json:"sha256"`
+	Status              string `json:"status"`
 }
 
 type UploadSession struct {

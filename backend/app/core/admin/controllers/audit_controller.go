@@ -28,8 +28,15 @@ func (a *AuditController) Index(ctx http.Context) http.Response {
 	}
 	action := strings.TrimSpace(ctx.Request().Query("action"))
 	userID := strings.TrimSpace(ctx.Request().Query("user_id"))
+	includeTechnical := strings.EqualFold(strings.TrimSpace(ctx.Request().Query("include_technical")), "true")
 
 	q := facades.Orm().Query().Table("audit_logs")
+	// Older builds recorded every request as http.GET/http.POST. Keep those
+	// rows for retention/forensics, but keep the normal administrator view
+	// focused on named business events and failures.
+	if !includeTechnical {
+		q = q.Where("action NOT LIKE ?", "http.%")
+	}
 	if action != "" {
 		q = q.Where("action = ?", action)
 	}

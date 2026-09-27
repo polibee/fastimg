@@ -26,6 +26,68 @@ func ShouldAuditHTTP(method, path string) bool {
 	return path != "/api/v1/admin/audit-logs"
 }
 
+// ShouldRecordHTTP keeps the audit trail focused on security-sensitive
+// actions, mutations, and failures. Successful media delivery and read-only
+// page data already have domain-specific access/statistics records and should
+// not flood the administrator audit view.
+func ShouldRecordHTTP(method, path string, status int) bool {
+	if status >= 400 {
+		return true
+	}
+	if ClassifyHTTPAction(method, path) == "auth.refresh" {
+		return false
+	}
+	return !strings.EqualFold(method, "GET") && !strings.EqualFold(method, "HEAD")
+}
+
+func ClassifyHTTPAction(method, path string) string {
+	path = strings.SplitN(path, "?", 2)[0]
+	path = strings.TrimSuffix(path, "/")
+	if strings.HasPrefix(path, "/api/v1/auth/") {
+		return "auth." + strings.TrimPrefix(path, "/api/v1/auth/")
+	}
+	switch {
+	case strings.HasPrefix(path, "/api/v1/payment-gateways/") && strings.HasSuffix(path, "/webhook"):
+		return "billing.webhook.receive"
+	case strings.HasSuffix(path, "/payments") && strings.HasPrefix(path, "/api/v1/orders/"):
+		if strings.EqualFold(method, "POST") {
+			return "billing.payment.create"
+		}
+		return "billing.payment.view"
+	case strings.HasPrefix(path, "/api/v1/orders"):
+		return "billing.order." + httpActionVerb(method)
+	case strings.HasPrefix(path, "/api/v1/media/") && strings.HasSuffix(path, "/reports"):
+		return "moderation.report." + httpActionVerb(method)
+	case path == "/api/v1/uploads" || strings.HasPrefix(path, "/api/v1/uploads/"):
+		return "media.upload"
+	case strings.HasPrefix(path, "/api/v1/media"):
+		return "media." + httpActionVerb(method)
+	case strings.HasPrefix(path, "/api/v1/admin/settings"):
+		return "settings." + httpActionVerb(method)
+	case strings.HasPrefix(path, "/api/v1/admin/reports"):
+		return "moderation.report." + httpActionVerb(method)
+	case strings.HasPrefix(path, "/api/v1/admin/"):
+		return "admin." + httpActionVerb(method)
+	case strings.HasPrefix(path, "/api/v1/tokens"):
+		return "developer.token." + httpActionVerb(method)
+	default:
+		return "http." + strings.ToLower(httpActionVerb(method))
+	}
+}
+
+func httpActionVerb(method string) string {
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case "POST":
+		return "create"
+	case "PUT", "PATCH":
+		return "update"
+	case "DELETE":
+		return "delete"
+	default:
+		return "read"
+	}
+}
+
 // RequestBodyForAudit avoids parsing file bodies into audit events and leaves
 // multipart parsing to the route after its request-size limit is installed.
 func RequestBodyForAudit(contentType string, readAll func() map[string]any) map[string]any {
@@ -55,6 +117,9 @@ func BuildHTTPAuditMetadata(input HTTPAuditInput) map[string]any {
 		}
 	}
 	metadata := map[string]any{
+		"category":  auditCategory(ClassifyHTTPAction(input.Method, input.Path)),
+		"operation": ClassifyHTTPAction(input.Method, input.Path),
+		"outcome":   auditOutcome(input.Status),
 		"request": map[string]any{
 			"method": input.Method,
 			"path":   input.Path,
@@ -74,4 +139,18 @@ func BuildHTTPAuditMetadata(input HTTPAuditInput) map[string]any {
 		response["body_bytes"] = bodyBytes
 	}
 	return metadata
+}
+
+func auditCategory(action string) string {
+	if index := strings.IndexByte(action, '.'); index > 0 {
+		return action[:index]
+	}
+	return "other"
+}
+
+func auditOutcome(status int) string {
+	if status >= 400 {
+		return "error"
+	}
+	return "success"
 }

@@ -62,6 +62,40 @@ type AlbumMediaMove struct {
 	Skipped []uint `json:"skipped_ids"`
 }
 
+type AdminAlbumMediaItem struct {
+	ID           uint   `json:"id"`
+	OriginalName string `json:"original_name"`
+	UserID       uint   `json:"user_id"`
+	Status       string `json:"status"`
+	Visibility   string `json:"visibility"`
+	SortOrder    int    `json:"sort_order"`
+}
+
+type AdminAlbumMediaMutation struct {
+	Changed []uint `json:"changed_ids"`
+}
+
+// PublicAlbum is the deliberately small read model exposed to unauthenticated
+// visitors. It never includes the album owner or storage object identifiers.
+type PublicAlbum struct {
+	ID         uint               `json:"id"`
+	Name       string             `json:"name"`
+	Visibility string             `json:"visibility"`
+	Media      []PublicAlbumMedia `json:"media"`
+	CreatedAt  string             `json:"created_at,omitempty"`
+	UpdatedAt  string             `json:"updated_at,omitempty"`
+}
+
+type PublicAlbumMedia struct {
+	ID           uint   `json:"id"`
+	OriginalName string `json:"original_name"`
+	ContentType  string `json:"content_type"`
+	Width        int64  `json:"width"`
+	Height       int64  `json:"height"`
+	SizeBytes    int64  `json:"size_bytes"`
+	CreatedAt    string `json:"created_at,omitempty"`
+}
+
 type Repository interface {
 	List(ctx context.Context, kind Kind, userID uint) ([]Item, error)
 	Find(ctx context.Context, kind Kind, userID, id uint) (Item, error)
@@ -80,6 +114,16 @@ type AlbumMediaRepository interface {
 	ListAlbumMediaIDs(ctx context.Context, userID, albumID uint) ([]uint, error)
 }
 
+type AdminAlbumMediaRepository interface {
+	ListAdminAlbumMedia(ctx context.Context, albumID uint) ([]AdminAlbumMediaItem, error)
+	AddAdminMediaToAlbum(ctx context.Context, albumID uint, mediaIDs []uint) (AdminAlbumMediaMutation, error)
+	RemoveAdminMediaFromAlbum(ctx context.Context, albumID uint, mediaIDs []uint) (AdminAlbumMediaMutation, error)
+}
+
+type PublicAlbumRepository interface {
+	FindPublicAlbum(ctx context.Context, albumID uint) (PublicAlbum, error)
+}
+
 type Service struct{ repository Repository }
 
 func NewService(repository Repository) *Service { return &Service{repository: repository} }
@@ -89,6 +133,17 @@ func (s *Service) List(ctx context.Context, kind Kind, userID uint) ([]Item, err
 		return nil, err
 	}
 	return s.repository.List(ctx, kind, userID)
+}
+
+func (s *Service) PublicAlbum(ctx context.Context, albumID uint) (PublicAlbum, error) {
+	if albumID == 0 {
+		return PublicAlbum{}, ErrNotFound
+	}
+	repository, ok := s.repository.(PublicAlbumRepository)
+	if !ok {
+		return PublicAlbum{}, errors.New("public album access is not supported")
+	}
+	return repository.FindPublicAlbum(ctx, albumID)
 }
 
 func (s *Service) Create(ctx context.Context, kind Kind, userID uint, input Input) (Item, error) {
@@ -257,6 +312,41 @@ func (s *Service) ListAlbumMediaIDs(ctx context.Context, userID, albumID uint) (
 		return nil, err
 	}
 	return repository.ListAlbumMediaIDs(ctx, userID, albumID)
+}
+
+func (s *Service) ListAdminAlbumMedia(ctx context.Context, albumID uint) ([]AdminAlbumMediaItem, error) {
+	repository, ok := s.repository.(AdminAlbumMediaRepository)
+	if !ok {
+		return nil, errors.New("admin album media association is not supported")
+	}
+	if albumID == 0 {
+		return nil, ErrNotFound
+	}
+	return repository.ListAdminAlbumMedia(ctx, albumID)
+}
+
+func (s *Service) AddAdminMediaToAlbum(ctx context.Context, albumID uint, mediaIDs []uint) (AdminAlbumMediaMutation, error) {
+	normalized, err := normalizeMediaIDs(mediaIDs)
+	if err != nil {
+		return AdminAlbumMediaMutation{}, err
+	}
+	repository, ok := s.repository.(AdminAlbumMediaRepository)
+	if !ok {
+		return AdminAlbumMediaMutation{}, errors.New("admin album media association is not supported")
+	}
+	return repository.AddAdminMediaToAlbum(ctx, albumID, normalized)
+}
+
+func (s *Service) RemoveAdminMediaFromAlbum(ctx context.Context, albumID uint, mediaIDs []uint) (AdminAlbumMediaMutation, error) {
+	normalized, err := normalizeMediaIDs(mediaIDs)
+	if err != nil {
+		return AdminAlbumMediaMutation{}, err
+	}
+	repository, ok := s.repository.(AdminAlbumMediaRepository)
+	if !ok {
+		return AdminAlbumMediaMutation{}, errors.New("admin album media association is not supported")
+	}
+	return repository.RemoveAdminMediaFromAlbum(ctx, albumID, normalized)
 }
 
 func normalizeMediaIDs(mediaIDs []uint) ([]uint, error) {

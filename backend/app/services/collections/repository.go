@@ -50,6 +50,53 @@ func (r *DatabaseRepository) List(_ context.Context, kind Kind, userID uint) ([]
 	return items, nil
 }
 
+func (r *DatabaseRepository) FindPublicAlbum(_ context.Context, albumID uint) (PublicAlbum, error) {
+	var albumRows []map[string]any
+	if err := facades.Orm().Query().Table("albums").Where("id = ? AND visibility = ?", albumID, "public").Get(&albumRows); err != nil {
+		return PublicAlbum{}, err
+	}
+	if len(albumRows) == 0 {
+		return PublicAlbum{}, ErrNotFound
+	}
+	album := itemFromRow(KindAlbum, albumRows[0])
+
+	var relations []map[string]any
+	if err := facades.Orm().Query().Table("album_media").Where("album_id = ? AND user_id = ?", album.ID, album.UserID).OrderBy("sort_order", "asc").OrderBy("id", "asc").Get(&relations); err != nil {
+		return PublicAlbum{}, err
+	}
+	mediaIDs := make([]any, 0, len(relations))
+	for _, relation := range relations {
+		mediaIDs = append(mediaIDs, rowUint(relation["media_asset_id"]))
+	}
+	mediaByID := make(map[uint]map[string]any, len(mediaIDs))
+	if len(mediaIDs) > 0 {
+		var mediaRows []map[string]any
+		if err := facades.Orm().Query().Table("media_assets").Where("user_id = ? AND status = ? AND deleted_at IS NULL AND visibility = ? AND moderation_status <> ?", album.UserID, "ready", "public", "rejected").WhereIn("id", mediaIDs).Get(&mediaRows); err != nil {
+			return PublicAlbum{}, err
+		}
+		for _, media := range mediaRows {
+			mediaByID[rowUint(media["id"])] = media
+		}
+	}
+	media := make([]PublicAlbumMedia, 0, len(mediaByID))
+	for _, relation := range relations {
+		mediaRow, ok := mediaByID[rowUint(relation["media_asset_id"])]
+		if !ok {
+			continue
+		}
+		media = append(media, PublicAlbumMedia{
+			ID:           rowUint(mediaRow["id"]),
+			OriginalName: rowString(mediaRow["original_name"]),
+			ContentType:  rowString(mediaRow["content_type"]),
+			Width:        rowInt64(mediaRow["width"]),
+			Height:       rowInt64(mediaRow["height"]),
+			SizeBytes:    rowInt64(mediaRow["size_bytes"]),
+			CreatedAt:    rowString(mediaRow["created_at"]),
+		})
+	}
+	return PublicAlbum{ID: album.ID, Name: album.Name, Visibility: album.Visibility, Media: media, CreatedAt: album.CreatedAt, UpdatedAt: album.UpdatedAt}, nil
+}
+
 func (r *DatabaseRepository) Find(_ context.Context, kind Kind, userID, id uint) (Item, error) {
 	table, err := collectionTable(kind)
 	if err != nil {
@@ -327,6 +374,97 @@ func (r *DatabaseRepository) ListAlbumMediaIDs(_ context.Context, userID, albumI
 	return mediaIDs, nil
 }
 
+func (r *DatabaseRepository) ListAdminAlbumMedia(_ context.Context, albumID uint) ([]AdminAlbumMediaItem, error) {
+	var albumRows []map[string]any
+	if err := facades.Orm().Query().Table("albums").Where("id = ?", albumID).Get(&albumRows); err != nil || len(albumRows) == 0 {
+		return nil, ErrNotFound
+	}
+	var relations []map[string]any
+	if err := facades.Orm().Query().Table("album_media").Where("album_id = ?", albumID).OrderBy("sort_order", "asc").OrderBy("id", "asc").Get(&relations); err != nil {
+		return nil, err
+	}
+	if len(relations) == 0 {
+		return []AdminAlbumMediaItem{}, nil
+	}
+	mediaIDs := make([]any, 0, len(relations))
+	for _, row := range relations {
+		mediaIDs = append(mediaIDs, rowUint(row["media_asset_id"]))
+	}
+	var mediaRows []map[string]any
+	if err := facades.Orm().Query().Table("media_assets").Where("status = ?", "ready").WhereIn("id", mediaIDs).Get(&mediaRows); err != nil {
+		return nil, err
+	}
+	byID := make(map[uint]map[string]any, len(mediaRows))
+	for _, row := range mediaRows {
+		byID[rowUint(row["id"])] = row
+	}
+	items := make([]AdminAlbumMediaItem, 0, len(relations))
+	for _, relation := range relations {
+		mediaID := rowUint(relation["media_asset_id"])
+		media, ok := byID[mediaID]
+		if !ok {
+			continue
+		}
+		items = append(items, AdminAlbumMediaItem{ID: mediaID, OriginalName: fmt.Sprint(media["original_name"]), UserID: rowUint(media["user_id"]), Status: fmt.Sprint(media["status"]), Visibility: fmt.Sprint(media["visibility"]), SortOrder: int(rowUint(relation["sort_order"]))})
+	}
+	return items, nil
+}
+
+func (r *DatabaseRepository) AddAdminMediaToAlbum(_ context.Context, albumID uint, mediaIDs []uint) (mutation AdminAlbumMediaMutation, err error) {
+	err = facades.Orm().Transaction(func(tx orm.Query) error {
+		var albums []map[string]any
+		if err := tx.Table("albums").Where("id = ?", albumID).LockForUpdate().Get(&albums); err != nil || len(albums) == 0 {
+			return ErrNotFound
+		}
+		ownerID := rowUint(albums[0]["user_id"])
+		mediaArgs := uintArgs(mediaIDs)
+		var mediaRows []map[string]any
+		if err := tx.Table("media_assets").Where("user_id = ? AND status = ?", ownerID, "ready").WhereIn("id", mediaArgs).Get(&mediaRows); err != nil {
+			return err
+		}
+		if len(mediaRows) != len(mediaIDs) {
+			return ErrMediaNotFound
+		}
+		var existing []map[string]any
+		if err := tx.Table("album_media").Where("album_id = ?", albumID).WhereIn("media_asset_id", mediaArgs).Get(&existing); err != nil {
+			return err
+		}
+		seen := make(map[uint]struct{}, len(existing))
+		for _, row := range existing {
+			seen[rowUint(row["media_asset_id"])] = struct{}{}
+		}
+		for _, mediaID := range mediaIDs {
+			if _, ok := seen[mediaID]; ok {
+				continue
+			}
+			if err := tx.Table("album_media").Create(&map[string]any{"album_id": albumID, "media_asset_id": mediaID, "user_id": ownerID, "sort_order": 0}); err != nil {
+				return err
+			}
+			mutation.Changed = append(mutation.Changed, mediaID)
+		}
+		return nil
+	})
+	return mutation, err
+}
+
+func (r *DatabaseRepository) RemoveAdminMediaFromAlbum(_ context.Context, albumID uint, mediaIDs []uint) (mutation AdminAlbumMediaMutation, err error) {
+	if exists, checkErr := facades.Orm().Query().Table("albums").Where("id = ?", albumID).Exists(); checkErr != nil {
+		return mutation, checkErr
+	} else if !exists {
+		return mutation, ErrNotFound
+	}
+	for _, mediaID := range mediaIDs {
+		result, deleteErr := facades.Orm().Query().Table("album_media").Where("album_id = ? AND media_asset_id = ?", albumID, mediaID).Delete()
+		if deleteErr != nil {
+			return mutation, deleteErr
+		}
+		if result.RowsAffected > 0 {
+			mutation.Changed = append(mutation.Changed, mediaID)
+		}
+	}
+	return mutation, nil
+}
+
 func (r *DatabaseRepository) insert(table string, columns []string, args []any, kind Kind, userID uint) (Item, error) {
 	placeholders := make([]string, len(columns))
 	for i := range placeholders {
@@ -370,6 +508,11 @@ func itemFromRow(kind Kind, row map[string]any) Item {
 func rowUint(value any) uint {
 	parsed, _ := strconv.ParseUint(fmt.Sprint(value), 10, 64)
 	return uint(parsed)
+}
+
+func rowInt64(value any) int64 {
+	parsed, _ := strconv.ParseInt(fmt.Sprint(value), 10, 64)
+	return parsed
 }
 
 func rowIntPtr(value any) *int {

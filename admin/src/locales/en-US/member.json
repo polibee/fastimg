@@ -49,6 +49,21 @@
       "other": "Other policy violation"
     }
   },
+  "publicAlbum": {
+    "siteName": "FastImg",
+    "title": "Public album",
+    "eyebrow": "Public album",
+    "description": "Browse the images in the public album “{name}”.",
+    "backToDiscover": "Back to Discover",
+    "loading": "Loading album…",
+    "retry": "Retry",
+    "errorTitle": "Album is temporarily unavailable",
+    "errorDescription": "The public album could not be loaded. Try again later.",
+    "notFoundTitle": "Album is not public or does not exist",
+    "notFoundDescription": "The album may be private, deleted, or no longer public.",
+    "emptyTitle": "No public images in this album",
+    "emptyDescription": "Images made public by the album owner will appear here."
+  },
   "reports": {
     "title": "My reports",
     "workspace": "Content feedback",

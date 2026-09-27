@@ -19,7 +19,9 @@ func init() {
 				"database": config.Env("DB_DATABASE"),
 				"username": config.Env("DB_USERNAME"),
 				"password": config.Env("DB_PASSWORD"),
-				"sslmode":  "disable",
+				// Production deployments must set DB_SSLMODE explicitly. Local
+				// Laragon PostgreSQL keeps the historical disable default.
+				"sslmode":  config.Env("DB_SSLMODE", "disable"),
 				"singular": false,
 				"prefix":   "",
 				"schema":   config.Env("DB_SCHEMA", "public"),

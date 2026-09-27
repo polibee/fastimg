@@ -44,3 +44,19 @@ func TestNormalizeSettingType(t *testing.T) {
 	assert.Equal(t, "string", normalizeSettingType(""))
 	assert.Equal(t, "boolean", normalizeSettingType(" boolean "))
 }
+
+func TestStorageProviderCredentialsAreSecretSettings(t *testing.T) {
+	keys := []string{
+		"storage.cloudflare_r2.access_key_id",
+		"storage.cloudflare_r2.secret_access_key",
+		"storage.aliyun_oss.access_key_id",
+		"storage.aliyun_oss.access_key_secret",
+		"storage.tencent_cos.secret_id",
+		"storage.tencent_cos.secret_key",
+	}
+	for _, key := range keys {
+		if !IsSecretKey(key) {
+			t.Errorf("IsSecretKey(%q) = false, want true", key)
+		}
+	}
+}

@@ -176,6 +176,9 @@ func (r *DatabaseRepository) Resolve(_ context.Context, token, variant, password
 	if err := facades.Orm().Query().Where("id = ? AND user_id = ? AND status = ?", link.MediaAssetID, link.UserID, "ready").First(&asset); err != nil {
 		return mediaservices.MediaVariantObject{}, ErrShareUnavailable
 	}
+	if asset.ModerationStatus == mediaservices.ModerationRejected {
+		return mediaservices.MediaVariantObject{}, ErrShareUnavailable
+	}
 	var mediaVariant models.MediaVariant
 	if err := facades.Orm().Query().Where("media_asset_id = ? AND name = ? AND status = ?", asset.ID, variant, "ready").First(&mediaVariant); err != nil {
 		return mediaservices.MediaVariantObject{}, ErrShareUnavailable

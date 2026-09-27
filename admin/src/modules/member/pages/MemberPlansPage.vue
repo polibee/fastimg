@@ -32,9 +32,9 @@ interface Plan {
   code: string
   name: string
   description: string
-  price_amount: number
-  currency: string
-  billing_period: string
+  price_amount?: number
+  currency?: string
+  billing_period?: string
   entitlements: PlanEntitlements
   prices?: MemberPlanPrice[]
 }
@@ -109,12 +109,29 @@ function formatCount(value: number) {
   return value ? new Intl.NumberFormat(locale.value).format(value) : t('member.plans.unlimited')
 }
 
+function primaryPrice(plan: Plan) {
+  return plan.prices?.find((price) => price.status === 'active') ?? plan.prices?.[0]
+}
+
+function amountMinor(plan: Plan) {
+  return primaryPrice(plan)?.amount_minor ?? plan.price_amount ?? 0
+}
+
+function currency(plan: Plan) {
+  return primaryPrice(plan)?.currency ?? plan.currency ?? 'CNY'
+}
+
+function billingPeriod(plan: Plan) {
+  return primaryPrice(plan)?.billing_period ?? plan.billing_period ?? ''
+}
+
 function formatPrice(plan: Plan) {
-  if (plan.price_amount === 0) return t('member.plans.free')
+  const amount = amountMinor(plan)
+  if (amount === 0) return t('member.plans.free')
   try {
-    return new Intl.NumberFormat(locale.value, { style: 'currency', currency: plan.currency }).format(plan.price_amount / 100)
+    return new Intl.NumberFormat(locale.value, { style: 'currency', currency: currency(plan) }).format(amount / 100)
   } catch {
-    return `${(plan.price_amount / 100).toFixed(2)} ${plan.currency}`
+    return `${(amount / 100).toFixed(2)} ${currency(plan)}`
   }
 }
 
@@ -135,8 +152,8 @@ function entitlementRows(plan: Plan) {
 }
 
 async function startCheckout(plan: Plan) {
-  if (!auth.token || plan.price_amount === 0) return
-  const price = plan.prices?.[0]
+  if (!auth.token || amountMinor(plan) === 0) return
+  const price = primaryPrice(plan)
   if (!price) return
   checkoutLoading.value = plan.id
   try {
@@ -228,7 +245,7 @@ async function startCheckout(plan: Plan) {
               </div>
               <Badge v-if="plan.id === currentPlanID" variant="default">{{ t('member.plans.current') }}</Badge>
             </div>
-            <p class="pt-3 text-3xl font-semibold tracking-tight">{{ formatPrice(plan) }}<span v-if="plan.price_amount > 0" class="ml-1 text-sm font-normal text-muted-foreground">/ {{ t(`member.plans.periods.${plan.billing_period}`, plan.billing_period) }}</span></p>
+            <p class="pt-3 text-3xl font-semibold tracking-tight">{{ formatPrice(plan) }}<span v-if="amountMinor(plan) > 0" class="ml-1 text-sm font-normal text-muted-foreground">/ {{ t(`member.plans.periods.${billingPeriod(plan)}`, billingPeriod(plan)) }}</span></p>
           </CardHeader>
           <CardContent class="flex flex-1 flex-col gap-4">
             <ul class="flex flex-col gap-3 border-t pt-4">
@@ -237,8 +254,8 @@ async function startCheckout(plan: Plan) {
                 <span class="flex items-center gap-1 text-right font-medium"><Check />{{ item.value }}</span>
               </li>
             </ul>
-            <Button class="mt-auto w-full" :variant="plan.id === currentPlanID ? 'secondary' : 'outline'" :disabled="plan.id === currentPlanID || plan.price_amount === 0 || !plan.prices?.length || checkoutLoading === plan.id" @click="startCheckout(plan)">
-              {{ checkoutLoading === plan.id ? t('member.billing.creatingOrder') : plan.id === currentPlanID ? t('member.plans.current') : plan.price_amount === 0 ? t('member.plans.free') : plan.prices?.length ? t('member.billing.choosePlan') : t('member.plans.purchaseUnavailable') }}
+            <Button class="mt-auto w-full" :variant="plan.id === currentPlanID ? 'secondary' : 'outline'" :disabled="plan.id === currentPlanID || amountMinor(plan) === 0 || !plan.prices?.length || checkoutLoading === plan.id" @click="startCheckout(plan)">
+              {{ checkoutLoading === plan.id ? t('member.billing.creatingOrder') : plan.id === currentPlanID ? t('member.plans.current') : amountMinor(plan) === 0 ? t('member.plans.free') : plan.prices?.length ? t('member.billing.choosePlan') : t('member.plans.purchaseUnavailable') }}
             </Button>
           </CardContent>
         </Card>

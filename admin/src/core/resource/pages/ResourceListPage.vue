@@ -21,7 +21,7 @@ import { executableBatchActions } from '@/lib/resource-actions'
 import { buildActionSelection } from '@/lib/resource-selection'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
-import { localizedActionLabel, localizedFieldLabel, localizedOptionLabel, localizedResourceLabel } from '@/core/resource/resource-i18n'
+import { localizedActionFieldLabel, localizedActionLabel, localizedActionOptionLabel, localizedFieldLabel, localizedOptionLabel, localizedResourceLabel } from '@/core/resource/resource-i18n'
 
 interface ResourceColumn { name: string; label: string; sortable: boolean }
 interface ResourceManifest extends GeneratedResourceManifest {}
@@ -150,6 +150,12 @@ function fieldLabel(fieldName: string, fallback: string) {
 }
 function actionLabel(action: ResourceAction) {
   return localizedActionLabel(t, te, action.name, action.label)
+}
+function actionFieldLabel(action: ResourceAction, field: { name: string; label: string }) {
+  return localizedActionFieldLabel(t, te, resourceName.value, action.name, field.name, field.label)
+}
+function actionOptionLabel(action: ResourceAction, field: { name: string; label: string }, option: { value: string; label: string }) {
+  return localizedActionOptionLabel(t, te, resourceName.value, action.name, field.name, option.value, option.label)
 }
 function statusLabel(fieldName: string, value: unknown) {
   if (value === null || value === undefined) return '—'
@@ -280,7 +286,7 @@ async function applyCustomAction() {
   error.value = ''
   const requiredField = (bulkCustomAction.value.payload_fields || []).find((field) => field.required && (bulkCustomPayload.value[field.name] === '' || bulkCustomPayload.value[field.name] === undefined))
   if (requiredField) {
-    error.value = t('resource.actionFieldRequired', { field: fieldLabel(requiredField.name, requiredField.label) })
+    error.value = t('resource.actionFieldRequired', { field: actionFieldLabel(bulkCustomAction.value, requiredField) })
     return
   }
   try {
@@ -363,7 +369,7 @@ watch(resourceName, () => { filterValues.value = {}; trashed.value = 'default'; 
         <div class="flex min-w-max items-center gap-2">
           <span class="text-sm text-muted-foreground">{{ t('resource.selectedCount', { count: selectedCount }) }}</span>
           <Button v-if="!allFilteredSelected && selectedCount === rows.length && meta.total > rows.length" variant="link" size="sm" @click="selectAllFiltered">{{ t('resource.selectAllFiltered', { count: meta.total }) }}</Button>
-          <Button v-for="action in batchActions" :key="action.name" size="sm" @click="openBulkAction(action)">{{ action.label }}</Button>
+          <Button v-for="action in batchActions" :key="action.name" size="sm" @click="openBulkAction(action)">{{ actionLabel(action) }}</Button>
           <Button variant="ghost" size="sm" @click="clearSelection">{{ t('resource.clearSelection') }}</Button>
         </div>
       </div>
@@ -378,6 +384,6 @@ watch(resourceName, () => { filterValues.value = {}; trashed.value = 'default'; 
     <AlertDialog v-model:open="bulkStatusDialogOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{{ t('resource.bulkStatusTitle') }}</AlertDialogTitle><AlertDialogDescription>{{ t('resource.bulkStatusDescription', { count: selectedCount, status: bulkStatusLabel }) }}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{{ t('resource.cancel') }}</AlertDialogCancel><AlertDialogAction :disabled="bulkUpdating" @click="applyBulkStatus">{{ t('resource.applyStatus') }}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     <AlertDialog v-model:open="bulkDeleteDialogOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{{ t('resource.bulkDeleteTitle') }}</AlertDialogTitle><AlertDialogDescription>{{ t('resource.bulkDeleteDescription', { count: selectedCount }) }}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{{ t('resource.cancel') }}</AlertDialogCancel><AlertDialogAction :disabled="bulkDeleting" @click="applyBulkDelete">{{ t('resource.delete') }}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     <Dialog v-model:open="bulkUpdateDialogOpen"><DialogContent><DialogHeader><DialogTitle>{{ t('resource.bulkUpdateTitle') }}</DialogTitle><DialogDescription>{{ t('resource.bulkUpdateDescription', { count: selectedCount }) }}</DialogDescription></DialogHeader><div class="grid gap-3"><Select v-model="bulkUpdateField"><SelectTrigger><SelectValue :placeholder="t('resource.bulkUpdateField')" /></SelectTrigger><SelectContent><SelectItem v-for="field in writableFields" :key="field.name" :value="field.name">{{ field.label }}</SelectItem></SelectContent></Select><Input v-model="bulkUpdateValue" :placeholder="t('resource.bulkUpdateValue')" /></div><DialogFooter><Button variant="outline" @click="bulkUpdateDialogOpen = false">{{ t('resource.cancel') }}</Button><Button :disabled="bulkUpdateSaving || !bulkUpdateField" @click="applyBulkUpdate">{{ t('resource.applyStatus') }}</Button></DialogFooter></DialogContent></Dialog>
-    <Dialog v-model:open="bulkCustomDialogOpen"><DialogContent><DialogHeader><DialogTitle>{{ bulkCustomAction?.label }}</DialogTitle><DialogDescription>{{ t('resource.bulkActionDescription', { count: selectedCount }) }}</DialogDescription></DialogHeader><div v-if="bulkCustomAction?.payload_fields?.length" class="grid gap-3"><template v-for="field in bulkCustomAction.payload_fields" :key="field.name"><Select v-if="field.type === 'select'" v-model="bulkCustomPayload[field.name] as string"><SelectTrigger><SelectValue :placeholder="field.label" /></SelectTrigger><SelectContent><SelectItem v-for="option in field.options || []" :key="option.value" :value="option.value">{{ option.label }}</SelectItem></SelectContent></Select><Input v-else v-model="bulkCustomPayload[field.name] as string" :type="field.type === 'number' ? 'number' : 'text'" :placeholder="field.label" /></template></div><DialogFooter><Button variant="outline" @click="bulkCustomDialogOpen = false">{{ t('resource.cancel') }}</Button><Button @click="applyCustomAction">{{ bulkCustomAction?.label }}</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog v-model:open="bulkCustomDialogOpen"><DialogContent><DialogHeader><DialogTitle>{{ bulkCustomAction ? actionLabel(bulkCustomAction) : '' }}</DialogTitle><DialogDescription>{{ t('resource.bulkActionDescription', { count: selectedCount }) }}</DialogDescription></DialogHeader><div v-if="bulkCustomAction?.payload_fields?.length" class="grid gap-3"><template v-for="field in bulkCustomAction.payload_fields" :key="field.name"><Select v-if="field.type === 'select'" v-model="bulkCustomPayload[field.name] as string"><SelectTrigger><SelectValue :placeholder="bulkCustomAction ? actionFieldLabel(bulkCustomAction, field) : field.label" /></SelectTrigger><SelectContent><SelectItem v-for="option in field.options || []" :key="option.value" :value="option.value">{{ bulkCustomAction ? actionOptionLabel(bulkCustomAction, field, option) : option.label }}</SelectItem></SelectContent></Select><Input v-else v-model="bulkCustomPayload[field.name] as string" :type="field.type === 'number' ? 'number' : 'text'" :placeholder="bulkCustomAction ? actionFieldLabel(bulkCustomAction, field) : field.label" /></template></div><DialogFooter><Button variant="outline" @click="bulkCustomDialogOpen = false">{{ t('resource.cancel') }}</Button><Button @click="applyCustomAction">{{ bulkCustomAction ? actionLabel(bulkCustomAction) : '' }}</Button></DialogFooter></DialogContent></Dialog>
   </div>
 </template>

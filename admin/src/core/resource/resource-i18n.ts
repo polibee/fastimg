@@ -21,6 +21,14 @@ export function localizedActionLabel(t: Translate, te: HasTranslation, action: s
   return localized(t, te, `resource.actionLabels.${action}`, fallback)
 }
 
+export function localizedActionFieldLabel(t: Translate, te: HasTranslation, resource: string, action: string, field: string, fallback: string) {
+  return localized(t, te, `resource.actionFields.${resource}.${action}.${field}`, fallback)
+}
+
+export function localizedActionOptionLabel(t: Translate, te: HasTranslation, resource: string, action: string, field: string, value: string, fallback: string) {
+  return localized(t, te, `resource.actionOptions.${resource}.${action}.${field}.${value}`, fallback)
+}
+
 export function localizedOptionLabel(t: Translate, te: HasTranslation, field: string, value: string, fallback: string) {
   return localized(t, te, `resource.options.${field}.${value}`, fallback)
 }

@@ -85,6 +85,16 @@ func (s *MediaLibraryService) GetContent(ctx context.Context, userID, mediaID ui
 	return MediaContent{Bytes: content, ContentType: item.Object.ContentType}, nil
 }
 
+func (s *MediaLibraryService) UpdateVisibility(ctx context.Context, userID, mediaID uint, visibility string) (models.MediaAsset, error) {
+	repository, ok := s.repository.(interface {
+		UpdateVisibility(context.Context, uint, uint, string) (models.MediaAsset, error)
+	})
+	if !ok {
+		return models.MediaAsset{}, errors.New("media visibility update is not supported")
+	}
+	return repository.UpdateVisibility(ctx, userID, mediaID, visibility)
+}
+
 func (s *MediaLibraryService) SoftDelete(ctx context.Context, userID, mediaID uint) (models.MediaAsset, error) {
 	return s.repository.SoftDelete(ctx, userID, mediaID)
 }

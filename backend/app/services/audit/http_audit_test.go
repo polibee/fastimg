@@ -21,6 +21,43 @@ func TestShouldAuditHTTP(t *testing.T) {
 	}
 }
 
+func TestShouldRecordHTTPSkipsSuccessfulReadNoiseButKeepsFailures(t *testing.T) {
+	if ShouldRecordHTTP("GET", "/api/v1/ads?placement=header", 200) {
+		t.Fatal("successful ad reads should not create audit noise")
+	}
+	if ShouldRecordHTTP("GET", "/api/v1/media/1/content", 200) {
+		t.Fatal("successful media delivery should use media access logs instead")
+	}
+	if !ShouldRecordHTTP("GET", "/api/v1/ads?placement=header", 500) {
+		t.Fatal("failed reads must remain auditable")
+	}
+	if !ShouldRecordHTTP("POST", "/api/v1/orders/1/payments", 201) {
+		t.Fatal("payment mutations must remain auditable")
+	}
+	if ShouldRecordHTTP("POST", "/api/v1/auth/refresh", 200) {
+		t.Fatal("successful refresh rotations should not flood the audit trail")
+	}
+}
+
+func TestClassifyHTTPActionUsesFeatureNames(t *testing.T) {
+	tests := []struct {
+		method string
+		path   string
+		want   string
+	}{
+		{"POST", "/api/v1/orders/1/payments", "billing.payment.create"},
+		{"POST", "/api/v1/uploads", "media.upload"},
+		{"PUT", "/api/v1/admin/settings/payment.nowpayments.api_key", "settings.update"},
+		{"POST", "/api/v1/payment-gateways/xcash/webhook", "billing.webhook.receive"},
+		{"POST", "/api/v1/media/22/reports", "moderation.report.create"},
+	}
+	for _, test := range tests {
+		if got := ClassifyHTTPAction(test.method, test.path); got != test.want {
+			t.Fatalf("ClassifyHTTPAction(%q, %q) = %q, want %q", test.method, test.path, got, test.want)
+		}
+	}
+}
+
 func TestBuildHTTPAuditMetadataContainsRequestAndResponseSummary(t *testing.T) {
 	metadata := BuildHTTPAuditMetadata(HTTPAuditInput{
 		Method:       "POST",

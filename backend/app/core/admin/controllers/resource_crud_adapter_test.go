@@ -13,6 +13,7 @@ func TestResourceDeleteStrategyKeepsDomainServicesBehindUnifiedRoute(t *testing.
 	}{
 		{name: "users", want: "users-service"},
 		{name: "roles", want: "roles-service"},
+		{name: "api_tokens", want: "api-tokens-service"},
 		{name: "orders", want: "generic-table"},
 	}
 	for _, testCase := range cases {

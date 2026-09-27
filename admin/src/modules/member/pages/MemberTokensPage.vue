@@ -89,12 +89,12 @@ async function createToken() {
   }
 }
 
-async function revokeToken(item: PersonalToken) {
-  if (!auth.token || !window.confirm(t('member.tokens.confirmRevoke'))) return
+async function deleteToken(item: PersonalToken) {
+  if (!auth.token || !window.confirm(t('member.tokens.confirmDelete'))) return
   busyID.value = item.id
   try {
     await apiFetch(`/api/v1/tokens/${item.id}`, { method: 'DELETE' }, auth.token)
-    item.status = 'revoked'
+    items.value = items.value.filter((candidate) => candidate.id !== item.id)
   } catch {
     error.value = true
   } finally {
@@ -204,7 +204,7 @@ onMounted(() => void load())
           </div>
           <div class="flex justify-end gap-2">
             <Button v-if="item.status === 'active'" variant="outline" size="sm" :disabled="busyID === item.id" @click="rotateToken(item)"><RefreshCw data-icon="inline-start" />{{ t('member.tokens.rotate') }}</Button>
-            <Button v-if="item.status === 'active'" variant="outline" size="sm" :disabled="busyID === item.id" @click="revokeToken(item)"><Trash2 data-icon="inline-start" />{{ t('member.tokens.revoke') }}</Button>
+            <Button variant="outline" size="sm" :disabled="busyID === item.id" @click="deleteToken(item)"><Trash2 data-icon="inline-start" />{{ t('member.tokens.delete') }}</Button>
           </div>
         </CardContent>
       </Card>

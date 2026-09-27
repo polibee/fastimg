@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-const router = fs.readFileSync(new URL('../src/router/index.ts', import.meta.url), 'utf8')
+const router = fs.readFileSync(new URL('../src/apps/admin/routes.ts', import.meta.url), 'utf8')
 const shell = fs.readFileSync(new URL('../src/core/layouts/AdminShell.vue', import.meta.url), 'utf8')
 const zh = JSON.parse(fs.readFileSync(new URL('../src/locales/zh-CN/billing.json', import.meta.url), 'utf8'))
 const en = JSON.parse(fs.readFileSync(new URL('../src/locales/en-US/billing.json', import.meta.url), 'utf8'))

@@ -11,7 +11,7 @@ import { useSitePresentation } from '@/lib/site-presentation'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 
-interface DiscoveryStatus { enabled: boolean; submissions_enabled: boolean }
+interface DiscoveryStatus { enabled: boolean }
 interface DiscoveryItem {
   id: number
   original_name: string
@@ -28,7 +28,7 @@ const { t, locale } = useI18n()
 const auth = useAuthStore()
 const router = useRouter()
 const { fallbackImageURL, loadSitePresentation } = useSitePresentation()
-const status = ref<DiscoveryStatus>({ enabled: true, submissions_enabled: true })
+const status = ref<DiscoveryStatus>({ enabled: true })
 const items = ref<DiscoveryItem[]>([])
 const loading = ref(true)
 const loadingMore = ref(false)

@@ -12,8 +12,8 @@ export const useAuthStore = defineStore('auth', () => {
   const can = (permission: string) => hasPermission(user.value?.permissions, permission)
   const canAny = (permissions: string[]) => hasAnyPermission(user.value?.permissions, permissions)
 
-  async function login(email: string, password: string) {
-    const response: LoginResponse = await generatedApi.login({ email, password })
+  async function login(email: string, password: string, turnstileToken?: string) {
+    const response: LoginResponse = await generatedApi.login({ email, password, turnstile_token: turnstileToken })
     token.value = response.access_token
     user.value = response.user
   }

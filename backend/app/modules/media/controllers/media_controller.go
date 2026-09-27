@@ -9,6 +9,7 @@ import (
 
 	"goravel/app/facades"
 	adminmiddleware "goravel/app/http/middleware"
+	"goravel/app/models"
 	linkservices "goravel/app/services/links"
 	mediaservices "goravel/app/services/media"
 	planservices "goravel/app/services/plans"
@@ -22,6 +23,10 @@ type MediaController struct {
 
 type moveMediaFolderRequest struct {
 	FolderID *uint `json:"folder_id"`
+}
+
+type updateVisibilityRequest struct {
+	Visibility string `json:"visibility"`
 }
 
 func NewMediaController() *MediaController {
@@ -92,6 +97,60 @@ func (c *MediaController) Content(ctx httpcontract.Context) httpcontract.Respons
 	}
 	return ctx.Response().Header("Cache-Control", "private, no-store").
 		Header("X-Content-Type-Options", "nosniff").Data(http.StatusOK, content.ContentType, content.Bytes)
+}
+
+func (c *MediaController) UpdateVisibility(ctx httpcontract.Context) httpcontract.Response {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return adminmiddleware.APIError(ctx, http.StatusUnauthorized, "AUTH_UNAUTHORIZED")
+	}
+	mediaID := ctx.Request().RouteInt64("id")
+	if mediaID <= 0 {
+		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
+	}
+	var input updateVisibilityRequest
+	if err := ctx.Request().Bind(&input); err != nil || !mediaservices.ValidVisibility(input.Visibility) {
+		return adminmiddleware.APIError(ctx, http.StatusUnprocessableEntity, "MEDIA_VISIBILITY_INVALID")
+	}
+	asset, err := c.service.UpdateVisibility(ctx.Context(), userID, uint(mediaID), input.Visibility)
+	if err != nil {
+		return mediaServiceFailure(ctx, err)
+	}
+	return ctx.Response().Success().Json(httpcontract.Json{"data": map[string]any{"id": asset.ID, "visibility": asset.Visibility}})
+}
+
+// AdminContent is deliberately separate from the member own-scope endpoint.
+// The admin RBAC middleware authorizes this all-user preview path.
+func (c *MediaController) AdminContent(ctx httpcontract.Context) httpcontract.Response {
+	mediaID := ctx.Request().RouteInt64("id")
+	if mediaID <= 0 {
+		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
+	}
+	variantName := ctx.Request().Query("variant", "thumbnail")
+	if variantName != "original" && variantName != "thumbnail" && variantName != "medium" {
+		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
+	}
+	var asset models.MediaAsset
+	if err := facades.Orm().Query().Where("id = ? AND status = ?", mediaID, "ready").First(&asset); err != nil {
+		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
+	}
+	var variant models.MediaVariant
+	if err := facades.Orm().Query().Where("media_asset_id = ? AND name = ? AND status = ?", asset.ID, variantName, "ready").First(&variant); err != nil {
+		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
+	}
+	var object models.StorageObject
+	if err := facades.Orm().Query().Where("id = ? AND status = ?", variant.StorageObjectID, "ready").First(&object); err != nil {
+		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
+	}
+	content, err := c.serviceStorage().Get(ctx.Context(), object.ObjectKey)
+	if err != nil {
+		return adminmiddleware.APIError(ctx, http.StatusInternalServerError, "MEDIA_CONTENT_UNAVAILABLE")
+	}
+	return ctx.Response().Header("Cache-Control", "private, no-store").Header("X-Content-Type-Options", "nosniff").Data(http.StatusOK, object.ContentType, content)
+}
+
+func (c *MediaController) serviceStorage() storageservices.StorageProvider {
+	return storageservices.NewLocalProvider(facades.Storage().Disk("fastimg"))
 }
 
 func (c *MediaController) Delete(ctx httpcontract.Context) httpcontract.Response {
@@ -210,6 +269,7 @@ func mediaListItemJSON(item mediaservices.MediaListItem) map[string]any {
 		"content_type": item.Asset.ContentType, "format": item.Asset.Format,
 		"size_bytes": item.Asset.SizeBytes, "width": item.Asset.Width,
 		"height": item.Asset.Height, "status": item.Asset.Status,
+		"visibility": item.Asset.Visibility, "moderation_status": item.Asset.ModerationStatus,
 		"deleted_at": item.Asset.DeletedAt, "created_at": item.Asset.CreatedAt,
 		"links": links, "variants": variants,
 	}

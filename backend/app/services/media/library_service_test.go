@@ -76,6 +76,10 @@ func (r *fakeMediaLibraryRepository) SoftDelete(context.Context, uint, uint) (mo
 	return models.MediaAsset{}, errors.New("unexpected call")
 }
 
+func (r *fakeMediaLibraryRepository) UpdateVisibility(context.Context, uint, uint, string) (models.MediaAsset, error) {
+	return models.MediaAsset{}, errors.New("unexpected call")
+}
+
 func (r *fakeMediaLibraryRepository) Restore(context.Context, uint, uint) (models.MediaAsset, error) {
 	return models.MediaAsset{}, errors.New("unexpected call")
 }

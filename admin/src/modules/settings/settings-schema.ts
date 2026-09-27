@@ -9,7 +9,7 @@ export type SettingFieldDefinition = {
 }
 
 export type SettingGroupDefinition = {
-  key: 'site' | 'auth' | 'email' | 'media' | 'seo' | 'gateway' | 'statistics' | 'code' | 'other'
+  key: 'site' | 'auth' | 'email' | 'subscription' | 'media' | 'seo' | 'gateway' | 'statistics' | 'code' | 'other'
   fields: SettingFieldDefinition[]
 }
 
@@ -38,6 +38,11 @@ export const settingGroups: SettingGroupDefinition[] = [
       field('auth.registration.email_whitelist_enabled', 'boolean'),
       field('auth.registration.email_whitelist_domains', 'textarea', { span: 'full' }),
       field('auth.registration.verification_expiry_minutes', 'integer'),
+      field('auth.registration.verification_resend_protection_enabled', 'boolean'),
+      field('auth.registration.verification_resend_email_cooldown_seconds', 'integer'),
+      field('auth.registration.verification_resend_ip_cooldown_seconds', 'integer'),
+      field('auth.registration.verification_resend_daily_email_limit', 'integer'),
+      field('auth.registration.verification_resend_daily_ip_limit', 'integer'),
     ],
   },
   {
@@ -60,6 +65,16 @@ export const settingGroups: SettingGroupDefinition[] = [
       emailProviderField('email.aliyun.reply_to_address', 'boolean'),
       emailProviderField('email.resend.endpoint'),
       emailProviderField('email.resend.api_key', 'secret'),
+    ],
+  },
+  {
+    key: 'subscription',
+    fields: [
+      field('subscription.expiry.email_enabled', 'boolean'),
+      field('subscription.expiry.fallback_plan_code'),
+      field('subscription.expiry.grace_period_days', 'integer'),
+      field('subscription.expiry.reminder_days'),
+      field('subscription.expiry.over_quota_policy', 'select'),
     ],
   },
   {
@@ -135,6 +150,16 @@ export const settingDefaults: Record<string, string> = {
   'email.smtp.port': '587',
   'email.aliyun.endpoint': 'https://dm.aliyuncs.com',
   'email.resend.endpoint': 'https://api.resend.com',
+  'auth.registration.verification_resend_protection_enabled': 'true',
+  'auth.registration.verification_resend_email_cooldown_seconds': '60',
+  'auth.registration.verification_resend_ip_cooldown_seconds': '10',
+  'auth.registration.verification_resend_daily_email_limit': '5',
+  'auth.registration.verification_resend_daily_ip_limit': '20',
+  'subscription.expiry.email_enabled': 'true',
+  'subscription.expiry.fallback_plan_code': 'free',
+  'subscription.expiry.grace_period_days': '3',
+  'subscription.expiry.reminder_days': '7,3,1',
+  'subscription.expiry.over_quota_policy': 'keep_data_block_upload',
 }
 
 export const emailProviderOptions = [
