@@ -50,5 +50,16 @@
   "AUDIT_CLEANUP_CONFIRMATION_REQUIRED": "Enter DELETE to confirm cleanup",
   "AUDIT_CLEANUP_SELECTION_REQUIRED": "Select at least one log",
   "AUDIT_CLEANUP_SELECTION_TOO_LARGE": "You can clean at most 1000 logs at once",
-  "AUDIT_CLEANUP_FILTER_REQUIRED": "Set at least one filter first"
+  "AUDIT_CLEANUP_FILTER_REQUIRED": "Set at least one filter first",
+  "CONTENT_PAGE_NOT_FOUND": "The public page was not found or is not published",
+  "CONTENT_PAGES_UNAVAILABLE": "Site pages are temporarily unavailable",
+  "CONTENT_PAGE_VALIDATION_FAILED": "The page content or address is invalid",
+  "CONTENT_PAGE_STATUS_INVALID": "The page status could not be changed",
+  "FOOTER_NAVIGATION_UNAVAILABLE": "Footer navigation is temporarily unavailable",
+  "FOOTER_NAVIGATION_INVALID": "The footer navigation data is invalid",
+  "FOOTER_NAVIGATION_NOT_FOUND": "The footer navigation record was not found",
+  "FRIEND_LINKS_UNAVAILABLE": "Friend links are temporarily unavailable",
+  "FRIEND_LINK_INVALID": "The friend-link information is invalid",
+  "FRIEND_LINK_REVIEW_INVALID": "The friend-link review data is invalid",
+  "FRIEND_LINK_NOT_FOUND": "The friend-link submission was not found"
 }
