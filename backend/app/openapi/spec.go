@@ -73,6 +73,11 @@ func Spec() map[string]any {
 				"StorageStatisticsOverview":       storageStatisticsOverviewSchema(),
 				"PublicSitePage":                  publicSitePageSchema(),
 				"AdminSitePage":                   adminSitePageSchema(),
+				"FooterNavigationResponse":        footerNavigationResponseSchema(),
+				"FooterNavigationGroup":           footerNavigationGroupSchema(),
+				"FooterNavigationItem":            footerNavigationItemSchema(),
+				"FriendLinkPublic":                friendLinkPublicSchema(),
+				"FriendLinkSubmission":            friendLinkSubmissionSchema(),
 				"AdminTask":                       adminTaskSchema(),
 				"AdminTaskRetryResponse":          adminTaskRetryResponseSchema(),
 			},
@@ -94,6 +99,8 @@ func Spec() map[string]any {
 			"/plans":                        map[string]any{"get": operation("listPlans")},
 			"/site/presentation":            map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getSitePresentation", "responses": map[string]any{"200": jsonResponse("SitePresentation")}}},
 			"/site/pages/{slug}":            map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getPublishedSitePage", "parameters": []map[string]any{pathParameter("slug")}, "responses": map[string]any{"200": jsonResponse("PublicSitePage"), "404": errorResponse(), "500": errorResponse()}}},
+			"/site/footer-navigation":       map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getPublicFooterNavigation", "parameters": []map[string]any{queryParameter("locale", "string")}, "responses": map[string]any{"200": jsonResponse("FooterNavigationResponse"), "500": errorResponse()}}},
+			"/friend-links":                 map[string]any{"get": map[string]any{"security": []any{}, "operationId": "listApprovedFriendLinks", "responses": map[string]any{"200": jsonResponse("FriendLinkPublic"), "500": errorResponse()}}, "post": map[string]any{"security": []any{}, "operationId": "submitFriendLink", "requestBody": jsonBody("FriendLinkSubmissionRequest", friendLinkSubmissionRequestSchema()), "responses": map[string]any{"202": jsonResponse("FriendLinkSubmission"), "422": errorResponse()}}},
 			"/discovery/status":             map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryStatus", "responses": map[string]any{"200": jsonResponse("DiscoveryStatus"), "500": errorResponse()}}},
 			"/discovery/feed":               map[string]any{"get": map[string]any{"security": []any{}, "operationId": "listDiscoveryFeed", "parameters": []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer")}, "responses": map[string]any{"200": jsonResponse("DiscoveryFeedResponse"), "404": errorResponse(), "500": errorResponse()}}},
 			"/discovery/media/{id}/content": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryMediaContent", "parameters": []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original"}, "default": "original"}}}, "responses": map[string]any{"200": map[string]any{"description": "Public discovery media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()}}},
@@ -267,6 +274,13 @@ func Spec() map[string]any {
 			},
 			"/admin/content-pages/{id}/actions/publish": map[string]any{"post": map[string]any{"operationId": "publishContentPage", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("AdminSitePage"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse(), "422": errorResponse()}}},
 			"/admin/content-pages/{id}/actions/archive": map[string]any{"post": map[string]any{"operationId": "archiveContentPage", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("AdminSitePage"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse(), "422": errorResponse()}}},
+			"/admin/footer-navigation":                  map[string]any{"get": map[string]any{"operationId": "listFooterNavigation", "responses": map[string]any{"200": jsonResponse("FooterNavigationResponse"), "401": errorResponse(), "403": errorResponse()}}},
+			"/admin/footer-navigation/groups":           map[string]any{"post": map[string]any{"operationId": "createFooterNavigationGroup", "requestBody": jsonBody("FooterNavigationGroupRequest", footerNavigationGroupRequestSchema()), "responses": map[string]any{"200": jsonResponse("FooterNavigationGroup"), "401": errorResponse(), "403": errorResponse(), "422": errorResponse()}}},
+			"/admin/footer-navigation/groups/{id}":      map[string]any{"put": map[string]any{"operationId": "updateFooterNavigationGroup", "parameters": []map[string]any{pathParameter("id")}, "requestBody": jsonBody("FooterNavigationGroupRequest", footerNavigationGroupRequestSchema()), "responses": map[string]any{"200": jsonResponse("FooterNavigationGroup"), "401": errorResponse(), "403": errorResponse(), "422": errorResponse()}}, "delete": map[string]any{"operationId": "deleteFooterNavigationGroup", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("FooterNavigationGroup"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse()}}},
+			"/admin/footer-navigation/items":            map[string]any{"post": map[string]any{"operationId": "createFooterNavigationItem", "requestBody": jsonBody("FooterNavigationItemRequest", footerNavigationItemRequestSchema()), "responses": map[string]any{"200": jsonResponse("FooterNavigationItem"), "401": errorResponse(), "403": errorResponse(), "422": errorResponse()}}},
+			"/admin/footer-navigation/items/{id}":       map[string]any{"put": map[string]any{"operationId": "updateFooterNavigationItem", "parameters": []map[string]any{pathParameter("id")}, "requestBody": jsonBody("FooterNavigationItemRequest", footerNavigationItemRequestSchema()), "responses": map[string]any{"200": jsonResponse("FooterNavigationItem"), "401": errorResponse(), "403": errorResponse(), "422": errorResponse()}}, "delete": map[string]any{"operationId": "deleteFooterNavigationItem", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("FooterNavigationItem"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse()}}},
+			"/admin/friend-links":                       map[string]any{"get": map[string]any{"operationId": "listFriendLinkSubmissions", "parameters": []map[string]any{queryParameter("status", "string")}, "responses": map[string]any{"200": jsonResponse("FriendLinkSubmission"), "401": errorResponse(), "403": errorResponse()}}},
+			"/admin/friend-links/{id}/review":           map[string]any{"post": map[string]any{"operationId": "reviewFriendLink", "parameters": []map[string]any{pathParameter("id")}, "requestBody": jsonBody("FriendLinkReviewRequest", friendLinkReviewRequestSchema()), "responses": map[string]any{"200": jsonResponse("FriendLinkSubmission"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse(), "422": errorResponse()}}},
 			"/admin/{resource}": map[string]any{
 				"get":  listOperation("listResourceRows", []map[string]any{pathParameter("resource"), queryParameter("page", "integer"), queryParameter("per_page", "integer"), queryParameter("search", "string"), queryParameter("sort", "string"), queryParameter("dir", "string"), queryParameter("trashed", "string")}),
 				"post": resourceWriteOperation("createResource", "201"),
@@ -734,6 +748,46 @@ func adminSitePageSchema() map[string]any {
 			"created_by":   map[string]any{"type": "integer", "format": "int64"}, "updated_by": map[string]any{"type": "integer", "format": "int64"},
 		}},
 	}}
+}
+
+func footerNavigationGroupSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"id", "title", "locale", "sort_order", "is_enabled"}, "properties": map[string]any{
+		"id": map[string]any{"type": "integer", "format": "int64"}, "title": map[string]any{"type": "string"}, "locale": map[string]any{"type": "string"}, "sort_order": map[string]any{"type": "integer"}, "is_enabled": map[string]any{"type": "boolean"},
+	}}
+}
+
+func footerNavigationItemSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"id", "group_id", "label", "target_type", "target_value", "is_enabled"}, "properties": map[string]any{
+		"id": map[string]any{"type": "integer", "format": "int64"}, "group_id": map[string]any{"type": "integer", "format": "int64"}, "parent_id": map[string]any{"type": "integer", "format": "int64", "nullable": true}, "label": map[string]any{"type": "string"}, "target_type": map[string]any{"type": "string", "enum": []string{"page", "route", "external", "friends"}}, "target_value": map[string]any{"type": "string"}, "open_in_new_tab": map[string]any{"type": "boolean"}, "sort_order": map[string]any{"type": "integer"}, "is_enabled": map[string]any{"type": "boolean"},
+	}}
+}
+
+func footerNavigationResponseSchema() map[string]any {
+	return map[string]any{"type": "array", "items": map[string]any{"type": "object", "required": []string{"group", "items"}, "properties": map[string]any{"group": map[string]any{"$ref": "#/components/schemas/FooterNavigationGroup"}, "items": map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/FooterNavigationItem"}}}}}
+}
+
+func footerNavigationGroupRequestSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"title", "locale", "is_enabled"}, "properties": map[string]any{"title": map[string]any{"type": "string", "maxLength": 160}, "locale": map[string]any{"type": "string", "maxLength": 16}, "sort_order": map[string]any{"type": "integer"}, "is_enabled": map[string]any{"type": "boolean"}}}
+}
+
+func footerNavigationItemRequestSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"group_id", "label", "target_type", "target_value", "is_enabled"}, "properties": map[string]any{"group_id": map[string]any{"type": "integer", "format": "int64"}, "parent_id": map[string]any{"type": "integer", "format": "int64", "nullable": true}, "label": map[string]any{"type": "string", "maxLength": 160}, "target_type": map[string]any{"type": "string", "enum": []string{"page", "route", "external", "friends"}}, "target_value": map[string]any{"type": "string", "maxLength": 512}, "open_in_new_tab": map[string]any{"type": "boolean"}, "sort_order": map[string]any{"type": "integer"}, "is_enabled": map[string]any{"type": "boolean"}}}
+}
+
+func friendLinkPublicSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"id", "site_name", "url"}, "properties": map[string]any{"id": map[string]any{"type": "integer", "format": "int64"}, "site_name": map[string]any{"type": "string"}, "url": map[string]any{"type": "string", "format": "uri"}, "logo_url": map[string]any{"type": "string", "format": "uri"}, "description": map[string]any{"type": "string"}}}
+}
+
+func friendLinkSubmissionSchema() map[string]any {
+	return map[string]any{"type": "object", "allOf": []any{friendLinkPublicSchema(), map[string]any{"type": "object", "properties": map[string]any{"contact_email": map[string]any{"type": "string", "format": "email"}, "status": map[string]any{"type": "string", "enum": []string{"pending", "approved", "rejected", "hidden"}}, "review_note": map[string]any{"type": "string"}}}}}
+}
+
+func friendLinkSubmissionRequestSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"site_name", "url"}, "properties": map[string]any{"site_name": map[string]any{"type": "string", "maxLength": 160}, "url": map[string]any{"type": "string", "format": "uri"}, "logo_url": map[string]any{"type": "string", "format": "uri"}, "description": map[string]any{"type": "string", "maxLength": 2000}, "contact_email": map[string]any{"type": "string", "format": "email"}}}
+}
+
+func friendLinkReviewRequestSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"status"}, "properties": map[string]any{"status": map[string]any{"type": "string", "enum": []string{"approved", "rejected", "hidden"}}, "review_note": map[string]any{"type": "string", "maxLength": 2000}}}
 }
 
 func jsonBody(name string, schema map[string]any) map[string]any {
