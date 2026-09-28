@@ -61,5 +61,7 @@
   "FRIEND_LINKS_UNAVAILABLE": "友情链接暂时无法加载",
   "FRIEND_LINK_INVALID": "友情链接信息无效，请检查地址",
   "FRIEND_LINK_REVIEW_INVALID": "友情链接审核信息无效",
-  "FRIEND_LINK_NOT_FOUND": "友情链接申请不存在"
+  "FRIEND_LINK_NOT_FOUND": "友情链接申请不存在",
+  "FRIEND_LINK_RATE_LIMITED": "提交过于频繁，请稍后再试",
+  "FRIEND_LINK_DUPLICATE": "这个站点已经提交过申请或已经通过审核"
 }

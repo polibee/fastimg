@@ -1,10 +1,14 @@
 package controllers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	httpcontract "github.com/goravel/framework/contracts/http"
 	"goravel/app/facades"
@@ -37,6 +41,9 @@ func (c *Controller) Submit(ctx httpcontract.Context) httpcontract.Response {
 	if err := ctx.Request().Bind(&input); err != nil {
 		return adminmiddleware.APIError(ctx, 422, "FRIEND_LINK_INVALID")
 	}
+	if !allowSubmission(ctx.Request().Ip(), input.URL) {
+		return adminmiddleware.APIError(ctx, http.StatusTooManyRequests, "FRIEND_LINK_RATE_LIMITED")
+	}
 	var userID *uint
 	if identity, err := facades.Auth(ctx).ID(); err == nil {
 		value, _ := strconv.ParseUint(identity, 10, 32)
@@ -47,9 +54,39 @@ func (c *Controller) Submit(ctx httpcontract.Context) httpcontract.Response {
 	}
 	row, err := c.service.Submit(input, userID)
 	if err != nil {
+		if errors.Is(err, services.ErrDuplicate) {
+			return adminmiddleware.APIError(ctx, http.StatusConflict, "FRIEND_LINK_DUPLICATE")
+		}
 		return adminmiddleware.APIError(ctx, 422, "FRIEND_LINK_INVALID")
 	}
 	return ctx.Response().Status(http.StatusAccepted).Json(httpcontract.Json{"data": map[string]any{"id": row.ID, "status": row.Status}})
+}
+
+func allowSubmission(ip, rawURL string) bool {
+	cache := facades.Cache()
+	if cache == nil {
+		return false
+	}
+	hash := func(value string) string {
+		sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(value))))
+		return hex.EncodeToString(sum[:])
+	}
+	ipKey := "friend-links:ip:" + hash(ip)
+	urlKey := "friend-links:url:" + hash(rawURL)
+	day := time.Now().UTC().Format("20060102")
+	dailyKey := ipKey + ":daily:" + day
+	if cache.Has(ipKey) || cache.Has(urlKey) {
+		return false
+	}
+	if !cache.Add(ipKey, int64(1), time.Minute) || !cache.Add(urlKey, int64(1), time.Minute) {
+		return false
+	}
+	cache.Add(dailyKey, int64(0), 24*time.Hour)
+	count, err := cache.Increment(dailyKey, 1)
+	if err != nil || count > 10 {
+		return false
+	}
+	return true
 }
 func (c *Controller) AdminList(ctx httpcontract.Context) httpcontract.Response {
 	rows, err := c.service.List(ctx.Request().Query("status"))

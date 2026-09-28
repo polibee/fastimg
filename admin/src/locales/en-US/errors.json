@@ -61,5 +61,7 @@
   "FRIEND_LINKS_UNAVAILABLE": "Friend links are temporarily unavailable",
   "FRIEND_LINK_INVALID": "The friend-link information is invalid",
   "FRIEND_LINK_REVIEW_INVALID": "The friend-link review data is invalid",
-  "FRIEND_LINK_NOT_FOUND": "The friend-link submission was not found"
+  "FRIEND_LINK_NOT_FOUND": "The friend-link submission was not found",
+  "FRIEND_LINK_RATE_LIMITED": "Submissions are too frequent. Please try again later.",
+  "FRIEND_LINK_DUPLICATE": "This site has already been submitted or approved."
 }

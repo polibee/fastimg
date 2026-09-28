@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 )
 
 var ErrNotFound = errors.New("friend link not found")
+var ErrDuplicate = errors.New("friend link already submitted")
 
 type SubmissionInput struct {
 	SiteName     string `json:"site_name"`
@@ -33,7 +35,17 @@ func validURL(raw string, optional bool) bool {
 		return true
 	}
 	parsed, err := url.ParseRequestURI(raw)
-	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != "" && parsed.User == nil
+	if err != nil || parsed == nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil {
+		return false
+	}
+	host := strings.ToLower(strings.TrimSuffix(parsed.Hostname(), "."))
+	if host == "localhost" || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") || strings.HasSuffix(host, ".lan") {
+		return false
+	}
+	if address := net.ParseIP(host); address != nil && (address.IsLoopback() || address.IsPrivate() || address.IsUnspecified() || address.IsLinkLocalUnicast()) {
+		return false
+	}
+	return true
 }
 
 func (s *Service) List(status string) ([]models.Submission, error) {
@@ -56,6 +68,13 @@ func (s *Service) Submit(input SubmissionInput, userID *uint) (models.Submission
 	input.ContactEmail = strings.TrimSpace(input.ContactEmail)
 	if input.SiteName == "" || !validURL(input.URL, false) || !validURL(input.LogoURL, true) {
 		return models.Submission{}, errors.New("invalid friend link")
+	}
+	var existing []models.Submission
+	if err := facades.Orm().Query().Where("url = ? AND status IN (?, ?)", input.URL, models.StatusPending, models.StatusApproved).Get(&existing); err != nil {
+		return models.Submission{}, err
+	}
+	if len(existing) > 0 {
+		return models.Submission{}, ErrDuplicate
 	}
 	now := time.Now().UTC()
 	values := map[string]any{"site_name": input.SiteName, "url": input.URL, "logo_url": input.LogoURL, "description": input.Description, "contact_email": input.ContactEmail, "submitted_by": userID, "status": models.StatusPending, "created_at": now, "updated_at": now}

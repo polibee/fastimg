@@ -79,6 +79,8 @@ const LOCALIZED_ERROR_CODES = new Set([
   'FRIEND_LINK_INVALID',
   'FRIEND_LINK_REVIEW_INVALID',
   'FRIEND_LINK_NOT_FOUND',
+  'FRIEND_LINK_RATE_LIMITED',
+  'FRIEND_LINK_DUPLICATE',
 ])
 
 export function errorMessageKey(code?: string) {
