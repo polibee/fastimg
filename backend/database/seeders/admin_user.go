@@ -1,6 +1,9 @@
 package seeders
 
 import (
+	"os"
+	"strings"
+
 	"goravel/app/facades"
 	"goravel/app/models"
 )
@@ -15,14 +18,18 @@ func (s *AdminUser) Signature() string {
 
 // Run executes the seeder logic.
 func (s *AdminUser) Run() error {
-	const email = "admin@example.com"
+	email := strings.ToLower(strings.TrimSpace(os.Getenv("FASTIMG_SEED_ADMIN_EMAIL")))
+	passwordValue := os.Getenv("FASTIMG_SEED_ADMIN_PASSWORD")
+	if email == "" || passwordValue == "" {
+		return nil
+	}
 
 	exists, err := facades.Orm().Query().Model(&models.User{}).Where("email = ?", email).Exists()
 	if err != nil {
 		return err
 	}
 	if !exists {
-		password, err := facades.Hash().Make("Admin123!")
+		password, err := facades.Hash().Make(passwordValue)
 		if err != nil {
 			return err
 		}

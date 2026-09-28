@@ -110,12 +110,12 @@ POST /api/v1/auth/resend-verification
 - `users` 表迁移；
 - Goravel JWT 登录、当前用户、刷新和登出接口；
 - Goravel Hash 密码校验；
-- 开发管理员 Seeder：`admin@example.com / Admin123!`；
+- 管理员不再使用固定演示凭据；部署 CLI 通过 `admin:bootstrap` 生成一次性随机密码，开发 Seeder 仅在显式提供 `FASTIMG_SEED_ADMIN_EMAIL` 和 `FASTIMG_SEED_ADMIN_PASSWORD` 时创建账号；
 - 前端登录页、内存 Access Token 和路由守卫。
 - `roles`、`permissions`、`role_user`、`permission_role` RBAC 表；
 - 管理员用户、角色、权限列表接口：
   `GET /api/v1/admin/users`、`GET /api/v1/admin/roles`、`GET /api/v1/admin/permissions`；
-- `AdminUser` Seeder 创建 `super-admin` 及基础管理权限；
+- `AdminUser` Seeder 在显式提供开发环境管理员变量时创建 `super-admin` 及基础管理权限；生产部署使用 `admin:bootstrap`，不执行固定账号 Seeder；
 - 角色创建、详情、编辑、删除和权限分配接口；
 - 用户角色查询和绑定接口；
 - 基于 `admin.users.view`、`admin.roles.manage`、`admin.permissions.manage` 的后端细粒度授权；

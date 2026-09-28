@@ -12,7 +12,7 @@
 - Redis 已创建独立实例、账号和密码，不能依赖内存降级。
 - `APP_KEY` 和 `JWT_SECRET` 使用两个独立的随机密钥，每个至少 32 个字符。
 - `APP_URL` 使用最终 HTTPS 域名，`CORS_ALLOWED_ORIGINS` 只填写实际前端 Origin，不能使用 `*`。
-- 生产不要执行默认 `AdminUser` 演示 Seeder；它包含开发示例账号。正式管理员应通过受控的管理员初始化流程创建，不能把示例密码带入生产。
+- 生产不要执行默认 `AdminUser` 演示 Seeder；Seeder 只有在显式提供开发环境管理员变量时才会创建账号。正式管理员由部署 CLI 自动生成一次性随机密码并通过 `admin:bootstrap` 创建。
 - 备份必须在迁移前完成；生产只允许在备份证据和回滚窗口确认后执行迁移。
 
 ## 交互式一键部署 CLI
@@ -37,7 +37,7 @@ CLI 默认只需要填写 PostgreSQL 数据库名、用户名和密码：
 - API/Web 端口自动从 `8080` 开始选择空闲端口，源码安装目录默认使用当前项目目录；
 - 未提供 `FASTIMG_APP_URL` 时，自动生成临时 `http://服务器IP:端口`，并输出 `127.0.0.1:端口` 作为宝塔反代 upstream；
 - `APP_KEY` 和 `JWT_SECRET` 自动生成，不显示、不写入命令参数；
-- 首次部署默认要求输入管理员邮箱、名称和密码。密码通过标准输入交给 `admin:bootstrap`，不会出现在进程参数、环境文件或部署日志中。已有同邮箱账户只确保启用 `super-admin` 权限，不覆盖原密码。
+- 首次部署默认使用 `admin@localhost` 创建管理员并自动生成一次性随机密码，密码只在部署终端成功输出一次，不写入环境文件、命令参数或应用日志；可通过 `FASTIMG_ADMIN_EMAIL` 和 `FASTIMG_ADMIN_NAME` 自定义账号。已有同邮箱账户只确保启用 `super-admin` 权限，不覆盖原密码。
 
 非交互部署示例（密码只通过当前进程环境传入，CI 使用密钥存储，不要写入脚本或 Git）：
 
@@ -49,9 +49,7 @@ FASTIMG_DB_HOST=127.0.0.1 FASTIMG_DB_PORT=5432 \
 FASTIMG_DB_DATABASE=fastimg FASTIMG_DB_USERNAME=fastimg \
 FASTIMG_DB_PASSWORD='从密钥管理器注入' \
 FASTIMG_REDIS_HOST=127.0.0.1 FASTIMG_REDIS_PORT=6379 \
-FASTIMG_ADMIN_EMAIL=admin@example.com \
-FASTIMG_ADMIN_PASSWORD='从密钥管理器注入' \
-sudo --preserve-env=FASTIMG_NON_INTERACTIVE,FASTIMG_DEPLOY_MODE,FASTIMG_APP_URL,FASTIMG_DB_HOST,FASTIMG_DB_PORT,FASTIMG_DB_DATABASE,FASTIMG_DB_USERNAME,FASTIMG_DB_PASSWORD,FASTIMG_REDIS_HOST,FASTIMG_REDIS_PORT,FASTIMG_ADMIN_EMAIL,FASTIMG_ADMIN_PASSWORD \
+sudo --preserve-env=FASTIMG_NON_INTERACTIVE,FASTIMG_DEPLOY_MODE,FASTIMG_APP_URL,FASTIMG_DB_HOST,FASTIMG_DB_PORT,FASTIMG_DB_DATABASE,FASTIMG_DB_USERNAME,FASTIMG_DB_PASSWORD,FASTIMG_REDIS_HOST,FASTIMG_REDIS_PORT \
 deploy/fastimg-cli.sh
 ```
 

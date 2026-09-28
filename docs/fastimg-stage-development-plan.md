@@ -1207,3 +1207,10 @@ POST   /api/v1/media/{id}/signed-url
 - Redis 改为自动探测本机或 `FASTIMG_REDIS_*` 指定实例，无法连接时直接给出启动/配置提示，不增加无必要的交互项。
 - 未提供 `FASTIMG_APP_URL` 时只使用临时 HTTP origin 完成首次构建；宝塔域名和证书配置完成后必须改为正式 HTTPS 并重新发布 SSG。
 - 验证：三份部署脚本通过 Bash 语法检查，CLI 自动化帮助测试通过；实际服务器部署仍需在宝塔目标机验证数据库、Redis、端口和反向代理。
+
+## 七十一、2026-09-28：生产管理员初始化和登录页收口
+
+- 部署 CLI 默认使用 `admin@localhost`，通过 OpenSSL 生成一次性随机管理员密码，仅在首次创建成功后的部署终端显示，不写入环境文件、命令参数或应用日志。
+- `AdminUser` Seeder 移除固定 `admin@example.com / Admin123!` 凭据，仅在显式提供 `FASTIMG_SEED_ADMIN_EMAIL` 与 `FASTIMG_SEED_ADMIN_PASSWORD` 时用于开发初始化；生产继续使用 `admin:bootstrap`。
+- 会员登录页移除演示账号、固定密码、复制按钮和一键登录代码，邮箱和密码初始为空；中英文演示文案同步删除。
+- 验证：登录页契约测试应确认不存在固定演示凭据，部署 CLI 和部署脚本继续通过 Bash 语法检查；生产环境仍需在目标服务器保存自动生成的管理员密码并完成首次登录。

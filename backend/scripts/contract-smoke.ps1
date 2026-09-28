@@ -1,11 +1,15 @@
 param(
     [string]$BaseUrl = "http://127.0.0.1:3000",
-    [string]$Email = "admin@example.com",
-    [string]$Password = "Admin123!",
+    [string]$Email = $env:FASTIMG_SMOKE_EMAIL,
+    [string]$Password = $env:FASTIMG_SMOKE_PASSWORD,
     [string]$ClientIp = "198.51.100.10"
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($Email) -or [string]::IsNullOrWhiteSpace($Password)) {
+    throw "Set FASTIMG_SMOKE_EMAIL and FASTIMG_SMOKE_PASSWORD, or pass -Email and -Password."
+}
 
 function Assert-Contract([bool]$Condition, [string]$Message) {
     if (-not $Condition) {

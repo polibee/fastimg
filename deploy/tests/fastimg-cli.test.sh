@@ -14,5 +14,8 @@ grep -q -- 'loopback upstream' <<<"$help"
 grep -q -- 'Baota' <<<"$help"
 grep -q -- 'automatic' <<<"$help"
 grep -q -- '127.0.0.1' <<<"$help"
+grep -q -- 'openssl rand -hex 24' "$CLI"
+grep -q -- 'APP_ENV=production' "$CLI"
+! grep -q -- 'Admin123!' "$CLI"
 
 echo 'fastimg CLI tests: PASS'

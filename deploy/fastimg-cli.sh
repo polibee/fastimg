@@ -29,6 +29,7 @@ ENV_FILE_VALUE="${FASTIMG_ENV_FILE:-}"
 ADMIN_EMAIL_VALUE="${FASTIMG_ADMIN_EMAIL:-}"
 ADMIN_NAME_VALUE="${FASTIMG_ADMIN_NAME:-Administrator}"
 ADMIN_PASSWORD_VALUE="${FASTIMG_ADMIN_PASSWORD:-}"
+ADMIN_PASSWORD_GENERATED=0
 BOOTSTRAP_ADMIN="${FASTIMG_BOOTSTRAP_ADMIN:-1}"
 
 log() { printf '[fastimg] %s\n' "$*"; }
@@ -51,6 +52,9 @@ The CLI asks only for the PostgreSQL database credentials, detects local
 PostgreSQL/Redis and chooses a free application port automatically. APP_KEY
 and JWT_SECRET are generated locally. It never starts a PostgreSQL or Redis
 container and never prints passwords.
+
+The initial administrator defaults to admin@localhost and receives a random
+one-time password printed only after a new account is created.
 
 When APP_URL is not supplied, it uses a temporary http://IP:port origin and
 prints the loopback upstream (for example http://127.0.0.1:8080) for Baota.
@@ -296,21 +300,33 @@ write_env() {
 
 bootstrap_admin() {
     [[ "$BOOTSTRAP_ADMIN" == 1 ]] || return 0
-    [[ -n "$ADMIN_EMAIL_VALUE" || "$NON_INTERACTIVE" != 1 ]] || { log 'FASTIMG_ADMIN_EMAIL is empty; skipping administrator bootstrap'; return 0; }
-    ADMIN_EMAIL_VALUE="$(ask_required 'Initial administrator email' "$ADMIN_EMAIL_VALUE")"
-    ADMIN_NAME_VALUE="$(ask 'Initial administrator name' "$ADMIN_NAME_VALUE")"
-    ADMIN_PASSWORD_VALUE="$(ask_secret 'Initial administrator password (12+ characters)' "$ADMIN_PASSWORD_VALUE")"
+    ADMIN_EMAIL_VALUE="${ADMIN_EMAIL_VALUE:-admin@localhost}"
+    if [[ -z "$ADMIN_PASSWORD_VALUE" ]]; then
+        require_command openssl
+        ADMIN_PASSWORD_VALUE="$(openssl rand -hex 24)"
+        ADMIN_PASSWORD_GENERATED=1
+    fi
     [[ ${#ADMIN_PASSWORD_VALUE} -ge 12 ]] || die 'initial administrator password must contain at least 12 characters'
+    local bootstrap_output
     if [[ "$MODE" == docker ]]; then
-        printf '%s\n' "$ADMIN_PASSWORD_VALUE" | docker compose --env-file "$ENV_FILE_VALUE" -f "$SCRIPT_DIR/docker/docker-compose.yml" run --rm -T api artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE"
+        bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | docker compose --env-file "$ENV_FILE_VALUE" -f "$SCRIPT_DIR/docker/docker-compose.yml" run --rm -T api artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
     else
         local app_binary="$INSTALL_ROOT_VALUE/current/backend/fastimg-api"
         [[ -x "$app_binary" ]] || die "deployed API binary not found: $app_binary"
         if [[ "$(id -u)" -eq 0 ]]; then
-            printf '%s\n' "$ADMIN_PASSWORD_VALUE" | runuser -u "$APP_USER_VALUE" -- "$app_binary" artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE"
+            bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | runuser -u "$APP_USER_VALUE" -- "$app_binary" artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
         else
-            printf '%s\n' "$ADMIN_PASSWORD_VALUE" | "$app_binary" artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE"
+            bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | "$app_binary" artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
         fi
+    fi
+    printf '%s\n' "$bootstrap_output"
+    if [[ "$ADMIN_PASSWORD_GENERATED" == 1 && "$bootstrap_output" == *'Administrator created:'* ]]; then
+        printf '\n'
+        log 'Initial administrator credentials — save them now; the generated password is shown only once.'
+        printf '  email:    %s\n' "$ADMIN_EMAIL_VALUE"
+        printf '  password: %s\n' "$ADMIN_PASSWORD_VALUE"
+    elif [[ "$ADMIN_PASSWORD_GENERATED" == 1 ]]; then
+        log "Administrator $ADMIN_EMAIL_VALUE already exists; its password was not changed. The generated password was discarded."
     fi
 }
 
