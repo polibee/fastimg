@@ -1190,3 +1190,12 @@ POST   /api/v1/media/{id}/signed-url
 - 根因验收：`53083` 对用户提供的链接返回连接拒绝；同一签名 URL 改为 `53085` 返回 `200 image/png`。
 - 新增/更新原图唯一存储、链接键集合和公开 Variant 契约测试；Go 测试启动仍受本机 Windows Go cache `Access is denied` 限制，不能把该环境限制误报为测试通过。
 - 已完成后端重新编译和前端类型/构建前置检查；重启后需重新打开媒体详情或重新上传一次，才能拿到使用 53085 的新链接。生产环境必须把 `APP_URL` 设置成真实 HTTPS 域名，不应把 53085 带入生产。
+
+## 六十九、2026-09-28：交互式一键部署 CLI
+
+- 新增 `deploy/fastimg-cli.sh`，统一收集 Linux 源码部署和 Docker 应用部署所需配置，复用既有 `deploy/linux/deploy.sh` 与 `deploy/docker/deploy.sh`，不启动 PostgreSQL/Redis 容器。
+- CLI 交互收集 PostgreSQL 主机、端口、数据库、用户名、密码和 SSL 模式；Redis 先自动探测本机 `127.0.0.1:6379`/`localhost:6379`，失败后再询问远程连接参数，并在写入配置前做真实连通性检查。
+- `APP_KEY`、`JWT_SECRET` 由 CLI 使用本机 OpenSSL 生成；配置文件使用 `0640`，覆盖前创建时间戳备份。生产配置不会打印密码。
+- 新增 `admin:bootstrap`，首次部署通过标准输入接收管理员密码，创建或启用明确指定的管理员并授予现有权限；不执行仓库中的演示账号 Seeder，已有同邮箱账户不覆盖密码。
+- 部署结束输出会员端 `/`、管理端 `/admin/`、API `/api/`，并输出源码静态根目录或 Docker Web upstream，方便宝塔添加反向代理。
+- 验证：Git Bash `bash -n deploy/fastimg-cli.sh` 与 CLI 帮助测试通过；`go test ./app/console -run TestAdminBootstrapCommandMetadata -count=1` 通过。真实目标服务器的 PostgreSQL/Redis、TLS、第三方支付、对象存储和备份恢复仍需部署时验收。
