@@ -31,6 +31,10 @@ func (s *FastImg) Run() error {
 			}
 		}
 	}
+	var superAdminRoles []models.Role
+	if err := facades.Orm().Query().Where("name = ?", "super-admin").Get(&superAdminRoles); err != nil {
+		return err
+	}
 
 	for _, permission := range []models.Permission{
 		{Name: "admin.plans.view", DisplayName: "Plans.view"},
@@ -56,6 +60,25 @@ func (s *FastImg) Run() error {
 		if !exists {
 			if err := facades.Orm().Query().Create(&permission); err != nil {
 				return err
+			}
+		} else {
+			var existing []models.Permission
+			if err := facades.Orm().Query().Where("name = ?", permission.Name).Get(&existing); err != nil {
+				return err
+			}
+			if len(existing) > 0 {
+				permission = existing[0]
+			}
+		}
+		if len(superAdminRoles) > 0 {
+			assigned, err := facades.Orm().Query().Table("permission_role").Where("permission_id = ? AND role_id = ?", permission.ID, superAdminRoles[0].ID).Exists()
+			if err != nil {
+				return err
+			}
+			if !assigned {
+				if err := facades.Orm().Query().Table("permission_role").Create(&map[string]any{"permission_id": permission.ID, "role_id": superAdminRoles[0].ID}); err != nil {
+					return err
+				}
 			}
 		}
 	}

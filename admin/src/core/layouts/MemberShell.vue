@@ -127,7 +127,6 @@ async function logout() {
             {{ t('member.adminLink') }}
           </RouterLink>
         </nav>
-        <span v-if="auth.isAuthenticated" class="hidden max-w-48 truncate text-sm text-muted-foreground sm:block">{{ auth.user?.email }}</span>
         <Button variant="ghost" size="sm" :aria-label="t('member.actions.changeLanguage')" @click="toggleLocale">
           <Languages />
           {{ locale === 'zh-CN' ? 'EN' : '中文' }}
