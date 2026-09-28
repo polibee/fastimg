@@ -8,7 +8,7 @@
 
 ## 共同要求
 
-- PostgreSQL 已创建目标数据库和账号，生产使用 `DB_SSLMODE=verify-full` 或经过审阅的等价 TLS 模式。
+- PostgreSQL 已创建目标数据库和账号，生产使用 `DB_SSLMODE=verify-full` 或经过审阅的等价 TLS 模式。仅限本机/内网初始部署时，CLI 会在检测到本机 PostgreSQL 不支持 SSL 后自动使用 `disable`，公网发布前必须改回 TLS 或保持数据库只在可信内网。
 - Redis 已创建独立实例、账号和密码，不能依赖内存降级。
 - `APP_KEY` 和 `JWT_SECRET` 使用两个独立的随机密钥，每个至少 32 个字符。
 - `APP_URL` 使用最终 HTTPS 域名，`CORS_ALLOWED_ORIGINS` 只填写实际前端 Origin，不能使用 `*`。
@@ -29,11 +29,13 @@ sudo deploy/fastimg-cli.sh --mode source
 deploy/fastimg-cli.sh --mode docker
 ```
 
-CLI 会交互询问或读取 `FASTIMG_*` 环境变量：
+CLI 默认只需要填写 PostgreSQL 数据库名、用户名和密码：
 
-- 公网 HTTPS 地址、CORS 来源和本地 API/Web 端口；
-- PostgreSQL 主机、端口、数据库名、用户名、密码和 SSL 模式；
-- Redis 会先自动探测 `127.0.0.1:6379`/`localhost:6379`，连接失败后才询问远程地址、端口和密码；
+- PostgreSQL 默认自动连接 `127.0.0.1:5432`；本机连接失败后才询问远程主机和端口；
+- 本机 PostgreSQL 不支持 SSL 时自动回退到 `DB_SSLMODE=disable`，并显示内网使用警告；
+- Redis 自动探测 `127.0.0.1:6379`/`localhost:6379`，带密码的 Redis 通过 `FASTIMG_REDIS_PASSWORD` 自动验证；未检测到 Redis 时停止并提示先启动 Redis，不再增加交互项；
+- API/Web 端口自动从 `8080` 开始选择空闲端口，源码安装目录默认使用当前项目目录；
+- 未提供 `FASTIMG_APP_URL` 时，自动生成临时 `http://服务器IP:端口`，并输出 `127.0.0.1:端口` 作为宝塔反代 upstream；
 - `APP_KEY` 和 `JWT_SECRET` 自动生成，不显示、不写入命令参数；
 - 首次部署默认要求输入管理员邮箱、名称和密码。密码通过标准输入交给 `admin:bootstrap`，不会出现在进程参数、环境文件或部署日志中。已有同邮箱账户只确保启用 `super-admin` 权限，不覆盖原密码。
 
@@ -53,15 +55,15 @@ sudo --preserve-env=FASTIMG_NON_INTERACTIVE,FASTIMG_DEPLOY_MODE,FASTIMG_APP_URL,
 deploy/fastimg-cli.sh
 ```
 
-部署成功后 CLI 会打印三类访问地址：
+部署成功后 CLI 会打印服务器 IP:端口和宝塔反代地址：
 
 ```text
-会员端： https://img.example.com/
-管理后台： https://img.example.com/admin/
-后端 API： https://img.example.com/api/
+服务器直连测试地址：http://服务器IP:8868
+宝塔反代 upstream： http://127.0.0.1:8868
+会员端/管理后台：添加宝塔域名后访问
 ```
 
-源码部署还会打印静态文件根目录和 API upstream，例如 `/opt/fastimg/current/web` 与 `http://127.0.0.1:8080`；Docker 部署会打印 Web upstream，例如 `http://127.0.0.1:8080`。宝塔只需要把网站根目录或 Web upstream 指向这些值，并把 `/api/`、`/i/`、`/s/`、`/sitemap.xml`、`/robots.txt` 按输出说明转发；不要把 PostgreSQL 或 Redis 端口暴露到公网。
+如果预先设置了 `FASTIMG_APP_URL=https://img.example.com`，CLI 也会直接打印会员端、管理端和 API URL。源码部署还会打印静态文件根目录，例如 `/www/wwwroot/fastimg/current/web`；Docker 部署会打印 Web upstream。宝塔只需要按后文配置入口，不要把 PostgreSQL 或 Redis 端口暴露到公网。
 
 CLI 结束时还会列出仍需在宝塔或管理后台手工完成的事项：TLS/DNS/反向代理、邮件服务与发件邮箱、Cloudflare Turnstile、PayPal/XCash/NOWPayments 回调、R2/OSS/COS/CDN、水印、广告、SEO、备份恢复和外部监控。部署脚本不会伪造这些第三方配置或生产验收结果。
 
@@ -95,17 +97,30 @@ CLI 中填写：
 - `APP_URL`：宝塔站点的最终 HTTPS 域名；
 - PostgreSQL 连接信息；
 - Redis 连接信息；本机 Redis 会自动探测，远程 Redis 会交互询问；
-- API 本地端口，默认 `8080`；如果被其他项目占用，改成未占用端口；
-- 安装目录，默认 `/opt/fastimg`；
+- API 本地端口由 CLI 自动选择空闲端口；
+- 安装目录默认使用当前项目目录；如需独立发布目录，可通过 `FASTIMG_INSTALL_ROOT` 指定；
 - 首个管理员邮箱、名称和密码。
 
 源码部署完成后，在宝塔站点设置中：
 
-- 网站根目录设置为 `/opt/fastimg/current/web`；
+- 网站根目录设置为 CLI 输出的静态目录，例如 `/www/wwwroot/fastimg/current/web`；
 - 不要把 `/` 整站代理到 API；首页和 `/admin/` 由静态 SSG 文件提供；
-- 将 `/api/`、`/i/`、`/s/`、`/sitemap.xml`、`/robots.txt` 代理到 CLI 输出的 API upstream，例如 `http://127.0.0.1:8080`；
+- 将 `/api/`、`/i/`、`/s/`、`/sitemap.xml`、`/robots.txt` 代理到 CLI 输出的 API upstream，例如 `http://127.0.0.1:8868`；
 - 上传大小至少设置为 `25M`，并根据套餐允许的单文件大小调整；
 - 使用仓库中的 [fastimg-source.conf.example](../deploy/nginx/fastimg-source.conf.example) 作为 Nginx 配置参考，不要把示例证书路径直接用于生产。
+
+首次 CLI 部署若没有提供 `FASTIMG_APP_URL`，会使用临时 HTTP 地址完成构建。宝塔域名和证书配置完成后，必须把 `/www/wwwroot/fastimg/shared/.env` 中的 `APP_URL` 和 `CORS_ALLOWED_ORIGINS` 改为最终 HTTPS 域名，然后重新执行一次源码部署以重新生成 SSG 页面：
+
+```bash
+cd /www/wwwroot/fastimg
+sudo FASTIMG_SOURCE_ROOT="$PWD" \
+  FASTIMG_ENV_FILE="$PWD/shared/.env" \
+  FASTIMG_INSTALL_ROOT="$PWD" \
+  FASTIMG_API_PORT=8868 \
+  bash deploy/linux/deploy.sh
+```
+
+之后公网只通过宝塔域名访问，不要直接开放 `8868` 到公网。
 
 源码模式的实际访问地址为：
 
@@ -126,13 +141,13 @@ cd fastimg/go-vue-admin
 deploy/fastimg-cli.sh --mode docker
 ```
 
-CLI 会构建并启动 Web 容器，默认将宿主机端口 `8080` 映射到 Web 容器的 `8080`。在宝塔站点中添加一个整站反向代理：
+CLI 会构建并启动 Web 容器，自动选择空闲宿主机端口并映射到 Web 容器的 `8080`。在宝塔站点中添加一个整站反向代理：
 
 ```text
 代理目标： http://127.0.0.1:8080
 ```
 
-Docker Web 容器内部已经代理 `/api/`、`/i/`、`/s/`、`/sitemap.xml` 和 `/robots.txt` 到 API 容器，因此宝塔不需要再为这些路径单独配置第二套 API 代理。宿主机端口冲突时，在 CLI 中选择其他端口，并将宝塔代理目标同步改为该端口。
+Docker Web 容器内部已经代理 `/api/`、`/i/`、`/s/`、`/sitemap.xml` 和 `/robots.txt` 到 API 容器，因此宝塔不需要再为这些路径单独配置第二套 API 代理。CLI 会自动避开端口冲突，并在结束时输出实际 Web upstream。
 
 Docker 模式不需要在宿主机安装 Go 或 Node.js；构建依赖在镜像构建阶段完成。生产环境不要把 Web 容器端口、PostgreSQL 或 Redis 端口直接暴露到公网。
 

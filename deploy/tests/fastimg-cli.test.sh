@@ -10,8 +10,9 @@ help="$(bash "$CLI" --help)"
 grep -q -- '--mode source|docker' <<<"$help"
 grep -q -- 'PostgreSQL' <<<"$help"
 grep -q -- 'Redis' <<<"$help"
-grep -q -- 'member URL' <<<"$help"
-grep -q -- 'admin URL' <<<"$help"
-grep -q -- 'API URL' <<<"$help"
+grep -q -- 'loopback upstream' <<<"$help"
+grep -q -- 'Baota' <<<"$help"
+grep -q -- 'automatic' <<<"$help"
+grep -q -- '127.0.0.1' <<<"$help"
 
 echo 'fastimg CLI tests: PASS'

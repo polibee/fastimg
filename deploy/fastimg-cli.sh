@@ -7,20 +7,24 @@ MODE="${FASTIMG_DEPLOY_MODE:-}"
 NON_INTERACTIVE="${FASTIMG_NON_INTERACTIVE:-0}"
 CHECK_ONLY=0
 APP_URL_VALUE="${FASTIMG_APP_URL:-}"
+PUBLIC_URL_AUTO=0
 CORS_VALUE="${FASTIMG_CORS_ALLOWED_ORIGINS:-}"
 DB_HOST_VALUE="${FASTIMG_DB_HOST:-127.0.0.1}"
 DB_PORT_VALUE="${FASTIMG_DB_PORT:-5432}"
 DB_DATABASE_VALUE="${FASTIMG_DB_DATABASE:-fastimg}"
 DB_USERNAME_VALUE="${FASTIMG_DB_USERNAME:-}"
 DB_PASSWORD_VALUE="${FASTIMG_DB_PASSWORD:-}"
-DB_SSLMODE_VALUE="${FASTIMG_DB_SSLMODE:-verify-full}"
+DB_SSLMODE_VALUE="${FASTIMG_DB_SSLMODE:-}"
 APP_USER_VALUE="${FASTIMG_APP_USER:-fastimg}"
 REDIS_HOST_VALUE="${FASTIMG_REDIS_HOST:-}"
 REDIS_PORT_VALUE="${FASTIMG_REDIS_PORT:-6379}"
 REDIS_PASSWORD_VALUE="${FASTIMG_REDIS_PASSWORD:-}"
-API_PORT_VALUE="${FASTIMG_API_PORT:-8080}"
-WEB_PORT_VALUE="${FASTIMG_WEB_PORT:-8080}"
-INSTALL_ROOT_VALUE="${FASTIMG_INSTALL_ROOT:-/opt/fastimg}"
+API_PORT_VALUE="${FASTIMG_API_PORT:-}"
+WEB_PORT_VALUE="${FASTIMG_WEB_PORT:-}"
+INSTALL_ROOT_VALUE="${FASTIMG_INSTALL_ROOT:-$REPO_ROOT}"
+SERVER_IP_VALUE="${FASTIMG_SERVER_IP:-}"
+ALLOW_HTTP_VALUE="${FASTIMG_ALLOW_HTTP:-0}"
+ALLOW_LOCAL_DB_SSL_DISABLE_VALUE="${FASTIMG_ALLOW_LOCAL_DB_SSL_DISABLE:-0}"
 ENV_FILE_VALUE="${FASTIMG_ENV_FILE:-}"
 ADMIN_EMAIL_VALUE="${FASTIMG_ADMIN_EMAIL:-}"
 ADMIN_NAME_VALUE="${FASTIMG_ADMIN_NAME:-Administrator}"
@@ -43,12 +47,14 @@ Options:
   --non-interactive      Read all values from FASTIMG_* environment variables.
   -h, --help             Show this help.
 
-The CLI asks for PostgreSQL host, database, username and password, then probes
-Redis automatically. APP_KEY and JWT_SECRET are generated locally. It never
-starts a PostgreSQL or Redis container and never prints passwords.
+The CLI asks only for the PostgreSQL database credentials, detects local
+PostgreSQL/Redis and chooses a free application port automatically. APP_KEY
+and JWT_SECRET are generated locally. It never starts a PostgreSQL or Redis
+container and never prints passwords.
 
-After deployment it prints the member URL, admin URL and API URL. Put the
-printed upstream values into your Baota reverse-proxy/site configuration.
+When APP_URL is not supplied, it uses a temporary http://IP:port origin and
+prints the loopback upstream (for example http://127.0.0.1:8080) for Baota.
+Set the final HTTPS domain in APP_URL after creating the Baota site.
 EOF
 }
 
@@ -108,8 +114,66 @@ random_secret() {
 }
 
 validate_url() {
-    [[ "$1" == https://* ]] || die 'APP_URL must start with https://'
+    [[ "$1" == https://* || "$1" == http://* ]] || die 'APP_URL must start with http:// or https://'
     [[ "$1" != *$'\n'* && "$1" != *' '* ]] || die 'APP_URL must not contain spaces or newlines'
+}
+
+detect_server_ip() {
+    [[ -n "$SERVER_IP_VALUE" ]] && return 0
+    if command -v hostname >/dev/null 2>&1; then
+        for candidate in $(hostname -I 2>/dev/null || true); do
+            if [[ "$candidate" != 127.* && "$candidate" != *:* ]]; then
+                SERVER_IP_VALUE="$candidate"
+                break
+            fi
+        done
+    fi
+    SERVER_IP_VALUE="${SERVER_IP_VALUE:-127.0.0.1}"
+}
+
+port_is_free() {
+    local port="$1"
+    if command -v ss >/dev/null 2>&1; then
+        ! ss -H -ltn "sport = :${port}" 2>/dev/null | grep -q .
+        return
+    fi
+    if command -v lsof >/dev/null 2>&1; then
+        ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+        return
+    fi
+    die 'ss or lsof is required to select a free application port'
+}
+
+choose_free_port() {
+    local candidate="$1"
+    [[ "$candidate" =~ ^[0-9]+$ ]] || die 'application port must be numeric'
+    while ! port_is_free "$candidate"; do
+        candidate=$((candidate + 1))
+    done
+    printf '%s' "$candidate"
+}
+
+configure_runtime_defaults() {
+    detect_server_ip
+    if [[ "$MODE" == docker ]]; then
+        WEB_PORT_VALUE="$(choose_free_port "${WEB_PORT_VALUE:-8080}")"
+        if [[ -z "$APP_URL_VALUE" ]]; then
+            APP_URL_VALUE="http://${SERVER_IP_VALUE}:${WEB_PORT_VALUE}"
+            PUBLIC_URL_AUTO=1
+        fi
+    else
+        API_PORT_VALUE="$(choose_free_port "${API_PORT_VALUE:-8080}")"
+        if [[ -z "$APP_URL_VALUE" ]]; then
+            APP_URL_VALUE="http://${SERVER_IP_VALUE}:${API_PORT_VALUE}"
+            PUBLIC_URL_AUTO=1
+        fi
+    fi
+    if [[ "$APP_URL_VALUE" == http://* ]]; then
+        ALLOW_HTTP_VALUE=1
+    fi
+    validate_url "$APP_URL_VALUE"
+    CORS_VALUE="${CORS_VALUE:-$APP_URL_VALUE}"
+    [[ "$CORS_VALUE" != *'*'* ]] || die 'CORS_ALLOWED_ORIGINS must not contain *'
 }
 
 probe_redis() {
@@ -128,9 +192,6 @@ probe_redis() {
         fi
         if [[ "$result" == *NOAUTH* ]]; then
             candidate_password="$REDIS_PASSWORD_VALUE"
-            if [[ -z "$candidate_password" && "$NON_INTERACTIVE" != 1 ]]; then
-                candidate_password="$(ask_secret "Redis password for ${candidate}:${REDIS_PORT_VALUE}" '')"
-            fi
             if [[ -n "$candidate_password" ]] && redis-cli -h "$candidate" -p "$REDIS_PORT_VALUE" -a "$candidate_password" --no-auth-warning ping 2>/dev/null | grep -qx PONG; then
                 REDIS_HOST_VALUE="$candidate"
                 REDIS_PASSWORD_VALUE="$candidate_password"
@@ -144,38 +205,63 @@ probe_redis() {
 
 configure_redis() {
     if probe_redis; then return; fi
-    log 'Redis was not found on local candidates; enter the external Redis connection.'
-    REDIS_HOST_VALUE="$(ask_required 'Redis host' "$REDIS_HOST_VALUE")"
-    REDIS_PORT_VALUE="$(ask 'Redis port' "$REDIS_PORT_VALUE")"
-    if [[ -z "$REDIS_PASSWORD_VALUE" && "$NON_INTERACTIVE" != 1 ]]; then
-        REDIS_PASSWORD_VALUE="$(ask_secret 'Redis password (leave empty when disabled)' '')"
-    fi
-    if [[ -n "$REDIS_PASSWORD_VALUE" ]]; then
-        redis-cli -h "$REDIS_HOST_VALUE" -p "$REDIS_PORT_VALUE" -a "$REDIS_PASSWORD_VALUE" --no-auth-warning ping 2>/dev/null | grep -qx PONG || die 'Redis authentication check failed'
-    else
-        redis-cli -h "$REDIS_HOST_VALUE" -p "$REDIS_PORT_VALUE" ping | grep -qx PONG || die 'Redis connectivity check failed'
-    fi
-    log "Redis connected at ${REDIS_HOST_VALUE}:${REDIS_PORT_VALUE}"
+    die 'Redis was not detected automatically. Start Redis locally, or set FASTIMG_REDIS_HOST, FASTIMG_REDIS_PORT and FASTIMG_REDIS_PASSWORD before running the CLI.'
+}
+
+postgres_is_local() {
+    [[ "$DB_HOST_VALUE" == 127.* || "$DB_HOST_VALUE" == localhost || "$DB_HOST_VALUE" == ::1 ]]
+}
+
+check_postgres() {
+    local sslmode="$1"
+    PGPASSWORD="$DB_PASSWORD_VALUE" PGSSLMODE="$sslmode" \
+        psql -h "$DB_HOST_VALUE" -p "$DB_PORT_VALUE" -U "$DB_USERNAME_VALUE" -d "$DB_DATABASE_VALUE" -Atqc 'select 1' >/dev/null 2>&1
 }
 
 configure_database() {
     require_command psql
-    DB_HOST_VALUE="$(ask_required 'PostgreSQL host' "$DB_HOST_VALUE")"
-    DB_PORT_VALUE="$(ask 'PostgreSQL port' "$DB_PORT_VALUE")"
     DB_DATABASE_VALUE="$(ask_required 'PostgreSQL database' "$DB_DATABASE_VALUE")"
-    DB_USERNAME_VALUE="$(ask_required 'PostgreSQL username' "$DB_USERNAME_VALUE")"
+    DB_USERNAME_VALUE="$(ask_required 'PostgreSQL username' "${DB_USERNAME_VALUE:-postgres}")"
     DB_PASSWORD_VALUE="$(ask_secret 'PostgreSQL password' "$DB_PASSWORD_VALUE")"
-    DB_SSLMODE_VALUE="$(ask 'PostgreSQL SSL mode (verify-full/require/disable)' "$DB_SSLMODE_VALUE")"
-    [[ "$DB_SSLMODE_VALUE" != disable ]] || die 'PostgreSQL SSL mode disable is not allowed by the production deployment'
-    PGPASSWORD="$DB_PASSWORD_VALUE" PGSSLMODE="$DB_SSLMODE_VALUE" psql -h "$DB_HOST_VALUE" -p "$DB_PORT_VALUE" -U "$DB_USERNAME_VALUE" -d "$DB_DATABASE_VALUE" -Atqc 'select 1' >/dev/null || die 'PostgreSQL connectivity check failed'
+    if [[ -n "$DB_SSLMODE_VALUE" ]] && check_postgres "$DB_SSLMODE_VALUE"; then
+        if [[ "$DB_SSLMODE_VALUE" == disable ]] && postgres_is_local; then
+            ALLOW_LOCAL_DB_SSL_DISABLE_VALUE=1
+            log 'WARNING: local PostgreSQL does not support SSL; keep the database on localhost or a private network.'
+        fi
+        log "PostgreSQL connected at ${DB_HOST_VALUE}:${DB_PORT_VALUE}/${DB_DATABASE_VALUE} (${DB_SSLMODE_VALUE})"
+        return
+    fi
+    if [[ -z "$DB_SSLMODE_VALUE" ]] && check_postgres verify-full; then
+        DB_SSLMODE_VALUE=verify-full
+        log "PostgreSQL connected at ${DB_HOST_VALUE}:${DB_PORT_VALUE}/${DB_DATABASE_VALUE} (verify-full)"
+        return
+    fi
+    if postgres_is_local && check_postgres disable; then
+        DB_SSLMODE_VALUE=disable
+        ALLOW_LOCAL_DB_SSL_DISABLE_VALUE=1
+        log "PostgreSQL connected at ${DB_HOST_VALUE}:${DB_PORT_VALUE}/${DB_DATABASE_VALUE} (local SSL disabled)"
+        log 'WARNING: local PostgreSQL does not support SSL; keep the database on localhost or a private network.'
+        return
+    fi
+    if [[ -z "$DB_SSLMODE_VALUE" ]] && check_postgres require; then
+        DB_SSLMODE_VALUE=require
+        log "PostgreSQL connected at ${DB_HOST_VALUE}:${DB_PORT_VALUE}/${DB_DATABASE_VALUE} (require)"
+        return
+    fi
+    if [[ "$NON_INTERACTIVE" != 1 ]]; then
+        log 'PostgreSQL was not reachable with the automatic settings; enter its host and port.'
+        DB_HOST_VALUE="$(ask_required 'PostgreSQL host' "$DB_HOST_VALUE")"
+        DB_PORT_VALUE="$(ask 'PostgreSQL port' "$DB_PORT_VALUE")"
+        DB_SSLMODE_VALUE="${DB_SSLMODE_VALUE:-verify-full}"
+        check_postgres "$DB_SSLMODE_VALUE" || die 'PostgreSQL connectivity check failed'
+    else
+        die 'PostgreSQL connectivity check failed; set FASTIMG_DB_HOST, FASTIMG_DB_PORT and FASTIMG_DB_SSLMODE if the database is remote.'
+    fi
     log "PostgreSQL connected at ${DB_HOST_VALUE}:${DB_PORT_VALUE}/${DB_DATABASE_VALUE}"
 }
 
 configure_common() {
-    APP_URL_VALUE="$(ask_required 'Public HTTPS URL, for example https://img.example.com' "$APP_URL_VALUE")"
-    validate_url "$APP_URL_VALUE"
-    CORS_VALUE="$(ask 'CORS allowed origins (comma-separated)' "${CORS_VALUE:-$APP_URL_VALUE}")"
-    [[ "$CORS_VALUE" != *'*'* ]] || die 'CORS_ALLOWED_ORIGINS must not contain *'
+    configure_runtime_defaults
     configure_database
     configure_redis
 }
@@ -230,21 +316,29 @@ bootstrap_admin() {
 
 deploy_application() {
     if [[ "$MODE" == docker ]]; then
-        FASTIMG_ENV_FILE="$ENV_FILE_VALUE" FASTIMG_WEB_PORT="$WEB_PORT_VALUE" bash "$SCRIPT_DIR/docker/deploy.sh"
+        FASTIMG_ENV_FILE="$ENV_FILE_VALUE" FASTIMG_WEB_PORT="$WEB_PORT_VALUE" FASTIMG_ALLOW_HTTP="$ALLOW_HTTP_VALUE" FASTIMG_ALLOW_LOCAL_DB_SSL_DISABLE="$ALLOW_LOCAL_DB_SSL_DISABLE_VALUE" bash "$SCRIPT_DIR/docker/deploy.sh"
     else
         [[ "$(id -u)" -eq 0 ]] || die 'source deployment must run as root (use sudo)'
-        FASTIMG_SOURCE_ROOT="$REPO_ROOT" FASTIMG_ENV_FILE="$ENV_FILE_VALUE" FASTIMG_INSTALL_ROOT="$INSTALL_ROOT_VALUE" FASTIMG_APP_USER="$APP_USER_VALUE" FASTIMG_API_PORT="$API_PORT_VALUE" bash "$SCRIPT_DIR/linux/deploy.sh"
+        FASTIMG_SOURCE_ROOT="$REPO_ROOT" FASTIMG_ENV_FILE="$ENV_FILE_VALUE" FASTIMG_INSTALL_ROOT="$INSTALL_ROOT_VALUE" FASTIMG_APP_USER="$APP_USER_VALUE" FASTIMG_API_PORT="$API_PORT_VALUE" FASTIMG_ALLOW_HTTP="$ALLOW_HTTP_VALUE" FASTIMG_ALLOW_LOCAL_DB_SSL_DISABLE="$ALLOW_LOCAL_DB_SSL_DISABLE_VALUE" bash "$SCRIPT_DIR/linux/deploy.sh"
     fi
 }
 
 print_urls() {
-    local origin="${APP_URL_VALUE%/}"
+    local origin="${APP_URL_VALUE%/}" direct_port="$API_PORT_VALUE"
+    [[ "$MODE" == docker ]] && direct_port="$WEB_PORT_VALUE"
     printf '\n'
     log 'Deployment endpoints'
-    printf '  member URL: %s/\n' "$origin"
-    printf '  admin URL:  %s/admin/\n' "$origin"
-    printf '  API URL:    %s/api/\n' "$origin"
-    printf '  media URL:  %s/i/{id}?signature=...\n' "$origin"
+    printf '  server endpoint: http://%s:%s\n' "$SERVER_IP_VALUE" "$direct_port"
+    printf '  loopback upstream: http://127.0.0.1:%s\n' "$direct_port"
+    if [[ "$PUBLIC_URL_AUTO" == 1 ]]; then
+        printf '  member/admin URL: configure after adding the Baota domain\n'
+        printf '  temporary APP_URL: %s/\n' "$origin"
+    else
+        printf '  member URL: %s/\n' "$origin"
+        printf '  admin URL:  %s/admin/\n' "$origin"
+        printf '  API URL:    %s/api/\n' "$origin"
+        printf '  media URL:  %s/i/{id}?signature=...\n' "$origin"
+    fi
     printf '\n'
     log 'Baota reverse-proxy targets'
     if [[ "$MODE" == docker ]]; then
@@ -267,16 +361,10 @@ print_urls() {
 
 main() {
     require_command curl
-    if [[ -z "$MODE" ]]; then MODE="$(ask 'Deployment mode (source/docker)' source)"; fi
+    if [[ -z "$MODE" ]]; then MODE=source; fi
     [[ "$MODE" == source || "$MODE" == docker ]] || die 'deployment mode must be source or docker'
     if [[ -z "$ENV_FILE_VALUE" ]]; then
         if [[ "$MODE" == docker ]]; then ENV_FILE_VALUE="$SCRIPT_DIR/docker/fastimg.env"; else ENV_FILE_VALUE="${INSTALL_ROOT_VALUE}/shared/.env"; fi
-    fi
-    if [[ "$MODE" == docker ]]; then
-        WEB_PORT_VALUE="$(ask 'Docker web host port' "$WEB_PORT_VALUE")"
-    else
-        API_PORT_VALUE="$(ask 'API local port' "$API_PORT_VALUE")"
-        INSTALL_ROOT_VALUE="$(ask 'Linux install root' "$INSTALL_ROOT_VALUE")"
     fi
     configure_common
     if [[ "$CHECK_ONLY" == 1 ]]; then

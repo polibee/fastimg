@@ -35,8 +35,14 @@ validate_env() {
     done
     [[ "$(env_value APP_ENV)" == "production" ]] || die "APP_ENV must be production"
     [[ "$(env_value APP_DEBUG)" == "false" ]] || die "APP_DEBUG must be false"
-    [[ "$(env_value APP_URL)" == https://* ]] || die "APP_URL must use https://"
-    [[ "$(env_value DB_SSLMODE)" != "disable" ]] || die "DB_SSLMODE=disable is forbidden for production"
+    if [[ "$(env_value APP_URL)" != https://* ]]; then
+        [[ "${FASTIMG_ALLOW_HTTP:-0}" == "1" && "$(env_value APP_URL)" == http://* ]] || die "APP_URL must use https://"
+        log "WARNING: allowing temporary HTTP APP_URL for local/Baota bootstrap; replace it with the final HTTPS domain before public launch"
+    fi
+    if [[ "$(env_value DB_SSLMODE)" == "disable" ]]; then
+        [[ "${FASTIMG_ALLOW_LOCAL_DB_SSL_DISABLE:-0}" == "1" && "$(env_value DB_HOST)" == 127.* || "${FASTIMG_ALLOW_LOCAL_DB_SSL_DISABLE:-0}" == "1" && "$(env_value DB_HOST)" == localhost || "${FASTIMG_ALLOW_LOCAL_DB_SSL_DISABLE:-0}" == "1" && "$(env_value DB_HOST)" == ::1 ]] || die "DB_SSLMODE=disable is forbidden for production"
+        log "WARNING: allowing local PostgreSQL without SSL for initial bootstrap; configure TLS before public launch"
+    fi
     local app_key jwt_secret
     app_key="$(env_value APP_KEY)"
     jwt_secret="$(env_value JWT_SECRET)"

@@ -1199,3 +1199,11 @@ POST   /api/v1/media/{id}/signed-url
 - 新增 `admin:bootstrap`，首次部署通过标准输入接收管理员密码，创建或启用明确指定的管理员并授予现有权限；不执行仓库中的演示账号 Seeder，已有同邮箱账户不覆盖密码。
 - 部署结束输出会员端 `/`、管理端 `/admin/`、API `/api/`，并输出源码静态根目录或 Docker Web upstream，方便宝塔添加反向代理。
 - 验证：Git Bash `bash -n deploy/fastimg-cli.sh` 与 CLI 帮助测试通过；`go test ./app/console -run TestAdminBootstrapCommandMetadata -count=1` 通过。真实目标服务器的 PostgreSQL/Redis、TLS、第三方支付、对象存储和备份恢复仍需部署时验收。
+
+## 七十、2026-09-28：宝塔部署自动检测优化
+
+- CLI 源码部署默认使用当前项目目录，不再询问安装目录、API 端口、CORS 或临时公网 URL；从 `8080` 开始自动选择空闲端口，并输出服务器 IP:端口和 `127.0.0.1:端口` 反代 upstream。
+- PostgreSQL 默认自动连接本机，交互只填写数据库名、用户名和密码；本机不支持 SSL 时自动使用 `disable` 并输出内网警告，远程数据库仍要求 TLS 配置。
+- Redis 改为自动探测本机或 `FASTIMG_REDIS_*` 指定实例，无法连接时直接给出启动/配置提示，不增加无必要的交互项。
+- 未提供 `FASTIMG_APP_URL` 时只使用临时 HTTP origin 完成首次构建；宝塔域名和证书配置完成后必须改为正式 HTTPS 并重新发布 SSG。
+- 验证：三份部署脚本通过 Bash 语法检查，CLI 自动化帮助测试通过；实际服务器部署仍需在宝塔目标机验证数据库、Redis、端口和反向代理。
