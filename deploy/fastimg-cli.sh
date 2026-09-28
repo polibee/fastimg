@@ -48,10 +48,10 @@ Options:
   --non-interactive      Read all values from FASTIMG_* environment variables.
   -h, --help             Show this help.
 
-The CLI asks only for the PostgreSQL database credentials, detects local
-PostgreSQL/Redis and chooses a free application port automatically. APP_KEY
-and JWT_SECRET are generated locally. It never starts a PostgreSQL or Redis
-container and never prints passwords.
+The CLI asks for the PostgreSQL database credentials and the initial
+administrator email, detects local PostgreSQL/Redis and chooses a free
+application port automatically. APP_KEY and JWT_SECRET are generated locally.
+It never starts a PostgreSQL or Redis container and never prints passwords.
 
 The initial administrator email is required (interactive input or
 FASTIMG_ADMIN_EMAIL). If FASTIMG_ADMIN_PASSWORD is not supplied, the CLI

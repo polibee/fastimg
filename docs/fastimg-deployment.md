@@ -29,7 +29,7 @@ sudo deploy/fastimg-cli.sh --mode source
 deploy/fastimg-cli.sh --mode docker
 ```
 
-CLI 默认只需要填写 PostgreSQL 数据库名、用户名和密码：
+CLI 自动检测应用地址、端口和 Redis；交互部署只需要填写 PostgreSQL 数据库信息以及真实管理员邮箱：
 
 - PostgreSQL 默认自动连接 `127.0.0.1:5432`；本机连接失败后才询问远程主机和端口；
 - 本机 PostgreSQL 不支持 SSL 时自动回退到 `DB_SSLMODE=disable`，并显示内网使用警告；
