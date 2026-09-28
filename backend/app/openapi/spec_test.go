@@ -77,6 +77,22 @@ func TestSpecCoversImplementedAdminContracts(t *testing.T) {
 	}
 }
 
+func TestSpecDocumentsPublicAndAdminContentPageContracts(t *testing.T) {
+	spec := Spec()
+	paths := spec["paths"].(map[string]any)
+	for _, path := range []string{"/site/pages/{slug}", "/admin/content-pages", "/admin/content-pages/{id}", "/admin/content-pages/{id}/actions/publish", "/admin/content-pages/{id}/actions/archive"} {
+		if _, ok := paths[path]; !ok {
+			t.Fatalf("missing content page path %s", path)
+		}
+	}
+	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
+	for _, schema := range []string{"PublicSitePage", "AdminSitePage"} {
+		if _, ok := schemas[schema]; !ok {
+			t.Fatalf("missing content page schema %s", schema)
+		}
+	}
+}
+
 func TestSpecDocumentsMemberAdvertisingContract(t *testing.T) {
 	spec := Spec()
 	paths := spec["paths"].(map[string]any)

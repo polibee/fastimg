@@ -71,6 +71,8 @@ func Spec() map[string]any {
 				"StorageConnection":               storageConnectionSchema(),
 				"StorageOverview":                 storageOverviewSchema(),
 				"StorageStatisticsOverview":       storageStatisticsOverviewSchema(),
+				"PublicSitePage":                  publicSitePageSchema(),
+				"AdminSitePage":                   adminSitePageSchema(),
 				"AdminTask":                       adminTaskSchema(),
 				"AdminTaskRetryResponse":          adminTaskRetryResponseSchema(),
 			},
@@ -91,6 +93,7 @@ func Spec() map[string]any {
 			"/auth/me":                      map[string]any{"get": operation("currentUser")},
 			"/plans":                        map[string]any{"get": operation("listPlans")},
 			"/site/presentation":            map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getSitePresentation", "responses": map[string]any{"200": jsonResponse("SitePresentation")}}},
+			"/site/pages/{slug}":            map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getPublishedSitePage", "parameters": []map[string]any{pathParameter("slug")}, "responses": map[string]any{"200": jsonResponse("PublicSitePage"), "404": errorResponse(), "500": errorResponse()}}},
 			"/discovery/status":             map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryStatus", "responses": map[string]any{"200": jsonResponse("DiscoveryStatus"), "500": errorResponse()}}},
 			"/discovery/feed":               map[string]any{"get": map[string]any{"security": []any{}, "operationId": "listDiscoveryFeed", "parameters": []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer")}, "responses": map[string]any{"200": jsonResponse("DiscoveryFeedResponse"), "404": errorResponse(), "500": errorResponse()}}},
 			"/discovery/media/{id}/content": map[string]any{"get": map[string]any{"security": []any{}, "operationId": "getDiscoveryMediaContent", "parameters": []map[string]any{pathParameter("id"), {"name": "variant", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"original"}, "default": "original"}}}, "responses": map[string]any{"200": map[string]any{"description": "Public discovery media bytes", "content": map[string]any{"image/*": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}, "404": errorResponse()}}},
@@ -254,6 +257,16 @@ func Spec() map[string]any {
 			}},
 			"/admin/registry": map[string]any{"get": operation("listResources")},
 			"/admin/search":   map[string]any{"get": globalSearchOperation()},
+			"/admin/content-pages": map[string]any{
+				"get":  listOperation("listContentPages", []map[string]any{queryParameter("page", "integer"), queryParameter("per_page", "integer")}),
+				"post": resourceWriteOperation("createContentPage", "201"),
+			},
+			"/admin/content-pages/{id}": map[string]any{
+				"get": resourceItemOperation("showContentPage"),
+				"put": resourceWriteOperation("updateContentPage", "200", true),
+			},
+			"/admin/content-pages/{id}/actions/publish": map[string]any{"post": map[string]any{"operationId": "publishContentPage", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("AdminSitePage"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse(), "422": errorResponse()}}},
+			"/admin/content-pages/{id}/actions/archive": map[string]any{"post": map[string]any{"operationId": "archiveContentPage", "parameters": []map[string]any{pathParameter("id")}, "responses": map[string]any{"200": jsonResponse("AdminSitePage"), "401": errorResponse(), "403": errorResponse(), "404": errorResponse(), "422": errorResponse()}}},
 			"/admin/{resource}": map[string]any{
 				"get":  listOperation("listResourceRows", []map[string]any{pathParameter("resource"), queryParameter("page", "integer"), queryParameter("per_page", "integer"), queryParameter("search", "string"), queryParameter("sort", "string"), queryParameter("dir", "string"), queryParameter("trashed", "string")}),
 				"post": resourceWriteOperation("createResource", "201"),
@@ -700,6 +713,26 @@ func storageStatisticsOverviewSchema() map[string]any {
 			"health":      map[string]any{"type": "object", "required": []string{"last_status", "error_count_24h"}, "properties": map[string]any{"last_status": map[string]any{"type": "string"}, "last_latency_ms": map[string]any{"type": "integer", "format": "int64"}, "last_checked_at": map[string]any{"type": "string", "format": "date-time"}, "error_count_24h": map[string]any{"type": "integer", "format": "int64"}}},
 			"data_source": map[string]any{"type": "string"}, "generated_at": map[string]any{"type": "string", "format": "date-time"},
 		}}},
+	}}
+}
+
+func publicSitePageSchema() map[string]any {
+	return map[string]any{"type": "object", "required": []string{"slug", "title", "content"}, "properties": map[string]any{
+		"slug": map[string]any{"type": "string"}, "title": map[string]any{"type": "string"}, "excerpt": map[string]any{"type": "string"},
+		"seo_title": map[string]any{"type": "string"}, "seo_description": map[string]any{"type": "string"},
+		"content": map[string]any{"type": "object", "additionalProperties": true},
+	}}
+}
+
+func adminSitePageSchema() map[string]any {
+	return map[string]any{"allOf": []any{
+		map[string]any{"$ref": "#/components/schemas/PublicSitePage"},
+		map[string]any{"type": "object", "required": []string{"id", "status", "content_json"}, "properties": map[string]any{
+			"id": map[string]any{"type": "integer", "format": "int64"}, "content_json": map[string]any{"type": "object", "writeOnly": true},
+			"status":       map[string]any{"type": "string", "enum": []string{"draft", "published", "archived"}},
+			"published_at": map[string]any{"type": "string", "format": "date-time", "nullable": true},
+			"created_by":   map[string]any{"type": "integer", "format": "int64"}, "updated_by": map[string]any{"type": "integer", "format": "int64"},
+		}},
 	}}
 }
 

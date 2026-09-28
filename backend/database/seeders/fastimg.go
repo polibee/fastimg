@@ -42,6 +42,12 @@ func (s *FastImg) Run() error {
 		{Name: "admin.payment_events.view", DisplayName: "Payment events.view"},
 		{Name: "admin.refunds.view", DisplayName: "Refunds.view"},
 		{Name: "admin.billing.fulfill", DisplayName: "Billing.fulfill"},
+		{Name: "admin.content_pages.view", DisplayName: "content_pages.view"},
+		{Name: "admin.content_pages.manage", DisplayName: "content_pages.manage"},
+		{Name: "admin.footer_navigation.view", DisplayName: "footer_navigation.view"},
+		{Name: "admin.footer_navigation.manage", DisplayName: "footer_navigation.manage"},
+		{Name: "admin.friend_links.view", DisplayName: "friend_links.view"},
+		{Name: "admin.friend_links.moderate", DisplayName: "friend_links.moderate"},
 	} {
 		exists, err := facades.Orm().Query().Model(&models.Permission{}).Where("name = ?", permission.Name).Exists()
 		if err != nil {

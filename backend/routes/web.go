@@ -14,6 +14,7 @@ import (
 	backupcontrollers "goravel/app/modules/backups/controllers"
 	billingcontrollers "goravel/app/modules/billing/controllers"
 	collectioncontrollers "goravel/app/modules/collections/controllers"
+	contentcontrollers "goravel/app/modules/content/controllers"
 	developercontrollers "goravel/app/modules/developer/controllers"
 	discoverycontrollers "goravel/app/modules/discovery/controllers"
 	mediacontrollers "goravel/app/modules/media/controllers"
@@ -55,6 +56,7 @@ func Web() {
 	reportController := moderationcontrollers.NewReportController()
 	discoveryController := discoverycontrollers.NewController()
 	publicAlbumController := albumscontrollers.NewPublicController()
+	contentPublicController := contentcontrollers.NewPublicController()
 	shareController := sharecontrollers.NewShareController()
 	advertisingController := advertisingcontrollers.NewAdvertisingController()
 	tokenController := developercontrollers.NewTokenController()
@@ -71,6 +73,7 @@ func Web() {
 	facades.Route().Get("/api/v1/discovery/media/{id}/content", discoveryController.Content)
 	facades.Route().Get("/api/v1/public/albums/{id}", publicAlbumController.Show)
 	facades.Route().Get("/api/v1/public/albums/{id}/media/{media_id}/content", publicAlbumController.Content)
+	facades.Route().Get("/api/v1/site/pages/{slug}", contentPublicController.Show)
 	// The former member submission endpoint is intentionally retired. Keep a
 	// tombstone so old clients receive an explicit error instead of a silent
 	// success from the framework's unmatched-route fallback.
@@ -162,6 +165,7 @@ func Web() {
 	resourceController := admincontrollers.NewResourceController()
 	globalSearchController := admincontrollers.NewGlobalSearchController()
 	settingsController := admincontrollers.NewSettingsController()
+	contentAdminController := contentcontrollers.NewAdminController()
 	storageController := admincontrollers.NewStorageController()
 	backupController := backupcontrollers.NewBackupController()
 	notificationController := admincontrollers.NewNotificationController()
@@ -191,6 +195,12 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.settings.manage")).Post("/api/v1/admin/audit-logs/cleanup", auditController.Cleanup)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.settings.manage")).Get("/api/v1/admin/settings", settingsController.Index)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.settings.manage")).Put("/api/v1/admin/settings/{key}", settingsController.Upsert)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.view")).Get("/api/v1/admin/content-pages", contentAdminController.Index)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.manage")).Post("/api/v1/admin/content-pages", contentAdminController.Create)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.view")).Get("/api/v1/admin/content-pages/{id}", contentAdminController.Show)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.manage")).Put("/api/v1/admin/content-pages/{id}", contentAdminController.Update)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.manage")).Post("/api/v1/admin/content-pages/{id}/actions/publish", contentAdminController.Publish)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.manage")).Post("/api/v1/admin/content-pages/{id}/actions/archive", contentAdminController.Archive)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.view")).Get("/api/v1/admin/storage/connections", storageController.Index)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.view")).Get("/api/v1/admin/storage/statistics", storageController.Statistics)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.manage")).Put("/api/v1/admin/storage/connections/{provider}", storageController.Update)

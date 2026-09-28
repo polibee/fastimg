@@ -31,9 +31,31 @@ type SaveDraftInput struct {
 	OperatorID     uint
 }
 
+type ListResult struct {
+	Items   []contentmodels.SitePage
+	Page    int
+	PerPage int
+	Total   int64
+}
+
 type Service struct{}
 
 func NewService() *Service { return &Service{} }
+
+func (s *Service) List(_ context.Context, page, perPage int) (ListResult, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	items := make([]contentmodels.SitePage, 0)
+	var total int64
+	if err := facades.Orm().Query().OrderByDesc("updated_at").OrderByDesc("id").Paginate(page, perPage, &items, &total); err != nil {
+		return ListResult{}, err
+	}
+	return ListResult{Items: items, Page: page, PerPage: perPage, Total: total}, nil
+}
 
 func (s *Service) GetPublished(_ context.Context, slug string) (contentmodels.SitePage, error) {
 	var page contentmodels.SitePage

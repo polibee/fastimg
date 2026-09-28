@@ -120,6 +120,12 @@ func fastImgAdminPermissions() []models.Permission {
 		permissions = append(permissions, models.Permission{Name: "admin." + permission, DisplayName: permission})
 	}
 	permissions = append(permissions,
+		models.Permission{Name: "admin.content_pages.view", DisplayName: "content_pages.view"},
+		models.Permission{Name: "admin.content_pages.manage", DisplayName: "content_pages.manage"},
+		models.Permission{Name: "admin.footer_navigation.view", DisplayName: "footer_navigation.view"},
+		models.Permission{Name: "admin.footer_navigation.manage", DisplayName: "footer_navigation.manage"},
+		models.Permission{Name: "admin.friend_links.view", DisplayName: "friend_links.view"},
+		models.Permission{Name: "admin.friend_links.moderate", DisplayName: "friend_links.moderate"},
 		models.Permission{Name: "admin.api_tokens.view", DisplayName: "api_tokens.view"},
 		models.Permission{Name: "admin.api_tokens.update", DisplayName: "api_tokens.update"},
 		models.Permission{Name: "admin.api_tokens.delete", DisplayName: "api_tokens.delete"},
