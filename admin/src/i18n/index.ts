@@ -27,6 +27,8 @@ import enUSStorage from '@/locales/en-US/storage.json'
 import zhCNStorage from '@/locales/zh-CN/storage.json'
 import enUSTasks from '@/locales/en-US/tasks.json'
 import zhCNTasks from '@/locales/zh-CN/tasks.json'
+import enUSContent from '@/locales/en-US/content.json'
+import zhCNContent from '@/locales/zh-CN/content.json'
 
 export const SUPPORTED_LOCALES = ['zh-CN', 'en-US'] as const
 
@@ -37,8 +39,8 @@ const i18n = createI18n({
   locale: initialLocale,
   fallbackLocale: 'en-US',
   messages: {
-    'zh-CN': { core: zhCNCcore, auth: zhCNAuth, errors: zhCNErrors, states: zhCNStates, rbac: zhCNRbac, resource: zhCNResource, media: zhCNMedia, member: zhCNMember, billing: zhCNBilling, settings: zhCNSettings, statistics: zhCNStatistics, albums: zhCNAlbums, storage: zhCNStorage, tasks: zhCNTasks },
-    'en-US': { core: enUSCore, auth: enUSAuth, errors: enUSErrors, states: enUSStates, rbac: enUSRbac, resource: enUSResource, media: enUSMedia, member: enUSMember, billing: enUSBilling, settings: enUSSettings, statistics: enUSStatistics, albums: enUSAlbums, storage: enUSStorage, tasks: enUSTasks },
+    'zh-CN': { core: zhCNCcore, auth: zhCNAuth, errors: zhCNErrors, states: zhCNStates, rbac: zhCNRbac, resource: zhCNResource, media: zhCNMedia, member: zhCNMember, billing: zhCNBilling, settings: zhCNSettings, statistics: zhCNStatistics, albums: zhCNAlbums, storage: zhCNStorage, tasks: zhCNTasks, content: zhCNContent },
+    'en-US': { core: enUSCore, auth: enUSAuth, errors: enUSErrors, states: enUSStates, rbac: enUSRbac, resource: enUSResource, media: enUSMedia, member: enUSMember, billing: enUSBilling, settings: enUSSettings, statistics: enUSStatistics, albums: enUSAlbums, storage: enUSStorage, tasks: enUSTasks, content: enUSContent },
   },
 })
 

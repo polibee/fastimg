@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -97,12 +98,16 @@ func (c *AdminController) transition(ctx httpcontract.Context, publish bool) htt
 		action = "content_pages.publish"
 	}
 	recordContentAudit(operatorID, action, id)
-	return ctx.Response().Success().Json(httpcontract.Json{"data": page})
+	return ctx.Response().Success().Json(httpcontract.Json{"data": adminPagePayload(page)})
 }
 
 func adminPagePayload(page contentmodels.SitePage) map[string]any {
+	var document map[string]any
+	if err := json.Unmarshal([]byte(page.ContentJSON), &document); err != nil {
+		document = map[string]any{"type": "doc", "content": []any{map[string]any{"type": "paragraph"}}}
+	}
 	return map[string]any{
-		"id": page.ID, "slug": page.Slug, "title": page.Title, "content_json": page.ContentJSON,
+		"id": page.ID, "slug": page.Slug, "title": page.Title, "content_json": document,
 		"excerpt": page.Excerpt, "seo_title": page.SEOTitle, "seo_description": page.SEODescription,
 		"status": page.Status, "published_at": page.PublishedAt, "created_by": page.CreatedBy, "updated_by": page.UpdatedBy,
 	}
