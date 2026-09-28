@@ -50,7 +50,7 @@ func validURL(raw string, optional bool) bool {
 
 func (s *Service) List(status string) ([]models.Submission, error) {
 	rows := make([]models.Submission, 0)
-	query := facades.Orm().Query().OrderByDesc("created_at").OrderByDesc("id")
+	query := facades.Orm().Query().Table("friend_link_submissions").OrderByDesc("created_at").OrderByDesc("id")
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}
@@ -70,7 +70,7 @@ func (s *Service) Submit(input SubmissionInput, userID *uint) (models.Submission
 		return models.Submission{}, errors.New("invalid friend link")
 	}
 	var existing []models.Submission
-	if err := facades.Orm().Query().Where("url = ? AND status IN (?, ?)", input.URL, models.StatusPending, models.StatusApproved).Get(&existing); err != nil {
+	if err := facades.Orm().Query().Table("friend_link_submissions").Where("url = ? AND status IN (?, ?)", input.URL, models.StatusPending, models.StatusApproved).Get(&existing); err != nil {
 		return models.Submission{}, err
 	}
 	if len(existing) > 0 {

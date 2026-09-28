@@ -68,7 +68,7 @@ func NewService() *Service { return &Service{} }
 
 func (s *Service) List(locale string, publicOnly bool) ([]GroupResult, error) {
 	groups := make([]models.NavigationGroup, 0)
-	query := facades.Orm().Query().OrderBy("sort_order").OrderBy("id")
+	query := facades.Orm().Query().Table("footer_navigation_groups").OrderBy("sort_order").OrderBy("id")
 	if publicOnly {
 		query = query.Where("is_enabled = ?", true)
 	}
@@ -81,7 +81,7 @@ func (s *Service) List(locale string, publicOnly bool) ([]GroupResult, error) {
 	result := make([]GroupResult, 0, len(groups))
 	for _, group := range groups {
 		items := make([]models.NavigationItem, 0)
-		itemQuery := facades.Orm().Query().Where("group_id = ?", group.ID).OrderBy("sort_order").OrderBy("id")
+		itemQuery := facades.Orm().Query().Table("footer_navigation_items").Where("group_id = ?", group.ID).OrderBy("sort_order").OrderBy("id")
 		if publicOnly {
 			itemQuery = itemQuery.Where("is_enabled = ?", true)
 		}
@@ -112,11 +112,11 @@ func (s *Service) SaveGroup(id uint, input GroupInput) (models.NavigationGroup, 
 		return models.NavigationGroup{}, err
 	}
 	var row models.NavigationGroup
-	if err := facades.Orm().Query().Find(&row, id); err != nil && id > 0 {
+	if err := facades.Orm().Query().Table("footer_navigation_groups").Find(&row, id); err != nil && id > 0 {
 		return row, ErrNotFound
 	}
 	if id == 0 {
-		if err := facades.Orm().Query().Where("title = ? AND locale = ?", input.Title, input.Locale).OrderByDesc("id").First(&row); err != nil {
+		if err := facades.Orm().Query().Table("footer_navigation_groups").Where("title = ? AND locale = ?", input.Title, input.Locale).OrderByDesc("id").First(&row); err != nil {
 			return row, err
 		}
 	}
@@ -138,7 +138,7 @@ func (s *Service) SaveItem(id uint, input ItemInput) (models.NavigationItem, err
 			return models.NavigationItem{}, errors.New("navigation item cannot be its own parent")
 		}
 		var parent models.NavigationItem
-		if err := facades.Orm().Query().Where("id = ? AND group_id = ?", *input.ParentID, input.GroupID).First(&parent); err != nil {
+		if err := facades.Orm().Query().Table("footer_navigation_items").Where("id = ? AND group_id = ?", *input.ParentID, input.GroupID).First(&parent); err != nil {
 			return models.NavigationItem{}, errors.New("navigation parent is invalid")
 		}
 		if parent.ParentID != nil {
@@ -155,12 +155,12 @@ func (s *Service) SaveItem(id uint, input ItemInput) (models.NavigationItem, err
 		return models.NavigationItem{}, err
 	}
 	var row models.NavigationItem
-	if err := facades.Orm().Query().Find(&row, id); err != nil && id > 0 {
+	if err := facades.Orm().Query().Table("footer_navigation_items").Find(&row, id); err != nil && id > 0 {
 		return row, ErrNotFound
 	}
 	if id == 0 {
 		var rows []models.NavigationItem
-		if err := facades.Orm().Query().Where("group_id = ? AND label = ?", input.GroupID, input.Label).OrderByDesc("id").Get(&rows); err != nil || len(rows) == 0 {
+		if err := facades.Orm().Query().Table("footer_navigation_items").Where("group_id = ? AND label = ?", input.GroupID, input.Label).OrderByDesc("id").Get(&rows); err != nil || len(rows) == 0 {
 			return row, err
 		}
 		row = rows[0]
