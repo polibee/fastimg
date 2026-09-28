@@ -59,6 +59,19 @@ backend/app/services/analytics
 | M7 | 真实支付与加密支付 | 接入支付网关和 Crypto Provider | Provider 验证后启用 |
 | M8 | 生产发布与规模化 | 备份、监控、CDN、域名和恢复演练 | 通过门禁后发布 |
 
+### 内容页、页脚导航与友情链接切片（2026-09-28）
+
+已完成一个独立的运营内容垂直切片，作为 M5 运营后台与公开 SEO 页面的一部分：
+
+- `site_pages` 保存经过服务端白名单清洗的 Tiptap JSON；后台 `/admin/content-pages` 使用 Tiptap 富文本编辑器管理草稿、发布和归档，禁止原始 HTML 和脚本输入。
+- 游客可访问 `/page/privacy`、`/page/terms`、`/page/about`；会员端通过 `/api/v1/site/pages/{slug}` 获取已发布内容，前端使用结构化 Vue 节点渲染，不使用 `v-html`。
+- `/admin/footer-navigation` 支持页脚分类、菜单、子菜单、目标类型、排序和启停；公开 `/api/v1/site/footer-navigation` 只返回启用项。
+- `/friends` 支持游客提交友链申请；申请默认为 `pending`，经过 `/admin/friend-links` 审核为 `approved` 后才进入公开卡片列表。地址校验拒绝脚本、内网、回环和带用户信息 URL，并有 IP/URL 冷却与每日提交上限。
+- `pnpm run build:ssg` 已生成首页、套餐、发现、友链和三个默认内容页的静态入口；运行时仍以公开 API 为准，内容更新不依赖重新编译才能访问。
+- 中英文文案、OpenAPI 路径、RBAC 权限和审核审计已同步实现。
+
+该切片的迁移文件和默认种子已创建并通过静态/单元测试；按照开发约束，尚未自动执行数据库迁移，必须在明确指定本地开发库后再验收真实页面和数据库数据。
+
 ## 三、M0：基线与架构准备
 
 ### 功能范围

@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n(); const auth = useAuthStore(); const links = ref<FriendLink[]>([]); const loading = ref(true); const error = ref('')
 function label(status?: string) { return t(`friendLinks.status.${status || 'pending'}`) }
-async function load() { if (!auth.token) return; loading.value = true; try { links.value = await friendApi.adminList() } catch (value) { error.value = value instanceof ApiError ? t(errorMessageKey(value.code)) : t('friendLinks.loadFailed') } finally { loading.value = false } }
+async function load() { if (!auth.token) return; loading.value = true; try { links.value = await friendApi.adminList('', auth.token) } catch (value) { error.value = value instanceof ApiError ? t(errorMessageKey(value.code)) : t('friendLinks.loadFailed') } finally { loading.value = false } }
 async function review(link: FriendLink, status: 'approved' | 'rejected' | 'hidden') { if (!auth.token) return; try { await friendApi.review(link.id, status, '', auth.token); await load() } catch (value) { error.value = value instanceof ApiError ? t(errorMessageKey(value.code)) : t('friendLinks.reviewFailed') } }
 onMounted(load)
 </script>

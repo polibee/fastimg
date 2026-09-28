@@ -2,10 +2,12 @@ package services
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
 	"goravel/app/facades"
+	contentservices "goravel/app/modules/content/services"
 	models "goravel/app/modules/footer_navigation/models"
 )
 
@@ -34,6 +36,30 @@ type GroupResult struct {
 
 func validTargetType(value string) bool {
 	return value == "page" || value == "route" || value == "external" || value == "friends"
+}
+
+var pageTargetPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+
+func validateTarget(targetType, targetValue string) error {
+	switch targetType {
+	case "page":
+		if !pageTargetPattern.MatchString(targetValue) {
+			return errors.New("page target must be a slug")
+		}
+	case "route":
+		if !strings.HasPrefix(targetValue, "/") || strings.HasPrefix(targetValue, "//") || strings.ContainsAny(targetValue, "\r\n") {
+			return errors.New("route target must be a local path")
+		}
+	case "external":
+		if err := contentservices.ValidateURL(targetValue, false); err != nil {
+			return errors.New("external target URL is invalid")
+		}
+	case "friends":
+		if targetValue != "friends" {
+			return errors.New("friend-links target must be friends")
+		}
+	}
+	return nil
 }
 
 type Service struct{}
@@ -103,6 +129,21 @@ func (s *Service) SaveItem(id uint, input ItemInput) (models.NavigationItem, err
 	input.TargetValue = strings.TrimSpace(input.TargetValue)
 	if input.GroupID == 0 || input.Label == "" || input.TargetValue == "" || !validTargetType(input.TargetType) {
 		return models.NavigationItem{}, errors.New("invalid navigation item")
+	}
+	if err := validateTarget(input.TargetType, input.TargetValue); err != nil {
+		return models.NavigationItem{}, err
+	}
+	if input.ParentID != nil {
+		if *input.ParentID == 0 || *input.ParentID == id {
+			return models.NavigationItem{}, errors.New("navigation item cannot be its own parent")
+		}
+		var parent models.NavigationItem
+		if err := facades.Orm().Query().Where("id = ? AND group_id = ?", *input.ParentID, input.GroupID).First(&parent); err != nil {
+			return models.NavigationItem{}, errors.New("navigation parent is invalid")
+		}
+		if parent.ParentID != nil {
+			return models.NavigationItem{}, errors.New("navigation nesting is limited to one level")
+		}
 	}
 	values := map[string]any{"group_id": input.GroupID, "parent_id": input.ParentID, "label": input.Label, "target_type": input.TargetType, "target_value": input.TargetValue, "open_in_new_tab": input.OpenInNewTab, "sort_order": input.SortOrder, "is_enabled": input.Enabled, "updated_at": time.Now().UTC()}
 	if id == 0 {
