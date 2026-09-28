@@ -51,5 +51,6 @@ func Migrations() []schema.Migration {
 		&migrations.M20260927000001CreateStorageConnectionsTable{},
 		&migrations.M20260927000002AddStoragePermissions{},
 		&migrations.M20260927000003AddTaskPermissions{},
+		&migrations.M20260928000001CreateContentNavigationFriendLinksTables{},
 	}
 }

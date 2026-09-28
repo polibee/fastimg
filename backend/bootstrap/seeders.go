@@ -10,5 +10,6 @@ func Seeders() []seeder.Seeder {
 	return []seeder.Seeder{
 		&seeders.AdminUser{},
 		&seeders.FastImg{},
+		&seeders.SiteContent{},
 	}
 }
