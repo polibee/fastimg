@@ -65,6 +65,116 @@ deploy/fastimg-cli.sh
 
 CLI 结束时还会列出仍需在宝塔或管理后台手工完成的事项：TLS/DNS/反向代理、邮件服务与发件邮箱、Cloudflare Turnstile、PayPal/XCash/NOWPayments 回调、R2/OSS/COS/CDN、水印、广告、SEO、备份恢复和外部监控。部署脚本不会伪造这些第三方配置或生产验收结果。
 
+## 宝塔面板部署
+
+宝塔负责域名、DNS、SSL 证书和公网 Nginx 入口；FastImg 部署 CLI 负责应用构建、数据库迁移、systemd/Docker 启动和健康检查。CLI 不会自动创建宝塔网站、申请证书、修改 DNS，也不会启动 PostgreSQL 或 Redis。
+
+### 宝塔前置准备
+
+在宝塔服务器上完成以下准备：
+
+1. 安装 Git、curl、OpenSSL、PostgreSQL 客户端 `psql` 和 Redis 客户端 `redis-cli`。
+2. 源码模式额外安装 Go 1.25+、Node.js 24+、pnpm/Corepack 和 systemd；Docker 模式额外安装 Docker Engine 与 Compose v2。
+3. 准备外部 PostgreSQL 数据库和 Redis 实例。数据库账号必须有迁移所需权限，Redis 必须可用，不能使用内存降级。
+4. 在宝塔创建站点并绑定最终域名，例如 `img.example.com`，完成 DNS 和 HTTPS 证书。`APP_URL` 必须填写同一个 HTTPS 地址。
+5. 防火墙只开放 `80/443`。应用端口、5432 和 6379 只允许本机或内网访问。
+
+### 方案 A：Linux 源码部署
+
+源码模式适合由 systemd 管理 API、由宝塔 Nginx 提供静态页面和反向代理：
+
+```bash
+cd /www/wwwroot
+git clone https://github.com/polibee/fastimg.git fastimg
+cd fastimg/go-vue-admin
+sudo deploy/fastimg-cli.sh --mode source
+```
+
+CLI 中填写：
+
+- `APP_URL`：宝塔站点的最终 HTTPS 域名；
+- PostgreSQL 连接信息；
+- Redis 连接信息；本机 Redis 会自动探测，远程 Redis 会交互询问；
+- API 本地端口，默认 `8080`；如果被其他项目占用，改成未占用端口；
+- 安装目录，默认 `/opt/fastimg`；
+- 首个管理员邮箱、名称和密码。
+
+源码部署完成后，在宝塔站点设置中：
+
+- 网站根目录设置为 `/opt/fastimg/current/web`；
+- 不要把 `/` 整站代理到 API；首页和 `/admin/` 由静态 SSG 文件提供；
+- 将 `/api/`、`/i/`、`/s/`、`/sitemap.xml`、`/robots.txt` 代理到 CLI 输出的 API upstream，例如 `http://127.0.0.1:8080`；
+- 上传大小至少设置为 `25M`，并根据套餐允许的单文件大小调整；
+- 使用仓库中的 [fastimg-source.conf.example](../deploy/nginx/fastimg-source.conf.example) 作为 Nginx 配置参考，不要把示例证书路径直接用于生产。
+
+源码模式的实际访问地址为：
+
+```text
+会员端： https://img.example.com/
+管理后台： https://img.example.com/admin/
+后端 API： https://img.example.com/api/
+```
+
+### 方案 B：Docker 应用部署
+
+Docker 模式只运行 FastImg 的 API 和 Web 容器，PostgreSQL、Redis 仍然是外部服务：
+
+```bash
+cd /www/wwwroot
+git clone https://github.com/polibee/fastimg.git fastimg
+cd fastimg/go-vue-admin
+deploy/fastimg-cli.sh --mode docker
+```
+
+CLI 会构建并启动 Web 容器，默认将宿主机端口 `8080` 映射到 Web 容器的 `8080`。在宝塔站点中添加一个整站反向代理：
+
+```text
+代理目标： http://127.0.0.1:8080
+```
+
+Docker Web 容器内部已经代理 `/api/`、`/i/`、`/s/`、`/sitemap.xml` 和 `/robots.txt` 到 API 容器，因此宝塔不需要再为这些路径单独配置第二套 API 代理。宿主机端口冲突时，在 CLI 中选择其他端口，并将宝塔代理目标同步改为该端口。
+
+Docker 模式不需要在宿主机安装 Go 或 Node.js；构建依赖在镜像构建阶段完成。生产环境不要把 Web 容器端口、PostgreSQL 或 Redis 端口直接暴露到公网。
+
+### 宝塔配置检查
+
+部署后按以下顺序检查：
+
+```bash
+# 源码模式：检查 API 服务
+systemctl status fastimg-api.service
+curl -fsS http://127.0.0.1:8080/api/v1/discovery/status
+
+# Docker 模式：检查容器和 Web 入口
+docker compose --env-file deploy/docker/fastimg.env \
+  -f deploy/docker/docker-compose.yml ps
+curl -I http://127.0.0.1:8080/
+```
+
+然后从浏览器验证：
+
+1. `https://你的域名/` 未登录可以打开首页；
+2. `https://你的域名/discover` 和 `https://你的域名/plans` 可以公开访问；
+3. `https://你的域名/admin/` 可以打开后台登录；
+4. 注册、上传、图片访问、管理员媒体库和审计日志正常；
+5. `https://你的域名/sitemap.xml` 和 `https://你的域名/robots.txt` 返回 XML/文本，而不是前端白屏；
+6. API 返回的图片链接使用正式域名，不包含 `127.0.0.1`、开发端口或旧域名。
+
+### 首次登录后还需配置的功能
+
+基础上传不依赖支付和第三方存储，但正式运营前仍需在后台配置：
+
+| 配置 | 是否首次上线必填 | 用途 |
+| --- | --- | --- |
+| 邮件服务、发件邮箱 | 是 | 注册验证、密码重置、会员到期通知 |
+| Cloudflare Turnstile | 按安全策略 | 注册和登录防滥用 |
+| R2/OSS/COS | 否 | 将媒体迁移到对象存储或 CDN |
+| PayPal/XCash/NOWPayments | 否 | 开通会员套餐支付；每个渠道需分别填写官方凭证和回调 |
+| 水印、广告、SEO、站点地图 | 按产品运营需要 | 由套餐权益和站点设置共同控制 |
+| 备份、恢复、监控 | 生产必做 | 数据安全、故障恢复和容量告警 |
+
+支付渠道、对象存储、邮件等敏感凭证必须在后台或受保护环境变量中填写，不能写入 Git、镜像层、Nginx 配置或部署日志。
+
 ## Docker 应用部署（不启动数据库）
 
 适合已经有 Docker、PostgreSQL 和 Redis 的服务器。Compose 只包含 `api` 和 `web` 两个服务：API 同时承载 HTTP 和已注册的 Redis 队列 Runner，Web 使用 Nginx 提供 SSG 静态页面并代理 API/图片请求。
