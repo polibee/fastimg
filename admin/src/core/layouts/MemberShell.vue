@@ -64,6 +64,9 @@ async function logout() {
           >
             {{ t('member.nav.discover') }}
           </RouterLink>
+          <RouterLink to="/friends" :aria-label="t('friendLinks.title')" :title="t('friendLinks.title')" class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3" active-class="bg-muted font-medium">
+            {{ t('member.nav.friends') }}
+          </RouterLink>
           <template v-if="auth.isAuthenticated">
             <RouterLink
               to="/orders"

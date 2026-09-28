@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Activity, ArrowRight, BarChart3, ClipboardList, FileText, HardDrive, Languages, LayoutDashboard, ListTodo, LogOut, Search, Settings2, ShieldCheck, Unplug, WalletCards } from '@lucide/vue'
+import { Activity, ArrowRight, BarChart3, ClipboardList, FileText, HardDrive, Languages, LayoutDashboard, Link2, ListTodo, LogOut, Search, Settings2, ShieldCheck, Unplug, WalletCards, UsersRound } from '@lucide/vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
@@ -55,6 +55,8 @@ const breadcrumbLabel = computed(() => {
   if (route.name === 'admin-refunds') return t('billing.admin.refunds')
   if (route.name === 'admin-settings') return t('settings.title')
   if (String(route.name).startsWith('admin-content-page')) return t('content.pagesTitle')
+  if (route.name === 'admin-footer-navigation') return t('footerNavigation.title')
+  if (route.name === 'admin-friend-links') return t('friendLinks.adminTitle')
   if (route.name === 'admin-storage') return t('storage.title')
   if (route.name === 'admin-statistics') return t('statistics.title')
   const resource = resourceManifests.value.find((item) => item.name === breadcrumbResource.value)
@@ -202,6 +204,8 @@ onBeforeUnmount(() => {
               <SidebarMenuItem v-if="auth.can('admin.users.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-statistics'" :tooltip="t('statistics.title')"><RouterLink to="/admin/statistics"><BarChart3 /><span>{{ t('statistics.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.settings.manage')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-settings'" :tooltip="t('settings.title')"><RouterLink to="/admin/settings"><Settings2 /><span>{{ t('settings.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.content_pages.view')"><SidebarMenuButton as-child :is-active="String($route.name).startsWith('admin-content-page')" :tooltip="t('content.pagesTitle')"><RouterLink to="/admin/content-pages"><FileText /><span>{{ t('content.pagesTitle') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.footer_navigation.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-footer-navigation'" :tooltip="t('footerNavigation.title')"><RouterLink to="/admin/footer-navigation"><Link2 /><span>{{ t('footerNavigation.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.friend_links.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-friend-links'" :tooltip="t('friendLinks.adminTitle')"><RouterLink to="/admin/friend-links"><UsersRound /><span>{{ t('friendLinks.adminTitle') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.storage.view') && hasEnabledStorage"><SidebarMenuButton as-child :is-active="$route.name === 'admin-storage'" :tooltip="t('storage.title')"><RouterLink to="/admin/storage"><HardDrive /><span>{{ t('storage.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>

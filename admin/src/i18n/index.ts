@@ -29,6 +29,10 @@ import enUSTasks from '@/locales/en-US/tasks.json'
 import zhCNTasks from '@/locales/zh-CN/tasks.json'
 import enUSContent from '@/locales/en-US/content.json'
 import zhCNContent from '@/locales/zh-CN/content.json'
+import enUSFooterNavigation from '@/locales/en-US/footer-navigation.json'
+import zhCNFooterNavigation from '@/locales/zh-CN/footer-navigation.json'
+import enUSFriendLinks from '@/locales/en-US/friend-links.json'
+import zhCNFriendLinks from '@/locales/zh-CN/friend-links.json'
 
 export const SUPPORTED_LOCALES = ['zh-CN', 'en-US'] as const
 
@@ -39,8 +43,8 @@ const i18n = createI18n({
   locale: initialLocale,
   fallbackLocale: 'en-US',
   messages: {
-    'zh-CN': { core: zhCNCcore, auth: zhCNAuth, errors: zhCNErrors, states: zhCNStates, rbac: zhCNRbac, resource: zhCNResource, media: zhCNMedia, member: zhCNMember, billing: zhCNBilling, settings: zhCNSettings, statistics: zhCNStatistics, albums: zhCNAlbums, storage: zhCNStorage, tasks: zhCNTasks, content: zhCNContent },
-    'en-US': { core: enUSCore, auth: enUSAuth, errors: enUSErrors, states: enUSStates, rbac: enUSRbac, resource: enUSResource, media: enUSMedia, member: enUSMember, billing: enUSBilling, settings: enUSSettings, statistics: enUSStatistics, albums: enUSAlbums, storage: enUSStorage, tasks: enUSTasks, content: enUSContent },
+    'zh-CN': { core: zhCNCcore, auth: zhCNAuth, errors: zhCNErrors, states: zhCNStates, rbac: zhCNRbac, resource: zhCNResource, media: zhCNMedia, member: zhCNMember, billing: zhCNBilling, settings: zhCNSettings, statistics: zhCNStatistics, albums: zhCNAlbums, storage: zhCNStorage, tasks: zhCNTasks, content: zhCNContent, footerNavigation: zhCNFooterNavigation, friendLinks: zhCNFriendLinks },
+    'en-US': { core: enUSCore, auth: enUSAuth, errors: enUSErrors, states: enUSStates, rbac: enUSRbac, resource: enUSResource, media: enUSMedia, member: enUSMember, billing: enUSBilling, settings: enUSSettings, statistics: enUSStatistics, albums: enUSAlbums, storage: enUSStorage, tasks: enUSTasks, content: enUSContent, footerNavigation: enUSFooterNavigation, friendLinks: enUSFriendLinks },
   },
 })
 

@@ -17,6 +17,8 @@ import (
 	contentcontrollers "goravel/app/modules/content/controllers"
 	developercontrollers "goravel/app/modules/developer/controllers"
 	discoverycontrollers "goravel/app/modules/discovery/controllers"
+	footercontrollers "goravel/app/modules/footer_navigation/controllers"
+	friendcontrollers "goravel/app/modules/friend_links/controllers"
 	mediacontrollers "goravel/app/modules/media/controllers"
 	moderationcontrollers "goravel/app/modules/moderation/controllers"
 	plancontrollers "goravel/app/modules/plans/controllers"
@@ -57,6 +59,8 @@ func Web() {
 	discoveryController := discoverycontrollers.NewController()
 	publicAlbumController := albumscontrollers.NewPublicController()
 	contentPublicController := contentcontrollers.NewPublicController()
+	footerController := footercontrollers.NewController()
+	friendLinkController := friendcontrollers.NewController()
 	shareController := sharecontrollers.NewShareController()
 	advertisingController := advertisingcontrollers.NewAdvertisingController()
 	tokenController := developercontrollers.NewTokenController()
@@ -74,6 +78,9 @@ func Web() {
 	facades.Route().Get("/api/v1/public/albums/{id}", publicAlbumController.Show)
 	facades.Route().Get("/api/v1/public/albums/{id}/media/{media_id}/content", publicAlbumController.Content)
 	facades.Route().Get("/api/v1/site/pages/{slug}", contentPublicController.Show)
+	facades.Route().Get("/api/v1/site/footer-navigation", footerController.Public)
+	facades.Route().Get("/api/v1/friend-links", friendLinkController.PublicList)
+	facades.Route().Post("/api/v1/friend-links", friendLinkController.Submit)
 	// The former member submission endpoint is intentionally retired. Keep a
 	// tombstone so old clients receive an explicit error instead of a silent
 	// success from the framework's unmatched-route fallback.
@@ -201,6 +208,15 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.manage")).Put("/api/v1/admin/content-pages/{id}", contentAdminController.Update)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.manage")).Post("/api/v1/admin/content-pages/{id}/actions/publish", contentAdminController.Publish)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.content_pages.manage")).Post("/api/v1/admin/content-pages/{id}/actions/archive", contentAdminController.Archive)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.footer_navigation.view")).Get("/api/v1/admin/footer-navigation", footerController.Index)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.footer_navigation.manage")).Post("/api/v1/admin/footer-navigation/groups", footerController.SaveGroup)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.footer_navigation.manage")).Put("/api/v1/admin/footer-navigation/groups/{id}", footerController.SaveGroup)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.footer_navigation.manage")).Delete("/api/v1/admin/footer-navigation/groups/{id}", footerController.DeleteGroup)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.footer_navigation.manage")).Post("/api/v1/admin/footer-navigation/items", footerController.SaveItem)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.footer_navigation.manage")).Put("/api/v1/admin/footer-navigation/items/{id}", footerController.SaveItem)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.footer_navigation.manage")).Delete("/api/v1/admin/footer-navigation/items/{id}", footerController.DeleteItem)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.friend_links.view")).Get("/api/v1/admin/friend-links", friendLinkController.AdminList)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.friend_links.moderate")).Post("/api/v1/admin/friend-links/{id}/review", friendLinkController.Review)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.view")).Get("/api/v1/admin/storage/connections", storageController.Index)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.view")).Get("/api/v1/admin/storage/statistics", storageController.Statistics)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.manage")).Put("/api/v1/admin/storage/connections/{provider}", storageController.Update)
