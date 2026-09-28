@@ -37,7 +37,7 @@ CLI 默认只需要填写 PostgreSQL 数据库名、用户名和密码：
 - API/Web 端口自动从 `8080` 开始选择空闲端口，源码安装目录默认使用当前项目目录；
 - 未提供 `FASTIMG_APP_URL` 时，自动生成临时 `http://服务器IP:端口`，并输出 `127.0.0.1:端口` 作为宝塔反代 upstream；
 - `APP_KEY` 和 `JWT_SECRET` 自动生成，不显示、不写入命令参数；
-- 首次部署默认使用 `admin@localhost` 创建管理员并自动生成一次性随机密码，密码只在部署终端成功输出一次，不写入环境文件、命令参数或应用日志；可通过 `FASTIMG_ADMIN_EMAIL` 和 `FASTIMG_ADMIN_NAME` 自定义账号。已有同邮箱账户只确保启用 `super-admin` 权限，不覆盖原密码。
+- 首次部署必须填写真实管理员邮箱（交互输入或通过 `FASTIMG_ADMIN_EMAIL` 提供），CLI 在未提供密码时自动生成一次性随机密码；密码只在部署终端成功输出一次，不写入环境文件、命令参数或应用日志。管理员名称可通过 `FASTIMG_ADMIN_NAME` 自定义，已有同邮箱账户只确保启用 `super-admin` 权限，不覆盖原密码。
 
 非交互部署示例（密码只通过当前进程环境传入，CI 使用密钥存储，不要写入脚本或 Git）：
 
@@ -48,10 +48,13 @@ FASTIMG_APP_URL=https://img.example.com \
 FASTIMG_DB_HOST=127.0.0.1 FASTIMG_DB_PORT=5432 \
 FASTIMG_DB_DATABASE=fastimg FASTIMG_DB_USERNAME=fastimg \
 FASTIMG_DB_PASSWORD='从密钥管理器注入' \
+FASTIMG_ADMIN_EMAIL='替换为真实管理员邮箱' \
 FASTIMG_REDIS_HOST=127.0.0.1 FASTIMG_REDIS_PORT=6379 \
-sudo --preserve-env=FASTIMG_NON_INTERACTIVE,FASTIMG_DEPLOY_MODE,FASTIMG_APP_URL,FASTIMG_DB_HOST,FASTIMG_DB_PORT,FASTIMG_DB_DATABASE,FASTIMG_DB_USERNAME,FASTIMG_DB_PASSWORD,FASTIMG_REDIS_HOST,FASTIMG_REDIS_PORT \
+sudo --preserve-env=FASTIMG_NON_INTERACTIVE,FASTIMG_DEPLOY_MODE,FASTIMG_APP_URL,FASTIMG_DB_HOST,FASTIMG_DB_PORT,FASTIMG_DB_DATABASE,FASTIMG_DB_USERNAME,FASTIMG_DB_PASSWORD,FASTIMG_ADMIN_EMAIL,FASTIMG_REDIS_HOST,FASTIMG_REDIS_PORT \
 deploy/fastimg-cli.sh
 ```
+
+非交互部署不会猜测或生成管理员邮箱；示例中的邮箱必须替换为实际可管理的邮箱。未设置 `FASTIMG_ADMIN_PASSWORD` 时，CLI 会自动生成密码并在首次创建成功后只输出一次。
 
 部署成功后 CLI 会打印服务器 IP:端口和宝塔反代地址：
 

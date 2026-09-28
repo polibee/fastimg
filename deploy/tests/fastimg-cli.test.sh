@@ -15,7 +15,9 @@ grep -q -- 'Baota' <<<"$help"
 grep -q -- 'automatic' <<<"$help"
 grep -q -- '127.0.0.1' <<<"$help"
 grep -q -- 'openssl rand -hex 24' "$CLI"
+grep -q -- 'Initial administrator email' "$CLI"
 grep -q -- 'APP_ENV=production' "$CLI"
 ! grep -q -- 'Admin123!' "$CLI"
+! grep -q -- 'admin@localhost' "$CLI"
 
 echo 'fastimg CLI tests: PASS'

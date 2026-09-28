@@ -53,8 +53,10 @@ PostgreSQL/Redis and chooses a free application port automatically. APP_KEY
 and JWT_SECRET are generated locally. It never starts a PostgreSQL or Redis
 container and never prints passwords.
 
-The initial administrator defaults to admin@localhost and receives a random
-one-time password printed only after a new account is created.
+The initial administrator email is required (interactive input or
+FASTIMG_ADMIN_EMAIL). If FASTIMG_ADMIN_PASSWORD is not supplied, the CLI
+generates a random one-time password printed only after a new account is
+created.
 
 When APP_URL is not supplied, it uses a temporary http://IP:port origin and
 prints the loopback upstream (for example http://127.0.0.1:8080) for Baota.
@@ -300,7 +302,7 @@ write_env() {
 
 bootstrap_admin() {
     [[ "$BOOTSTRAP_ADMIN" == 1 ]] || return 0
-    ADMIN_EMAIL_VALUE="${ADMIN_EMAIL_VALUE:-admin@localhost}"
+    ADMIN_EMAIL_VALUE="$(ask_required 'Initial administrator email' "$ADMIN_EMAIL_VALUE")"
     if [[ -z "$ADMIN_PASSWORD_VALUE" ]]; then
         require_command openssl
         ADMIN_PASSWORD_VALUE="$(openssl rand -hex 24)"

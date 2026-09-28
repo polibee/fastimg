@@ -1210,7 +1210,7 @@ POST   /api/v1/media/{id}/signed-url
 
 ## 七十一、2026-09-28：生产管理员初始化和登录页收口
 
-- 部署 CLI 默认使用 `admin@localhost`，通过 OpenSSL 生成一次性随机管理员密码，仅在首次创建成功后的部署终端显示，不写入环境文件、命令参数或应用日志。
+- 部署 CLI 要求交互填写真实管理员邮箱，或通过 `FASTIMG_ADMIN_EMAIL` 提供；不生成默认或占位邮箱。未提供密码时通过 OpenSSL 生成一次性随机管理员密码，仅在首次创建成功后的部署终端显示，不写入环境文件、命令参数或应用日志。
 - `AdminUser` Seeder 移除固定 `admin@example.com / Admin123!` 凭据，仅在显式提供 `FASTIMG_SEED_ADMIN_EMAIL` 与 `FASTIMG_SEED_ADMIN_PASSWORD` 时用于开发初始化；生产继续使用 `admin:bootstrap`。
 - 会员登录页移除演示账号、固定密码、复制按钮和一键登录代码，邮箱和密码初始为空；中英文演示文案同步删除。
 - 验证：登录页契约测试应确认不存在固定演示凭据，部署 CLI 和部署脚本继续通过 Bash 语法检查；生产环境仍需在目标服务器保存自动生成的管理员密码并完成首次登录。
