@@ -20,5 +20,7 @@
   "richTextOnly": "Rich text only. Scripts and raw HTML are not allowed.",
   "seoTitle": "SEO title",
   "seoDescription": "SEO description",
-  "status": { "draft": "Draft", "published": "Published", "archived": "Archived" }
+  "status": { "draft": "Draft", "published": "Published", "archived": "Archived" },
+  "publicLoadFailed": "This page could not be loaded.",
+  "publicLoadDescription": "Please try again later or return to the home page."
 }

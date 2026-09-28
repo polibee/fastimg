@@ -19,5 +19,33 @@
     "description": "Explore public images shared by the FastImg community.",
     "heading": "Discover public images",
     "body": "Browse media that has been approved for public discovery."
+  },
+  {
+    "path": "/friends",
+    "title": "Friend links — FastImg",
+    "description": "Discover sites approved by the FastImg administrator.",
+    "heading": "Friend links",
+    "body": "Browse approved community sites and submit a link for review."
+  },
+  {
+    "path": "/page/privacy",
+    "title": "Privacy policy — FastImg",
+    "description": "FastImg privacy policy.",
+    "heading": "Privacy policy",
+    "body": "FastImg only collects information required for media hosting, account security, and service support."
+  },
+  {
+    "path": "/page/terms",
+    "title": "Terms of use — FastImg",
+    "description": "FastImg terms of use.",
+    "heading": "Terms of use",
+    "body": "Use FastImg only for lawful and authorized content."
+  },
+  {
+    "path": "/page/about",
+    "title": "About FastImg",
+    "description": "About FastImg media hosting.",
+    "heading": "About FastImg",
+    "body": "FastImg provides stable media links, API uploads, access control, and member plans."
   }
 ]

@@ -1,6 +1,6 @@
 import { apiFetch } from '@/lib/api'
 
-export type NavigationItem = { id: number; group_id: number; parent_id?: number | null; label: string; target_type: 'page' | 'route' | 'external'; target_value: string; open_in_new_tab: boolean; sort_order: number; is_enabled: boolean }
+export type NavigationItem = { id: number; group_id: number; parent_id?: number | null; label: string; target_type: 'page' | 'route' | 'external' | 'friends'; target_value: string; open_in_new_tab: boolean; sort_order: number; is_enabled: boolean }
 export type NavigationGroup = { id: number; title: string; locale: string; sort_order: number; is_enabled: boolean }
 export type NavigationGroupResult = { group: NavigationGroup; items: NavigationItem[] }
 export type NavigationGroupInput = Omit<NavigationGroup, 'id'>
@@ -14,4 +14,8 @@ export const footerApi = {
   createItem(input: NavigationItemInput, token: string) { return apiFetch<NavigationItem>('/api/v1/admin/footer-navigation/items', { method: 'POST', body: JSON.stringify(input) }, token) },
   updateItem(id: number, input: NavigationItemInput, token: string) { return apiFetch<NavigationItem>(`/api/v1/admin/footer-navigation/items/${id}`, { method: 'PUT', body: JSON.stringify(input) }, token) },
   deleteItem(id: number, token: string) { return apiFetch(`/api/v1/admin/footer-navigation/items/${id}`, { method: 'DELETE' }, token) },
+}
+
+export const footerPublicApi = {
+  list(locale = '') { return apiFetch<NavigationGroupResult[]>(`/api/v1/site/footer-navigation${locale ? `?locale=${encodeURIComponent(locale)}` : ''}`) },
 }

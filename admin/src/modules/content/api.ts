@@ -44,3 +44,7 @@ export const contentApi = {
     return apiFetch<SitePage>(`/api/v1/admin/content-pages/${id}/actions/archive`, { method: 'POST', body: JSON.stringify({}) }, token)
   },
 }
+
+export const publicContentApi = {
+  show(slug: string) { return apiFetch<Pick<SitePage, 'slug' | 'title' | 'excerpt' | 'seo_title' | 'seo_description'> & { content: JSONContent }>(`/api/v1/site/pages/${encodeURIComponent(slug)}`) },
+}

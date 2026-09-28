@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { useAuthStore } from '@/stores/auth'
 import { hasAdminAccess } from '@/lib/admin-access'
 import MemberAdSlot from '@/modules/advertising/components/MemberAdSlot.vue'
+import MemberFooterNavigation from '@/modules/member/components/MemberFooterNavigation.vue'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
@@ -145,5 +146,6 @@ async function logout() {
       <MemberAdSlot placement="right" class="hidden w-32 shrink-0 xl:block" />
     </div>
     <MemberAdSlot placement="footer" class="mx-auto w-full max-w-6xl px-4 pb-6 sm:px-6" />
+    <MemberFooterNavigation />
   </div>
 </template>
