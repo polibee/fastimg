@@ -120,6 +120,10 @@ type AdminAlbumMediaRepository interface {
 	RemoveAdminMediaFromAlbum(ctx context.Context, albumID uint, mediaIDs []uint) (AdminAlbumMediaMutation, error)
 }
 
+type AdminAlbumMediaPaginatedRepository interface {
+	ListAdminAlbumMediaPage(ctx context.Context, albumID uint, page, perPage int) ([]AdminAlbumMediaItem, int64, error)
+}
+
 type PublicAlbumRepository interface {
 	FindPublicAlbum(ctx context.Context, albumID uint) (PublicAlbum, error)
 }
@@ -323,6 +327,42 @@ func (s *Service) ListAdminAlbumMedia(ctx context.Context, albumID uint) ([]Admi
 		return nil, ErrNotFound
 	}
 	return repository.ListAdminAlbumMedia(ctx, albumID)
+}
+
+func (s *Service) ListAdminAlbumMediaPage(ctx context.Context, albumID uint, page, perPage int) ([]AdminAlbumMediaItem, int64, error) {
+	repository, ok := s.repository.(AdminAlbumMediaRepository)
+	if !ok {
+		return nil, 0, errors.New("admin album media association is not supported")
+	}
+	if albumID == 0 {
+		return nil, 0, ErrNotFound
+	}
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	if paginated, ok := s.repository.(AdminAlbumMediaPaginatedRepository); ok {
+		return paginated.ListAdminAlbumMediaPage(ctx, albumID, page, perPage)
+	}
+	items, err := repository.ListAdminAlbumMedia(ctx, albumID)
+	if err != nil {
+		return nil, 0, err
+	}
+	total := int64(len(items))
+	start := (page - 1) * perPage
+	if start >= len(items) {
+		return []AdminAlbumMediaItem{}, total, nil
+	}
+	end := start + perPage
+	if end > len(items) {
+		end = len(items)
+	}
+	return items[start:end], total, nil
 }
 
 func (s *Service) AddAdminMediaToAlbum(ctx context.Context, albumID uint, mediaIDs []uint) (AdminAlbumMediaMutation, error) {

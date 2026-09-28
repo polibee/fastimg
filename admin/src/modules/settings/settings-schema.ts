@@ -9,7 +9,7 @@ export type SettingFieldDefinition = {
 }
 
 export type SettingGroupDefinition = {
-  key: 'site' | 'auth' | 'email' | 'subscription' | 'media' | 'seo' | 'gateway' | 'statistics' | 'code' | 'other'
+  key: 'site' | 'auth' | 'email' | 'subscription' | 'media' | 'seo' | 'content' | 'gateway' | 'statistics' | 'code' | 'other'
   fields: SettingFieldDefinition[]
 }
 
@@ -98,6 +98,25 @@ export const settingGroups: SettingGroupDefinition[] = [
     ],
   },
   {
+    key: 'content',
+    fields: [
+      field('friend_links.zh_cn.eyebrow'),
+      field('friend_links.zh_cn.title'),
+      field('friend_links.zh_cn.description', 'textarea', { span: 'full' }),
+      field('friend_links.zh_cn.empty', 'textarea', { span: 'full' }),
+      field('friend_links.zh_cn.submit_title'),
+      field('friend_links.zh_cn.submit_description', 'textarea', { span: 'full' }),
+      field('friend_links.zh_cn.submitted', 'textarea', { span: 'full' }),
+      field('friend_links.en_us.eyebrow'),
+      field('friend_links.en_us.title'),
+      field('friend_links.en_us.description', 'textarea', { span: 'full' }),
+      field('friend_links.en_us.empty', 'textarea', { span: 'full' }),
+      field('friend_links.en_us.submit_title'),
+      field('friend_links.en_us.submit_description', 'textarea', { span: 'full' }),
+      field('friend_links.en_us.submitted', 'textarea', { span: 'full' }),
+    ],
+  },
+  {
     key: 'gateway',
     fields: [
       field('payment.default_gateway', 'select'),
@@ -160,6 +179,20 @@ export const settingDefaults: Record<string, string> = {
   'subscription.expiry.grace_period_days': '3',
   'subscription.expiry.reminder_days': '7,3,1',
   'subscription.expiry.over_quota_policy': 'keep_data_block_upload',
+  'friend_links.zh_cn.eyebrow': '社区连接',
+  'friend_links.zh_cn.title': '友情链接',
+  'friend_links.zh_cn.description': '展示经过管理员审核的站点。游客也可以提交申请，审核通过后才会公开。',
+  'friend_links.zh_cn.empty': '暂时还没有已通过审核的友情链接。',
+  'friend_links.zh_cn.submit_title': '申请交换友情链接',
+  'friend_links.zh_cn.submit_description': '请填写真实站点信息；申请不会立即公开。',
+  'friend_links.zh_cn.submitted': '申请已提交，等待管理员审核。',
+  'friend_links.en_us.eyebrow': 'Community',
+  'friend_links.en_us.title': 'Friend links',
+  'friend_links.en_us.description': 'Discover sites approved by an administrator. Guests can submit a request, but it is not public until approved.',
+  'friend_links.en_us.empty': 'There are no approved friend links yet.',
+  'friend_links.en_us.submit_title': 'Submit a friend-link request',
+  'friend_links.en_us.submit_description': 'Provide accurate site information; requests are not public immediately.',
+  'friend_links.en_us.submitted': 'Your request was submitted for review.',
 }
 
 export const emailProviderOptions = [

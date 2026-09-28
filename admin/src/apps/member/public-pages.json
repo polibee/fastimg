@@ -28,18 +28,25 @@
     "body": "Browse approved community sites and submit a link for review."
   },
   {
+    "path": "/status",
+    "title": "Service status — FastImg",
+    "description": "Check the public health of FastImg uploads, API, storage and payments.",
+    "heading": "Service status",
+    "body": "View current component health and active maintenance notices."
+  },
+  {
     "path": "/page/privacy",
-    "title": "Privacy policy — FastImg",
-    "description": "FastImg privacy policy.",
-    "heading": "Privacy policy",
-    "body": "FastImg only collects information required for media hosting, account security, and service support."
+    "title": "Privacy Policy | FastImg",
+    "description": "Learn how FastImg handles account information, uploaded media, access logs, cookies, and service providers.",
+    "heading": "Privacy Policy",
+    "body": "FastImg provides media hosting, stable links, image delivery, API access, and media management. This policy explains what information we process, why we process it, and the choices available to you."
   },
   {
     "path": "/page/terms",
-    "title": "Terms of use — FastImg",
-    "description": "FastImg terms of use.",
-    "heading": "Terms of use",
-    "body": "Use FastImg only for lawful and authorized content."
+    "title": "Terms of Use | FastImg",
+    "description": "Read the FastImg terms for accounts, uploads, acceptable use, plans, payments, moderation, and service availability.",
+    "heading": "Terms of Use",
+    "body": "Use FastImg responsibly and only for lawful, authorized content. These terms cover accounts, uploads, plans, payments, moderation, and service availability."
   },
   {
     "path": "/page/about",

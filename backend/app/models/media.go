@@ -21,6 +21,8 @@ type MediaAsset struct {
 	Visibility           string     `json:"visibility"`
 	ModerationStatus     string     `json:"moderation_status"`
 	DiscoverySubmittedAt *time.Time `json:"discovery_submitted_at"`
+	ExpiresAt            *time.Time `json:"expires_at"`
+	ExpiryNotifiedAt     *time.Time `json:"expiry_notified_at"`
 	DeletedAt            *time.Time `json:"deleted_at"`
 }
 

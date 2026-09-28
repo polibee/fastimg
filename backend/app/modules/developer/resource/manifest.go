@@ -34,11 +34,15 @@ func Manifest() resource.Manifest {
 			{Name: "status", Label: "Status", Sortable: true},
 			{Name: "expires_at", Label: "Expires at", Sortable: true},
 			{Name: "last_used_at", Label: "Last used at", Sortable: true},
+			{Name: "last_used_ip", Label: "Last used IP", Sortable: false},
+			{Name: "usage_count", Label: "Usage count", Sortable: true},
+			{Name: "created_at", Label: "Created at", Sortable: true},
 		},
 		Actions: []resource.Action{
 			{Name: "view", Label: "View", Permission: "admin.api_tokens.view"},
 			{Name: "set-status", Label: "Set status", Kind: "api-token-status", Permission: "admin.api_tokens.update", Batch: true, Payload: "api-token-status", PayloadFields: []resource.ActionPayloadField{{Name: "status", Label: "Status", Type: "select", Required: true, Options: []resource.Option{{Value: "disabled", Label: "Disabled"}, {Value: "revoked", Label: "Revoked"}}}}},
 			{Name: "delete", Label: "Delete", Permission: "admin.api_tokens.delete"},
+			{Name: "bulk-delete", Label: "Delete selected", Kind: "builtin-delete", Permission: "admin.api_tokens.delete", Batch: true, Payload: "delete"},
 		},
 		Filters: []resource.Filter{{Name: "status", Label: "Status", Type: "select", Options: []resource.Option{{Value: "active", Label: "Active"}, {Value: "disabled", Label: "Disabled"}, {Value: "revoked", Label: "Revoked"}}}},
 	}

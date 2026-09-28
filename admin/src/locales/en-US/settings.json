@@ -1,7 +1,8 @@
 {
   "title": "System settings",
   "description": "Manage SEO, payment gateways, statistics, custom code, and site basics.",
-  "groups": { "site": "Site basics", "auth": "Registration and login", "email": "Email service", "subscription": "Subscription expiry", "media": "Upload and media", "seo": "SEO and discovery", "gateway": "Payments and orders", "statistics": "Statistics", "code": "Custom code", "other": "Other settings" },
+  "groups": { "site": "Site basics", "auth": "Registration and login", "email": "Email service", "subscription": "Subscription expiry", "media": "Upload and media", "seo": "SEO and discovery", "content": "Public page copy", "gateway": "Payments and orders", "statistics": "Statistics", "code": "Custom code", "other": "Other settings" },
+  "contentLanguages": { "zhCN": "Chinese copy", "enUS": "English copy", "description": "This copy is shown on the public friend-links page according to the visitor's language. Save to apply changes." },
   "groupDescriptions": {
     "site": "Set the public site name and URL; sender, payment callback, and image links use the site URL for defaults.",
     "auth": "Control registration, Cloudflare Turnstile, secure sign-in, email verification, and email-domain allow-lists. Secret Keys are encrypted with APP_KEY and never returned in plaintext.",
@@ -9,6 +10,7 @@
     "subscription": "Manage expiry reminders, automatic fallback, and over-quota behavior. Expiry never deletes media, albums, folders, or existing links.",
     "media": "Manage upload size and image watermarks. The development sender is only an example; production must use a provider-verified mailbox.",
     "seo": "Manage the site description, keywords, sitemap, crawler rules, and public discovery switch.",
+    "content": "Edit the Chinese and English copy shown on the public friend-links page. Form field labels remain in the interface locale for accessibility and consistency.",
     "gateway": "Multiple payment providers can be enabled in parallel and offered to members. Configure each provider separately and enter its required credentials before enabling it; official API, Webhook/IPN, and success/cancel URLs are pre-filled defaults and remain editable. Credentials are encrypted with APP_KEY.",
     "statistics": "Control access-metric collection and retention.",
     "code": "Configure site verification, ad verification, and controlled site snippets.",
@@ -38,7 +40,9 @@
     "payment_nowpayments_enabled": "Enable NOWPayments", "payment_nowpayments_base_url": "NOWPayments API URL", "payment_nowpayments_api_url": "NOWPayments API URL", "payment_nowpayments_webhook_url": "NOWPayments IPN URL", "payment_nowpayments_api_key": "API Key", "payment_nowpayments_ipn_secret": "IPN Secret", "payment_nowpayments_callback_url": "IPN callback URL", "payment_nowpayments_success_url": "Payment success return URL", "payment_nowpayments_cancel_url": "Payment cancel return URL",
     "payment_paypal_api_url": "PayPal API URL", "payment_paypal_webhook_url": "PayPal Webhook URL", "payment_paypal_success_url": "Payment success return URL",
     "payment_xcash_api_url": "Xcash API URL", "payment_xcash_webhook_url": "Xcash Webhook URL",
-    "stats_enabled": "Enable statistics", "stats_retention_days": "Statistics retention days", "custom_site_verification": "Site verification code", "custom_ad_verification": "Ad verification code", "custom_head": "Custom head code", "custom_body": "Custom body code", "site_url": "Site URL", "upload_max_file_mb": "Max file size (MB)", "discover_enabled": "Enable discovery page", "watermark_text": "Image watermark text", "watermark_domain": "Image watermark domain", "watermark_fallback_image_url": "Failed-image fallback URL"
+    "stats_enabled": "Enable statistics", "stats_retention_days": "Statistics retention days", "custom_site_verification": "Site verification code", "custom_ad_verification": "Ad verification code", "custom_head": "Custom head code", "custom_body": "Custom body code", "site_url": "Site URL", "upload_max_file_mb": "Max file size (MB)", "discover_enabled": "Enable discovery page", "watermark_text": "Image watermark text", "watermark_domain": "Image watermark domain", "watermark_fallback_image_url": "Failed-image fallback URL",
+    "friend_links_zh_cn_eyebrow": "Friend-links eyebrow (Chinese)", "friend_links_zh_cn_title": "Friend-links title (Chinese)", "friend_links_zh_cn_description": "Friend-links description (Chinese)", "friend_links_zh_cn_empty": "Empty-state text (Chinese)", "friend_links_zh_cn_submit_title": "Submission section title (Chinese)", "friend_links_zh_cn_submit_description": "Submission section description (Chinese)", "friend_links_zh_cn_submitted": "Submission success text (Chinese)",
+    "friend_links_en_us_eyebrow": "Friend-links eyebrow (English)", "friend_links_en_us_title": "Friend-links title (English)", "friend_links_en_us_description": "Friend-links description (English)", "friend_links_en_us_empty": "Empty-state text (English)", "friend_links_en_us_submit_title": "Submission section title (English)", "friend_links_en_us_submit_description": "Submission section description (English)", "friend_links_en_us_submitted": "Submission success text (English)"
   },
   "hints": {
     "auth_registration_enabled": "When disabled, new accounts cannot register; existing accounts are unaffected.",

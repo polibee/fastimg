@@ -1,0 +1,18 @@
+{
+  "eyebrow": "Portability",
+  "title": "Export my data",
+  "description": "Create a private archive of your original media, metadata, links, collections and token metadata.",
+  "refresh": "Refresh",
+  "create": "Create export",
+  "creating": "Preparing…",
+  "jobsTitle": "Export jobs",
+  "jobsDescription": "Archives are generated in the background and can only be downloaded by you.",
+  "loading": "Loading export jobs…",
+  "empty": "No export jobs yet",
+  "pendingFile": "Preparing archive",
+  "mediaCount": "images",
+  "download": "Download",
+  "errorTitle": "Export operation failed",
+  "errors": { "loadFailed": "Could not load export jobs.", "createFailed": "Could not create an export.", "downloadFailed": "Could not download this archive." },
+  "status": { "queued": "Queued", "running": "Generating", "ready": "Ready", "failed": "Failed" }
+}

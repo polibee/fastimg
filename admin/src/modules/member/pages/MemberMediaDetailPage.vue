@@ -31,6 +31,7 @@ interface MediaItem {
   status: string
   visibility: 'private' | 'link' | 'public'
   moderation_status: string
+  expires_at: string | null
   created_at: string
   links: Record<string, string>
   variants: Record<string, MediaVariant>
@@ -82,6 +83,10 @@ const visibility = ref<'private' | 'link' | 'public'>('public')
 const savingVisibility = ref(false)
 const visibilityError = ref(false)
 const visibilitySaved = ref(false)
+const expiry = ref('')
+const savingExpiry = ref(false)
+const expiryError = ref(false)
+const expirySaved = ref(false)
 const hotlinkPolicy = ref<HotlinkPolicy>({ media_id: 0, mode: 'off', allow_no_referer: false })
 const savingHotlinkPolicy = ref(false)
 const hotlinkPolicyError = ref(false)
@@ -115,6 +120,7 @@ async function loadDetails() {
     const response = await apiFetchEnvelope<MediaItem>(`/api/v1/media/${encodeURIComponent(String(route.params.id))}`, {}, auth.token)
     item.value = response.data
     visibility.value = response.data.visibility || 'public'
+    expiry.value = response.data.expires_at ? new Date(response.data.expires_at).toISOString().slice(0, 16) : ''
     await loadLinkSecurity()
     await Promise.allSettled(availableVariants.value.map(async (name) => {
       const blob = await apiFetchBlob(item.value!.variants[name].url, auth.token!)
@@ -144,6 +150,25 @@ async function saveVisibility() {
     visibilityError.value = true
   } finally {
     savingVisibility.value = false
+  }
+}
+
+async function saveExpiry() {
+  if (!auth.token || !item.value) return
+  savingExpiry.value = true
+  expiryError.value = false
+  expirySaved.value = false
+  try {
+    const response = await apiFetch<{ id: number; expires_at: string | null }>(`/api/v1/media/${item.value.id}/lifecycle`, {
+      method: 'PATCH',
+      body: JSON.stringify({ expires_at: expiry.value ? new Date(expiry.value).toISOString() : null }),
+    }, auth.token)
+    item.value.expires_at = response.expires_at
+    expirySaved.value = true
+  } catch {
+    expiryError.value = true
+  } finally {
+    savingExpiry.value = false
   }
 }
 
@@ -363,6 +388,23 @@ onBeforeUnmount(releasePreviews)
           </Button>
         </CardContent>
         <CardContent v-if="visibilityError" class="pt-0 text-sm text-destructive">{{ t('member.media.errors.visibilityFailed') }}</CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>{{ t('member.media.expiryTitle') }}</CardTitle>
+          <CardDescription>{{ t('member.media.expiryDescription') }}</CardDescription>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label class="flex max-w-sm flex-1 flex-col gap-1 text-sm">
+            <span class="text-muted-foreground">{{ t('member.media.expiryAt') }}</span>
+            <input v-model="expiry" type="datetime-local" class="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+          </label>
+          <Button :disabled="savingExpiry" @click="saveExpiry">
+            <LoaderCircle v-if="savingExpiry" class="animate-spin" data-icon="inline-start" />
+            {{ expirySaved ? t('member.media.saved') : t('member.media.saveExpiry') }}
+          </Button>
+        </CardContent>
+        <CardContent v-if="expiryError" class="pt-0 text-sm text-destructive">{{ t('member.media.errors.expiryFailed') }}</CardContent>
       </Card>
       <Card>
         <CardHeader>

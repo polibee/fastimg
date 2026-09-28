@@ -95,7 +95,7 @@ Custom Page 仍然必须使用框架的认证、权限、API 错误、通知、�
 
 - `/admin/media`：跨用户媒体库，只读上传者、文件元数据和访问状态，管理员按 `admin.media.*` 权限执行查看；隐藏、恢复、审核通过、审核拒绝和永久删除必须走专用媒体动作，不能通过通用 CRUD 直接改写状态。每个动作写入 `admin.media.*` 审计记录。
 - `/admin/folders`、`/admin/albums`：跨用户文件夹、相册管理；会员端 `/folders`、`/albums` 只操作当前登录用户自己的集合。
-- `/admin/plans`：后台只管理计划权益和产品信息；结算内部使用 `plan_prices` 价格版本表，价格版本不绑定唯一支付网关，订单保存价格快照后不可被后续改价影响。开发阶段不注册独立价格版本后台页面。
+- `/admin/plans`：后台管理计划权益、产品信息和价格版本；编辑某个计划时可直接添加月付/年付价格、币种、试用天数或停用当前价格。结算内部使用 `plan_prices` 价格版本表，价格版本不绑定唯一支付网关，订单保存价格快照后不可被后续改价影响。价格版本不注册独立菜单，避免和“会员计划”重复。
 - `/admin/orders`、`/admin/payment-transactions`、`/admin/payment-events`、`/admin/refunds`：订单、支付流水、网关事件和退款分别查询，履约与支付状态不混用。
 - `/admin/settings`、`/admin/storage`、`/admin/statistics`、`/admin/media-access-logs`：站点配置、对象存储连接与本站侧用量、聚合指标和访问记录后台页面。对象存储设置按 Provider 独立保存；启用的连接才在 `/admin/storage` 生成统计卡片，统计来自 `storage_objects` 与允许访问记录，不冒充云厂商账单数据。设置密钥使用 `APP_KEY` 加密持久化，接口只返回占位符。
 - `/admin/albums/:id/media`：管理员专用相册内容页。只允许把该相册所属用户自己的 `ready` 媒体加入相册；移除关系不删除媒体。所有变更复用集合 Service，并写入 `admin.albums.media.*` 审计。
@@ -114,7 +114,7 @@ Custom Page 仍然必须使用框架的认证、权限、API 错误、通知、�
 
 - Personal API Token 的最小权限固定为 `upload:write`、`media:read`、`media:delete`；Token 只允许当前用户的上传、图片列表/详情/链接和删除，不能调用会员结算或管理员 API。
 - `/api/v1/*` 是版本化 API；`/api/upload`、`/api/images`、`/api/image/{id}` 是同一最小能力的客户端兼容别名，不复制业务逻辑。
-- `plan_prices` 是结算使用的价格版本，不绑定唯一网关；结算页从已注册 Provider 列表中选择渠道，Provider 密钥只来自服务端设置的加密字段。开发阶段不暴露独立后台路由或 `admin.plan_prices.*` 权限，旧地址也不提供兼容入口，避免和“会员计划”形成重复菜单。
+- `plan_prices` 是结算使用的价格版本，不绑定唯一网关；管理员从 `/admin/plans/:id/edit` 的“价格设置”区域维护它，结算页从已注册 Provider 列表中选择渠道，Provider 密钥只来自服务端设置的加密字段。价格接口复用 `admin.plans.view/update` 权限，不创建独立 `admin.plan_prices.*` 权限，避免和“会员计划”形成重复菜单。
 - `/sitemap.xml`、`/robots.txt` 和前端 `build:ssg` 为公开会员首页、套餐、发现页以及通过 `SSG_PUBLIC_ALBUM_IDS` 选择的公开相册提供 SEO 首屏；服务端只允许 `visibility=public` 的相册和公开媒体进入响应；私有媒体、Token、订单和后台路径不进入站点地图。
 
 ## 6. 第一阶段允许修改的基础文件

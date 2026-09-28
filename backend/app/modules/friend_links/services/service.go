@@ -49,15 +49,27 @@ func validURL(raw string, optional bool) bool {
 }
 
 func (s *Service) List(status string) ([]models.Submission, error) {
+	rows, _, err := s.ListPaginated(status, 1, 100)
+	return rows, err
+}
+
+func (s *Service) ListPaginated(status string, page, perPage int) ([]models.Submission, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
 	rows := make([]models.Submission, 0)
 	query := facades.Orm().Query().Table("friend_link_submissions").OrderByDesc("created_at").OrderByDesc("id")
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}
-	if err := query.Get(&rows); err != nil {
-		return nil, err
+	var total int64
+	if err := query.Paginate(page, perPage, &rows, &total); err != nil {
+		return nil, 0, err
 	}
-	return rows, nil
+	return rows, total, nil
 }
 
 func (s *Service) Submit(input SubmissionInput, userID *uint) (models.Submission, error) {

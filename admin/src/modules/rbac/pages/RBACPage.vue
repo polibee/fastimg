@@ -13,9 +13,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ApiError, apiFetch, errorMessageKey } from '@/lib/api'
-import { generatedApi, type DataScope, type FieldPermissionOverride, type ResourceManifest, type RolePermissionAssignment } from '@/generated/api'
+import { generatedApi, type DataScope, type FieldPermissionOverride, type ResourceListMeta, type ResourceManifest, type RolePermissionAssignment } from '@/generated/api'
 import { useAuthStore } from '@/stores/auth'
 import { userStatusLabelKey, type UserStatus } from '@/lib/user-status'
 
@@ -47,22 +48,25 @@ const roleToDelete = ref<RBACRole>()
 const selectedUser = ref<RBACUser>()
 const roleForm = reactive({ name: '', display_name: '' })
 const saving = ref(false)
+const usersMeta = ref<ResourceListMeta>({ page: 1, per_page: 20, total: 0, last_page: 1 })
+const usersPageSize = ref('20')
 
 function localizedError(errorValue: unknown) {
   return errorValue instanceof ApiError ? t(errorMessageKey(errorValue.code)) : t('errors.unknown')
 }
 
-async function loadRBAC() {
+async function loadRBAC(userPage = 1) {
   if (!auth.token) return
   loading.value = true
   error.value = ''
   try {
     const [userData, roleData, permissionData] = await Promise.all([
-      auth.can('admin.users.view') ? apiFetch<RBACUser[]>('/api/v1/admin/users', {}, auth.token) : Promise.resolve([]),
+      auth.can('admin.users.view') ? generatedApi.resourceList<RBACUser>('users', new URLSearchParams({ page: String(userPage), per_page: usersPageSize.value }), auth.token) : Promise.resolve({ data: [], meta: { page: 1, per_page: Number(usersPageSize.value), total: 0, last_page: 1 } }),
       auth.canAny(['admin.roles.manage', 'admin.permissions.manage']) ? apiFetch<RBACRole[]>('/api/v1/admin/roles', {}, auth.token) : Promise.resolve([]),
       auth.canAny(['admin.roles.manage', 'admin.permissions.manage']) ? apiFetch<RBACPermission[]>('/api/v1/admin/permissions', {}, auth.token) : Promise.resolve([]),
     ])
-    users.value = userData
+    users.value = userData.data
+    usersMeta.value = userData.meta
     roles.value = roleData
     permissions.value = permissionData
     resourceManifests.value = auth.canAny(['admin.roles.manage', 'admin.permissions.manage']) ? await generatedApi.resourceRegistry(auth.token) : []
@@ -71,6 +75,11 @@ async function loadRBAC() {
   } finally {
     loading.value = false
   }
+}
+
+function changeUsersPageSize(value: unknown) {
+  usersPageSize.value = String(value)
+  void loadRBAC(1)
 }
 
 function openCreateRole() {
@@ -243,6 +252,7 @@ onMounted(loadRBAC)
         <CardContent>
           <Empty v-if="!users.length"><EmptyHeader><EmptyTitle>{{ t('states.emptyTitle') }}</EmptyTitle><EmptyDescription>{{ t('rbac.noUsers') }}</EmptyDescription></EmptyHeader></Empty>
           <Table v-else><TableHeader><TableRow><TableHead>{{ t('rbac.name') }}</TableHead><TableHead>{{ t('rbac.status') }}</TableHead><TableHead /></TableRow></TableHeader><TableBody><TableRow v-for="user in users" :key="user.id"><TableCell><div class="font-medium">{{ user.name }}</div><div class="text-xs text-muted-foreground">{{ user.email }}</div></TableCell><TableCell><Badge variant="secondary">{{ t(userStatusLabelKey(user.status)) }}</Badge></TableCell><TableCell><Button v-if="auth.can('admin.roles.manage')" variant="ghost" size="sm" @click="openUserRoles(user)">{{ t('rbac.assignRoles') }}</Button></TableCell></TableRow></TableBody></Table>
+          <div v-if="usersMeta.total > 0" class="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between"><p class="text-sm text-muted-foreground">{{ t('resource.page', { page: usersMeta.page }) }}</p><Select :model-value="usersPageSize" @update:model-value="changeUsersPageSize"><SelectTrigger class="w-24"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">{{ t('resource.perPage', { count: 10 }) }}</SelectItem><SelectItem value="20">{{ t('resource.perPage', { count: 20 }) }}</SelectItem><SelectItem value="50">{{ t('resource.perPage', { count: 50 }) }}</SelectItem></SelectContent></Select><Pagination v-model:page="usersMeta.page" :items-per-page="usersMeta.per_page" :total="usersMeta.total" @update:page="loadRBAC"><PaginationContent v-slot="{ items }"><PaginationPrevious /><template v-for="(item, index) in items" :key="index"><PaginationItem v-if="item.type === 'page'" :value="item.value" :is-active="item.value === usersMeta.page">{{ item.value }}</PaginationItem></template><PaginationNext /></PaginationContent></Pagination></div>
         </CardContent>
       </Card>
       <Card v-if="auth.can('admin.roles.manage')" class="lg:col-span-2">

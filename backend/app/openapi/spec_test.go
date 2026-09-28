@@ -96,13 +96,13 @@ func TestSpecDocumentsPublicAndAdminContentPageContracts(t *testing.T) {
 func TestSpecDocumentsFooterNavigationAndFriendLinkContracts(t *testing.T) {
 	spec := Spec()
 	paths := spec["paths"].(map[string]any)
-	for _, path := range []string{"/site/footer-navigation", "/friend-links", "/admin/footer-navigation", "/admin/footer-navigation/groups", "/admin/footer-navigation/items", "/admin/friend-links", "/admin/friend-links/{id}/review"} {
+	for _, path := range []string{"/site/footer-navigation", "/site/friend-links/presentation", "/friend-links", "/admin/footer-navigation", "/admin/footer-navigation/groups", "/admin/footer-navigation/items", "/admin/friend-links", "/admin/friend-links/{id}/review"} {
 		if _, ok := paths[path]; !ok {
 			t.Fatalf("missing footer/friend-link path %s", path)
 		}
 	}
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
-	for _, schema := range []string{"FooterNavigationGroup", "FooterNavigationItem", "FooterNavigationResponse", "FriendLinkPublic", "FriendLinkSubmission"} {
+	for _, schema := range []string{"FooterNavigationGroup", "FooterNavigationItem", "FooterNavigationResponse", "FriendLinkPublic", "FriendLinkPresentation", "FriendLinkSubmission"} {
 		if _, ok := schemas[schema]; !ok {
 			t.Fatalf("missing footer/friend-link schema %s", schema)
 		}

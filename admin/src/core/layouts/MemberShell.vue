@@ -99,6 +99,9 @@ async function logout() {
             <RouterLink to="/tokens" :aria-label="t('member.tokens.title')" :title="t('member.tokens.title')" class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3" active-class="bg-muted font-medium">
               {{ t('member.nav.tokens') }}
             </RouterLink>
+            <RouterLink to="/exports" :aria-label="t('member.exports.title')" :title="t('member.exports.title')" class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3" active-class="bg-muted font-medium">
+              {{ t('member.nav.exports') }}
+            </RouterLink>
             <RouterLink to="/reports" :aria-label="t('member.reports.title')" :title="t('member.reports.title')" class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3" active-class="bg-muted font-medium">
               {{ t('member.nav.reports') }}
             </RouterLink>
@@ -109,6 +112,9 @@ async function logout() {
             class="ml-auto inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3"
           >
             {{ t('member.actions.login') }}
+          </RouterLink>
+          <RouterLink to="/status" :aria-label="t('statusPage.title')" :title="t('statusPage.title')" class="inline-flex shrink-0 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3">
+            {{ t('statusPage.shortTitle') }}
           </RouterLink>
           <RouterLink
             v-if="!auth.isAuthenticated"

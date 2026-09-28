@@ -31,6 +31,7 @@ ADMIN_NAME_VALUE="${FASTIMG_ADMIN_NAME:-Administrator}"
 ADMIN_PASSWORD_VALUE="${FASTIMG_ADMIN_PASSWORD:-}"
 ADMIN_PASSWORD_GENERATED=0
 BOOTSTRAP_ADMIN="${FASTIMG_BOOTSTRAP_ADMIN:-1}"
+ADMIN_RESET_PASSWORD="${FASTIMG_ADMIN_RESET_PASSWORD:-0}"
 
 log() { printf '[fastimg] %s\n' "$*"; }
 die() { printf '[fastimg] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -309,16 +310,20 @@ bootstrap_admin() {
         ADMIN_PASSWORD_GENERATED=1
     fi
     [[ ${#ADMIN_PASSWORD_VALUE} -ge 12 ]] || die 'initial administrator password must contain at least 12 characters'
-    local bootstrap_output
+    local bootstrap_output reset_args=()
+    if [[ "$ADMIN_RESET_PASSWORD" == 1 ]]; then
+        reset_args+=(--reset-password)
+        log 'Explicit password reset requested for the bootstrap administrator.'
+    fi
     if [[ "$MODE" == docker ]]; then
-        bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | docker compose --env-file "$ENV_FILE_VALUE" -f "$SCRIPT_DIR/docker/docker-compose.yml" run --rm -T api artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
+        bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | docker compose --env-file "$ENV_FILE_VALUE" -f "$SCRIPT_DIR/docker/docker-compose.yml" run --rm -T api artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" "${reset_args[@]}" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
     else
         local app_binary="$INSTALL_ROOT_VALUE/current/backend/fastimg-api"
         [[ -x "$app_binary" ]] || die "deployed API binary not found: $app_binary"
         if [[ "$(id -u)" -eq 0 ]]; then
-            bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | runuser -u "$APP_USER_VALUE" -- "$app_binary" artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
+            bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | runuser -u "$APP_USER_VALUE" -- "$app_binary" artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" "${reset_args[@]}" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
         else
-            bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | "$app_binary" artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
+            bootstrap_output="$(printf '%s\n' "$ADMIN_PASSWORD_VALUE" | "$app_binary" artisan admin:bootstrap --email "$ADMIN_EMAIL_VALUE" --name "$ADMIN_NAME_VALUE" "${reset_args[@]}" 2>&1)" || { printf '%s\n' "$bootstrap_output" >&2; die 'administrator bootstrap failed'; }
         fi
     fi
     printf '%s\n' "$bootstrap_output"

@@ -375,16 +375,22 @@ func (r *DatabaseRepository) ListAlbumMediaIDs(_ context.Context, userID, albumI
 }
 
 func (r *DatabaseRepository) ListAdminAlbumMedia(_ context.Context, albumID uint) ([]AdminAlbumMediaItem, error) {
+	items, _, err := r.ListAdminAlbumMediaPage(context.Background(), albumID, 1, 100000)
+	return items, err
+}
+
+func (r *DatabaseRepository) ListAdminAlbumMediaPage(_ context.Context, albumID uint, page, perPage int) ([]AdminAlbumMediaItem, int64, error) {
 	var albumRows []map[string]any
 	if err := facades.Orm().Query().Table("albums").Where("id = ?", albumID).Get(&albumRows); err != nil || len(albumRows) == 0 {
-		return nil, ErrNotFound
+		return nil, 0, ErrNotFound
 	}
 	var relations []map[string]any
-	if err := facades.Orm().Query().Table("album_media").Where("album_id = ?", albumID).OrderBy("sort_order", "asc").OrderBy("id", "asc").Get(&relations); err != nil {
-		return nil, err
+	var total int64
+	if err := facades.Orm().Query().Table("album_media").Where("album_id = ?", albumID).OrderBy("sort_order", "asc").OrderBy("id", "asc").Paginate(page, perPage, &relations, &total); err != nil {
+		return nil, 0, err
 	}
 	if len(relations) == 0 {
-		return []AdminAlbumMediaItem{}, nil
+		return []AdminAlbumMediaItem{}, total, nil
 	}
 	mediaIDs := make([]any, 0, len(relations))
 	for _, row := range relations {
@@ -392,7 +398,7 @@ func (r *DatabaseRepository) ListAdminAlbumMedia(_ context.Context, albumID uint
 	}
 	var mediaRows []map[string]any
 	if err := facades.Orm().Query().Table("media_assets").Where("status = ?", "ready").WhereIn("id", mediaIDs).Get(&mediaRows); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	byID := make(map[uint]map[string]any, len(mediaRows))
 	for _, row := range mediaRows {
@@ -407,7 +413,7 @@ func (r *DatabaseRepository) ListAdminAlbumMedia(_ context.Context, albumID uint
 		}
 		items = append(items, AdminAlbumMediaItem{ID: mediaID, OriginalName: fmt.Sprint(media["original_name"]), UserID: rowUint(media["user_id"]), Status: fmt.Sprint(media["status"]), Visibility: fmt.Sprint(media["visibility"]), SortOrder: int(rowUint(relation["sort_order"]))})
 	}
-	return items, nil
+	return items, total, nil
 }
 
 func (r *DatabaseRepository) AddAdminMediaToAlbum(_ context.Context, albumID uint, mediaIDs []uint) (mutation AdminAlbumMediaMutation, err error) {

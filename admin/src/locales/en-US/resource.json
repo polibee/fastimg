@@ -48,7 +48,7 @@
   "pickDateTime": "Choose date",
   "pickTime": "Choose time",
   "clearDateTime": "Clear time",
-  "entitlements": { "storage_bytes": "Storage", "max_file_bytes": "Max file size", "daily_uploads": "Daily uploads", "monthly_api_uploads": "Monthly API uploads", "monthly_bandwidth_bytes": "Monthly bandwidth", "transform_count": "Image transformations", "api_rate_per_minute": "API requests per minute", "token_limit": "API token limit", "ads_enabled": "Show advertisements", "watermark_enabled": "Enable image watermark", "enabled": "Enabled", "disabled": "Disabled" }
+  "entitlements": { "storage_bytes": "Storage", "max_file_bytes": "Max file size", "daily_uploads": "Daily uploads", "monthly_api_uploads": "Monthly API uploads", "monthly_bandwidth_bytes": "Monthly bandwidth", "transform_count": "Monthly image processing operations", "api_rate_per_minute": "API requests per minute", "token_limit": "API token limit", "ads_enabled": "Show advertisements", "watermark_enabled": "Enable image watermark", "enabled": "Enabled", "disabled": "Disabled" }
   ,"actions": "Actions"
   ,"edit": "Edit"
   ,"delete": "Delete"

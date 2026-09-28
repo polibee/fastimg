@@ -20,6 +20,8 @@ test('SSG keeps a Vue mount point while injecting crawlable public content', () 
   assert.match(prerender, /id="app"/)
   assert.match(prerender, /data-fastimg-ssg/)
   assert.match(prerender, /<title>\$\{escapeHTML\(page\.title\)\}<\/title>/)
+  assert.match(prerender, /api\/v1\/site\/pages/)
+  assert.match(prerender, /renderNode/)
   assert.doesNotMatch(prerender, /replace\('\<div id="app"\>\<\/div\>', content\)/)
 })
 

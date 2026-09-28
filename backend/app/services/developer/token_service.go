@@ -123,6 +123,15 @@ func (r *DatabaseRepository) ListOwned(_ context.Context, userID uint) ([]models
 	return tokens, nil
 }
 
+func (r *DatabaseRepository) ListOwnedPaginated(_ context.Context, userID uint, page, perPage int) ([]models.ApiToken, int64, error) {
+	var tokens []models.ApiToken
+	var total int64
+	if err := facades.Orm().Query().Where("user_id = ?", userID).OrderBy("id", "desc").Paginate(page, perPage, &tokens, &total); err != nil {
+		return nil, 0, err
+	}
+	return tokens, total, nil
+}
+
 func (r *DatabaseRepository) Revoke(_ context.Context, userID, id uint) error {
 	now := time.Now().UTC()
 	result, err := facades.Orm().Query().Table("api_tokens").Where("id = ? AND user_id = ? AND status = ?", id, userID, "active").Update(map[string]any{
@@ -267,6 +276,48 @@ func (s *Service) List(ctx context.Context, userID uint) ([]View, error) {
 		views = append(views, view(token))
 	}
 	return views, nil
+}
+
+func (s *Service) ListPage(ctx context.Context, userID uint, page, perPage int) ([]View, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	var tokens []models.ApiToken
+	var total int64
+	if repository, ok := s.repository.(interface {
+		ListOwnedPaginated(context.Context, uint, int, int) ([]models.ApiToken, int64, error)
+	}); ok {
+		var err error
+		tokens, total, err = repository.ListOwnedPaginated(ctx, userID, page, perPage)
+		if err != nil {
+			return nil, 0, err
+		}
+	} else {
+		var err error
+		tokens, err = s.repository.ListOwned(ctx, userID)
+		if err != nil {
+			return nil, 0, err
+		}
+		total = int64(len(tokens))
+		start := (page - 1) * perPage
+		if start >= len(tokens) {
+			tokens = nil
+		} else {
+			end := start + perPage
+			if end > len(tokens) {
+				end = len(tokens)
+			}
+			tokens = tokens[start:end]
+		}
+	}
+	views := make([]View, 0, len(tokens))
+	for _, token := range tokens {
+		views = append(views, view(token))
+	}
+	return views, total, nil
 }
 
 func (s *Service) Revoke(ctx context.Context, userID, id uint) error {

@@ -36,3 +36,21 @@ func TestNavigationTargetValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestNavigationTranslations(t *testing.T) {
+	if err := validateTranslations(LocaleAll, "法律与隐私", "Legal & privacy"); err != nil {
+		t.Fatalf("complete all-language translations should be accepted: %v", err)
+	}
+	if err := validateTranslations(LocaleAll, "法律与隐私", ""); err == nil {
+		t.Fatal("all-language navigation must require both translations")
+	}
+	if got := localizedValue("关于", "About", LocaleZhCN); got != "关于" {
+		t.Fatalf("Chinese localization = %q", got)
+	}
+	if got := localizedValue("关于", "About", LocaleEnUS); got != "About" {
+		t.Fatalf("English localization = %q", got)
+	}
+	if got := localizedValue("关于", "", LocaleEnUS); got != "" {
+		t.Fatalf("missing English translation should not fall back to Chinese: %q", got)
+	}
+}

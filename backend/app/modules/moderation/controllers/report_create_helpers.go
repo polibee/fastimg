@@ -45,6 +45,12 @@ func createReport(x h.Context) h.Response {
 	if m.UserID == uint(uid) {
 		return re(x, 409, "REPORT_SELF_MEDIA")
 	}
+	var existing struct {
+		ID uint `db:"id"`
+	}
+	if e = facades.Orm().Query().Table("media_reports").Where("media_asset_id = ? AND reporter_id = ? AND reason = ? AND status IN (?, ?)", mid, uid, p.Reason, "pending", "in_review").First(&existing); e == nil && existing.ID > 0 {
+		return re(x, 409, "REPORT_ALREADY_SUBMITTED")
+	}
 	if e = facades.Orm().Query().Table("media_reports").Create(&map[string]any{"media_asset_id": mid, "reporter_id": uid, "reason": p.Reason, "description": p.Description, "status": "pending"}); e != nil {
 		return re(x, 500, "REPORT_UNAVAILABLE")
 	}

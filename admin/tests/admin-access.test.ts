@@ -17,4 +17,6 @@ test('a permission for a registered admin resource grants admin shell access', (
   const { hasAdminAccess } = moduleUnderTest
   assert.equal(hasAdminAccess(['admin.plans.view']), true)
   assert.equal(hasAdminAccess(['admin.roles.manage']), true)
+  assert.equal(hasAdminAccess(['admin.reports.view']), true)
+  assert.equal(hasAdminAccess(['admin.api_tokens.view']), true)
 })

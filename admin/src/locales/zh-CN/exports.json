@@ -1,0 +1,18 @@
+{
+  "eyebrow": "数据迁移",
+  "title": "导出我的数据",
+  "description": "生成仅自己可下载的归档，包含原图、元数据、链接、文件夹/相册和 Token 元数据。",
+  "refresh": "刷新",
+  "create": "创建导出",
+  "creating": "准备中…",
+  "jobsTitle": "导出任务",
+  "jobsDescription": "归档在后台生成，只允许当前账户下载。",
+  "loading": "正在加载导出任务…",
+  "empty": "还没有导出任务",
+  "pendingFile": "正在准备归档",
+  "mediaCount": "张图片",
+  "download": "下载",
+  "errorTitle": "导出操作失败",
+  "errors": { "loadFailed": "无法加载导出任务。", "createFailed": "无法创建导出任务。", "downloadFailed": "无法下载该归档。" },
+  "status": { "queued": "排队中", "running": "生成中", "ready": "可下载", "failed": "失败" }
+}

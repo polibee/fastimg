@@ -10,4 +10,3 @@ func TestBackupPermissionContract(t *testing.T) {
 		t.Fatalf("download permission = %q", BackupDownloadPermission)
 	}
 }
-

@@ -27,6 +27,8 @@ Refresh Token
 - Secure
 - SameSite 按部署拓扑配置
 - 服务器端可撤销
+
+默认时效：Access Token 为 `JWT_TTL=60` 分钟；持久 Refresh Token 为 `JWT_REFRESH_TTL=20160` 分钟（默认 30 天），该值同时控制 PostgreSQL 会话记录和浏览器 Cookie。前端会在 Access Token 到期前约 2 分钟自动轮换。`SESSION_LIFETIME=120` 是 Goravel Session 驱动的空闲时长，不是本项目 JWT 登录态的主要过期时间。
 - Redis 保存会话和轮换状态
 ~~~
 
@@ -115,14 +117,14 @@ POST /api/v1/auth/resend-verification
 - `roles`、`permissions`、`role_user`、`permission_role` RBAC 表；
 - 管理员用户、角色、权限列表接口：
   `GET /api/v1/admin/users`、`GET /api/v1/admin/roles`、`GET /api/v1/admin/permissions`；
-- `AdminUser` Seeder 在显式提供开发环境管理员变量时创建 `super-admin` 及基础管理权限；生产部署使用 `admin:bootstrap`，不执行固定账号 Seeder；
+- `AdminUser` Seeder 在显式提供开发环境管理员变量时创建 `super-admin` 及基础管理权限；生产部署使用 `admin:bootstrap`，不执行固定账号 Seeder。生产初始化命令会创建或启用指定邮箱的 `super-admin`，补齐 FastImg 域权限并将管理员账号标记为已验证；命令输出会明确显示 `role: super-admin`；
 - 角色创建、详情、编辑、删除和权限分配接口；
 - 用户角色查询和绑定接口；
 - 基于 `admin.users.view`、`admin.roles.manage`、`admin.permissions.manage` 的后端细粒度授权；
 - API 错误统一返回稳定 `code`，前端按模块语言包渲染中文或英文。
 - 登录和当前用户接口返回权限标识，前端据此隐藏无权菜单和操作，并在路由层显示统一无权页面；后端权限中间件仍是最终授权边界。
 
-当前实现已接入独立的随机 Refresh Token：登录写入 HttpOnly Cookie，PostgreSQL 保存权威会话，Redis 保存镜像和高速副本；刷新时一次性消费并轮换，Redis 不可用时自动查询 PostgreSQL，重放返回 401，登出和 `logout-all` 会撤销并清除 Cookie。登录失败按“邮箱 + IP”组合限流，Redis 正常时使用 Redis 计数，Redis 不可用时切换 PostgreSQL；认证事件和关键用户/角色管理操作会写入 PostgreSQL 审计日志，并在管理端支持筛选、分页和详情查看；管理操作 metadata 只保存目标 ID、状态和权限 ID 等安全字段。生产环境仍需按部署拓扑配置 HTTPS、SameSite 和跨来源 Cookie 策略。系统角色 `super-admin` 受到保护，最后一个具备管理权限的管理员不能被移除。
+当前实现已接入独立的随机 Refresh Token：登录写入 HttpOnly Cookie，PostgreSQL 保存权威会话，Redis 保存镜像和高速副本；刷新时一次性消费并轮换，Redis 不可用时自动查询 PostgreSQL，重放返回 401，登出和 `logout-all` 会撤销并清除 Cookie。登录失败按“邮箱 + IP”组合限流，Redis 正常时使用 Redis 计数，Redis 不可用时切换 PostgreSQL；认证事件和关键用户/角色管理操作会写入 PostgreSQL 审计日志，并在管理端支持筛选、分页和详情查看；管理操作 metadata 只保存目标 ID、状态和权限 ID 等安全字段。生产 HTTPS 下 Cookie 使用 `Secure`；部署 CLI 的临时 HTTP 地址会根据 `APP_URL` 暂时关闭 `Secure`，切换正式 HTTPS 并重启后自动恢复。系统角色 `super-admin` 受到保护，最后一个具备管理权限的管理员不能被移除。
 
 ## 测试
 

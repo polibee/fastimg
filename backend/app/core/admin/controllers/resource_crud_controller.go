@@ -200,6 +200,7 @@ func (r *ResourceController) Delete(ctx http.Context) http.Response {
 			}
 			return ctx.Response().Status(500).Json(http.Json{"code": "INTERNAL_ERROR"})
 		}
+		recordManagementAudit(ctx, "api_token.delete", map[string]any{"target_api_token_id": id})
 		return ctx.Response().NoContent(204)
 	}
 	if manifest.SoftDelete {

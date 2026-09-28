@@ -16,6 +16,7 @@ import (
 	models "goravel/app/modules/friend_links/models"
 	services "goravel/app/modules/friend_links/services"
 	auditservices "goravel/app/services/audit"
+	settingsservices "goravel/app/services/settings"
 )
 
 type Controller struct{ service *services.Service }
@@ -35,6 +36,47 @@ func (c *Controller) PublicList(ctx httpcontract.Context) httpcontract.Response 
 		data = append(data, publicPayload(row))
 	}
 	return ctx.Response().Header("Cache-Control", "public, max-age=300").Success().Json(httpcontract.Json{"data": data})
+}
+
+// Presentation returns the editable, public copy for the friend-links page.
+// It deliberately exposes only presentation text; administrator settings and
+// credentials never cross this public boundary.
+func (c *Controller) Presentation(ctx httpcontract.Context) httpcontract.Response {
+	locale := strings.TrimSpace(ctx.Request().Query("locale"))
+	return ctx.Response().Header("Cache-Control", "public, max-age=0, must-revalidate").Success().Json(httpcontract.Json{"data": friendLinksPresentation(locale)})
+}
+
+func friendLinksPresentation(locale string) map[string]string {
+	prefix := "friend_links.zh_cn."
+	if strings.EqualFold(locale, "en-US") || strings.EqualFold(locale, "en-us") || strings.HasPrefix(strings.ToLower(locale), "en-") {
+		prefix = "friend_links.en_us."
+	}
+	defaults := map[string]string{
+		"eyebrow":            "社区连接",
+		"title":              "友情链接",
+		"description":        "展示经过管理员审核的站点。游客也可以提交申请，审核通过后才会公开。",
+		"empty":              "暂时还没有已通过审核的友情链接。",
+		"submit_title":       "申请交换友情链接",
+		"submit_description": "请填写真实站点信息；申请不会立即公开。",
+		"submitted":          "申请已提交，等待管理员审核。",
+	}
+	if prefix == "friend_links.en_us." {
+		defaults = map[string]string{
+			"eyebrow":            "Community",
+			"title":              "Friend links",
+			"description":        "Discover sites approved by an administrator. Guests can submit a request, but it is not public until approved.",
+			"empty":              "There are no approved friend links yet.",
+			"submit_title":       "Submit a friend-link request",
+			"submit_description": "Provide accurate site information; requests are not public immediately.",
+			"submitted":          "Your request was submitted for review.",
+		}
+	}
+	settings := settingsservices.NewSettingService()
+	result := make(map[string]string, len(defaults))
+	for key, fallback := range defaults {
+		result[key] = settings.Resolve(prefix+key, fallback)
+	}
+	return result
 }
 func (c *Controller) Submit(ctx httpcontract.Context) httpcontract.Response {
 	var input services.SubmissionInput
@@ -89,11 +131,23 @@ func allowSubmission(ip, rawURL string) bool {
 	return true
 }
 func (c *Controller) AdminList(ctx httpcontract.Context) httpcontract.Response {
-	rows, err := c.service.List(ctx.Request().Query("status"))
+	page, _ := strconv.Atoi(ctx.Request().Query("page", "1"))
+	perPage, _ := strconv.Atoi(ctx.Request().Query("per_page", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	rows, total, err := c.service.ListPaginated(ctx.Request().Query("status"), page, perPage)
 	if err != nil {
 		return adminmiddleware.APIError(ctx, 500, "FRIEND_LINKS_UNAVAILABLE")
 	}
-	return ctx.Response().Success().Json(httpcontract.Json{"data": rows})
+	lastPage := int64(1)
+	if total > 0 {
+		lastPage = (total + int64(perPage) - 1) / int64(perPage)
+	}
+	return ctx.Response().Success().Json(httpcontract.Json{"data": rows, "meta": httpcontract.Json{"page": page, "per_page": perPage, "total": total, "last_page": lastPage}})
 }
 func (c *Controller) Review(ctx httpcontract.Context) httpcontract.Response {
 	var input services.ReviewInput

@@ -13,7 +13,8 @@
     "albums": "Albums",
     "shareLinks": "Shares",
     "tokens": "API",
-    "reports": "My reports"
+    "reports": "My reports",
+    "exports": "Export"
   },
   "ads": {
     "label": "Advertisement",
@@ -25,6 +26,8 @@
     "eyebrow": "Public media",
     "heading": "Discover public images",
     "description": "Browse community images that have been reviewed and approved for public display.",
+    "sortLabel": "Sort",
+    "sort": { "latest": "Latest", "hot": "Most viewed", "trending": "Trending this week" },
     "disabledTitle": "Discovery is temporarily closed",
     "disabledDescription": "An administrator has paused public discovery. Private media and personal share links are unaffected.",
     "loading": "Loading public images…",
@@ -42,7 +45,14 @@
     "submitReport": "Submit report",
     "cancel": "Cancel",
     "reportSubmitted": "Report submitted",
+    "reportAlreadySubmitted": "You have already submitted this report and it is being reviewed.",
+    "reportSelfMedia": "You cannot report your own image. Use the image controls in your library to hide or delete it.",
     "reportFailed": "A report for this image and reason already exists, or the report could not be submitted.",
+    "submittingReport": "Submitting…",
+    "previewTitle": "Image preview",
+    "previewDescription": "View the original image without leaving the discovery page.",
+    "openPreview": "Open a preview of {name}",
+    "closePreview": "Close image preview",
     "reasons": {
       "copyright": "Copyright infringement",
       "adult": "Adult or disturbing content",
@@ -215,6 +225,10 @@
     "visibility": "Image visibility",
     "visibilityOptions": { "public": "Public", "link": "Unlisted (link access)", "private": "Private (only me)" },
     "saveVisibility": "Save access control",
+    "expiryTitle": "Automatic expiration",
+    "expiryDescription": "Set a future expiration time. The service sends a reminder first, then moves the image to the recycle bin.",
+    "expiryAt": "Expires at",
+    "saveExpiry": "Save expiration",
     "saved": "Saved",
     "variants": "Stored image",
     "original": "Original",
@@ -242,7 +256,8 @@
       "visibilityFailed": "Could not save the image access control. Please try again later."
       ,"signedURLFailed": "Could not generate a signed URL. Check APP_KEY or try again later."
       ,"policyFailed": "Could not load or save the hotlink policy. Please try again later."
-      ,"domainFailed": "Could not add or remove the domain. Check its format and try again."
+      ,"domainFailed": "Could not add or remove the domain. Check its format and try again.",
+      "expiryFailed": "Could not save the expiration time. Choose a future time and try again."
     }
   },
   "collections": {
@@ -390,7 +405,7 @@
     "dailyUploads": "Uploads per day",
     "apiUploads": "API uploads per month",
     "bandwidth": "Bandwidth per month",
-    "transforms": "Image transforms per month",
+    "transforms": "Image processing operations per month",
     "apiRate": "API requests per minute",
     "tokens": "API tokens",
     "ads": "Ads",

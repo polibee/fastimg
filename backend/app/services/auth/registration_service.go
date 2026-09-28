@@ -66,7 +66,7 @@ func (s *RegistrationService) Register(input RegistrationInput, policy Registrat
 			return nil, ErrRegistrationEmailBlocked
 		}
 	}
-	exists, err := facades.Orm().Query().Where("email = ?", email).Exists()
+	exists, err := facades.Orm().Query().Model(&models.User{}).Where("email = ?", email).Exists()
 	if err != nil {
 		return nil, err
 	}

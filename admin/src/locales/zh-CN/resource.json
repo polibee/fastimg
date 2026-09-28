@@ -48,7 +48,7 @@
   "pickDateTime": "选择日期",
   "pickTime": "选择时间",
   "clearDateTime": "清除时间",
-  "entitlements": { "storage_bytes": "存储空间", "max_file_bytes": "单文件大小上限", "daily_uploads": "每日上传次数", "monthly_api_uploads": "每月 API 上传次数", "monthly_bandwidth_bytes": "每月带宽", "transform_count": "图片处理次数", "api_rate_per_minute": "API 每分钟请求数", "token_limit": "API Token 数量", "ads_enabled": "显示广告", "watermark_enabled": "启用图片水印", "enabled": "已启用", "disabled": "未启用" }
+  "entitlements": { "storage_bytes": "存储空间", "max_file_bytes": "单文件大小上限", "daily_uploads": "每日上传次数", "monthly_api_uploads": "每月 API 上传次数", "monthly_bandwidth_bytes": "每月带宽", "transform_count": "每月图片处理次数", "api_rate_per_minute": "API 每分钟请求数", "token_limit": "API Token 数量", "ads_enabled": "显示广告", "watermark_enabled": "启用图片水印", "enabled": "已启用", "disabled": "未启用" }
   ,"actions": "操作"
   ,"edit": "编辑"
   ,"delete": "删除"

@@ -32,6 +32,7 @@ var (
 	ErrVariantNotFound              = errors.New("media variant not found")
 	ErrInvalidVisibility            = errors.New("invalid media visibility")
 	ErrStorageConnectionUnavailable = errors.New("storage connection is unavailable")
+	ErrInvalidMediaExpiry           = errors.New("invalid media expiry")
 )
 
 type DatabaseRepository struct{}
@@ -286,7 +287,7 @@ func (r *DatabaseRepository) FailUpload(_ context.Context, sessionID uint, error
 }
 
 func (r *DatabaseRepository) GetUploadStatus(_ context.Context, userID, sessionID uint) (UploadOutcome, error) {
-	query := facades.Orm().Query().Where("id = ? AND user_id = ?", sessionID, userID)
+	query := facades.Orm().Query().Model(&models.UploadSession{}).Where("id = ? AND user_id = ?", sessionID, userID)
 	exists, err := query.Exists()
 	if err != nil {
 		return UploadOutcome{}, err
@@ -521,6 +522,21 @@ type MediaLibraryRepository interface {
 	UpdateVisibility(ctx context.Context, userID, mediaID uint, visibility string) (models.MediaAsset, error)
 	SoftDelete(ctx context.Context, userID, mediaID uint) (models.MediaAsset, error)
 	Restore(ctx context.Context, userID, mediaID uint) (models.MediaAsset, error)
+}
+
+func (r *DatabaseRepository) UpdateExpiry(_ context.Context, userID, mediaID uint, expiresAt *time.Time) (asset models.MediaAsset, err error) {
+	if expiresAt != nil && !expiresAt.After(time.Now().UTC()) {
+		return models.MediaAsset{}, ErrInvalidMediaExpiry
+	}
+	if err = facades.Orm().Query().Where("id = ? AND user_id = ? AND status = ?", mediaID, userID, "ready").First(&asset); err != nil {
+		return models.MediaAsset{}, ErrMediaNotFound
+	}
+	if _, err = facades.Orm().Query().Model(&models.MediaAsset{}).Where("id = ? AND user_id = ? AND status = ?", mediaID, userID, "ready").Update(map[string]any{"expires_at": expiresAt, "expiry_notified_at": nil, "updated_at": time.Now().UTC()}); err != nil {
+		return models.MediaAsset{}, err
+	}
+	asset.ExpiresAt = expiresAt
+	asset.ExpiryNotifiedAt = nil
+	return asset, nil
 }
 
 func (r *DatabaseRepository) UpdateVisibility(_ context.Context, userID, mediaID uint, visibility string) (asset models.MediaAsset, err error) {

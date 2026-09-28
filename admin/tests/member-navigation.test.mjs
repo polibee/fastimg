@@ -24,3 +24,13 @@ test('compact member navigation labels exist in both locales', () => {
     }
   }
 })
+
+test('member and admin welcome surfaces do not use an email as a visible fallback name', () => {
+  const memberShell = read('src/core/layouts/MemberShell.vue')
+  const adminHome = read('src/core/pages/AdminHomePage.vue')
+  const adminShell = read('src/core/layouts/AdminShell.vue')
+  assert.doesNotMatch(memberShell, /auth\.user\?\.email|auth\.user\.email/)
+  assert.doesNotMatch(adminHome, /auth\.user\?\.email|auth\.user\.email/)
+  assert.match(adminShell, /accountLabel/)
+  assert.doesNotMatch(adminShell, /\{\{\s*auth\.user\?\.name\s*\}\}/)
+})

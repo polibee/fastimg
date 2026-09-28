@@ -63,6 +63,7 @@ export const adminRoutes: RouteRecordRaw = {
     { path: 'content-pages/:id/edit', name: 'admin-content-page-edit', meta: { permission: 'admin.content_pages.manage' }, component: () => import('@/modules/content/pages/ContentPageFormPage.vue') },
     { path: 'footer-navigation', name: 'admin-footer-navigation', meta: { permission: 'admin.footer_navigation.view' }, component: () => import('@/modules/footer-navigation/pages/FooterNavigationPage.vue') },
     { path: 'friend-links', name: 'admin-friend-links', meta: { permission: 'admin.friend_links.view' }, component: () => import('@/modules/friend-links/pages/AdminFriendLinksPage.vue') },
+    { path: 'backups', name: 'admin-backups', meta: { permission: 'admin.backups.manage' }, component: () => import('@/modules/backups/pages/AdminBackupsPage.vue') },
     { path: 'storage', name: 'admin-storage', meta: { permission: 'admin.storage.view' }, component: () => import('@/modules/settings/pages/AdminStoragePage.vue') },
     { path: 'statistics', name: 'admin-statistics', meta: { permission: 'admin.users.view' }, component: () => import('@/modules/statistics/pages/AdminStatisticsPage.vue') },
     { path: 'albums/:id/media', name: 'admin-album-media', meta: { permission: 'admin.albums.view' }, component: () => import('@/modules/albums/pages/AdminAlbumMediaPage.vue') },

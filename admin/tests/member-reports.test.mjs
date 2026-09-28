@@ -21,3 +21,13 @@ test('admin report resource requires the moderation resolve action', () => {
   assert.match(manifest, /hide_media/)
   assert.match(handlerRegistry, /NewResolveHandler/)
 })
+
+test('discovery reports show failures and preview images in a dialog', () => {
+  const page = readFileSync(new URL('../src/modules/member/pages/MemberDiscoverPage.vue', import.meta.url), 'utf8')
+
+  assert.match(page, /REPORT_SELF_MEDIA/)
+  assert.match(page, /reportErrorCode/)
+  assert.match(page, /<Dialog /)
+  assert.match(page, /openPreview\(item\)/)
+  assert.doesNotMatch(page, /:href="item\.original_url"/)
+})

@@ -48,7 +48,7 @@ onMounted(load)
       <div v-else-if="!pages.length" class="py-8 text-sm text-muted-foreground">{{ t('content.empty') }}</div>
       <div v-else class="divide-y rounded-md border">
         <div v-for="page in pages" :key="page.id" class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-medium">{{ page.title }}</h2><span class="rounded-full bg-muted px-2 py-0.5 text-xs">{{ statusLabel(page.status) }}</span></div><p class="mt-1 text-xs text-muted-foreground">/{{ page.slug }}<span v-if="page.excerpt"> · {{ page.excerpt }}</span></p></div>
+          <div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-medium">{{ page.title }}</h2><span class="rounded-full bg-muted px-2 py-0.5 text-xs">{{ statusLabel(page.status) }}</span></div><p class="mt-1 text-xs text-muted-foreground"><code>/{{ page.slug }}</code><span v-if="page.excerpt" class="ml-2">{{ page.excerpt }}</span></p></div>
           <div class="flex shrink-0 gap-2"><Button variant="outline" size="sm" as-child><RouterLink :to="`/admin/content-pages/${page.id}/edit`">{{ t('content.edit') }}</RouterLink></Button><Button variant="ghost" size="sm" @click="toggle(page)">{{ page.status === 'published' ? t('content.archive') : t('content.publish') }}</Button></div>
         </div>
       </div>

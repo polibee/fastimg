@@ -15,11 +15,11 @@ type Manifest struct {
 }
 
 type ValidationPreview struct {
-	FormatVersion    int64
-	FileCount        int64
-	ExpandedBytes    int64
-	Files            []string
-	SettingsExcluded []string
+	FormatVersion    int64    `json:"format_version"`
+	FileCount        int64    `json:"file_count"`
+	ExpandedBytes    int64    `json:"expanded_bytes"`
+	Files            []string `json:"files"`
+	SettingsExcluded []string `json:"settings_excluded"`
 }
 
 type ArchiveLimits struct {

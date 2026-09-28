@@ -1,7 +1,8 @@
 {
   "title": "系统设置",
   "description": "集中管理 SEO、支付网关、统计、自定义代码和站点基础配置。",
-  "groups": { "site": "站点基础", "auth": "注册与登录", "email": "邮件服务", "subscription": "会员到期", "media": "上传与媒体", "seo": "SEO 与发现页", "gateway": "支付与订单", "statistics": "统计", "code": "自定义代码", "other": "其他设置" },
+  "groups": { "site": "站点基础", "auth": "注册与登录", "email": "邮件服务", "subscription": "会员到期", "media": "上传与媒体", "seo": "SEO 与发现页", "content": "公开页面文案", "gateway": "支付与订单", "statistics": "统计", "code": "自定义代码", "other": "其他设置" },
+  "contentLanguages": { "zhCN": "中文文案", "enUS": "英文文案", "description": "这些内容会根据访客语言显示在友情链接页面；修改后保存即可生效。" },
   "groupDescriptions": {
     "site": "设置站点名称和对外访问地址；发件地址、支付回调和图片链接会基于站点地址生成默认值。",
     "auth": "控制注册开关、Cloudflare Turnstile、安全登录、邮箱验证和邮箱域名白名单。Secret Key 会使用 APP_KEY 加密保存，接口不会返回明文。",
@@ -9,6 +10,7 @@
     "subscription": "管理会员到期提醒、自动降级和超出免费套餐后的数据处理。到期不会删除图片、相册、文件夹或历史链接。",
     "media": "管理上传大小和图片水印。开发阶段可以使用默认示例发件地址；生产前必须替换为已验证的邮箱。",
     "seo": "管理站点描述、关键词、站点地图、爬虫规则和发现页公开开关。",
+    "content": "编辑前端友情链接页面的中文和英文文案；表单字段名称仍跟随界面语言，避免破坏无障碍和多语言一致性。",
     "gateway": "多个支付渠道可以同时启用并行提供给用户选择。每个渠道独立配置；启用前填写该渠道要求的凭证。官方 API、Webhook/IPN 和成功/取消回跳地址会预填默认值并允许修改，凭证会使用 APP_KEY 加密后保存。",
     "statistics": "控制访问统计的采集和保留周期。",
     "code": "配置站点验证、广告验证和受控的站点代码。",
@@ -38,7 +40,9 @@
     "payment_nowpayments_enabled": "启用 NOWPayments", "payment_nowpayments_base_url": "NOWPayments API 地址", "payment_nowpayments_api_url": "NOWPayments API 地址", "payment_nowpayments_webhook_url": "NOWPayments IPN 地址", "payment_nowpayments_api_key": "API Key", "payment_nowpayments_ipn_secret": "IPN Secret", "payment_nowpayments_callback_url": "IPN 回调地址", "payment_nowpayments_success_url": "支付成功回跳地址", "payment_nowpayments_cancel_url": "取消支付回跳地址",
     "payment_paypal_api_url": "PayPal API 地址", "payment_paypal_webhook_url": "PayPal Webhook 地址", "payment_paypal_success_url": "支付成功回跳地址",
     "payment_xcash_api_url": "Xcash API 地址", "payment_xcash_webhook_url": "Xcash Webhook 地址",
-    "stats_enabled": "启用统计", "stats_retention_days": "统计保留天数", "custom_site_verification": "站点验证代码", "custom_ad_verification": "广告验证代码", "custom_head": "Head 自定义代码", "custom_body": "Body 自定义代码", "site_url": "站点 URL", "upload_max_file_mb": "单文件大小上限（MB）", "discover_enabled": "启用发现页", "watermark_text": "图片水印文字", "watermark_domain": "图片水印域名", "watermark_fallback_image_url": "图片加载失败兜底图 URL"
+    "stats_enabled": "启用统计", "stats_retention_days": "统计保留天数", "custom_site_verification": "站点验证代码", "custom_ad_verification": "广告验证代码", "custom_head": "Head 自定义代码", "custom_body": "Body 自定义代码", "site_url": "站点 URL", "upload_max_file_mb": "单文件大小上限（MB）", "discover_enabled": "启用发现页", "watermark_text": "图片水印文字", "watermark_domain": "图片水印域名", "watermark_fallback_image_url": "图片加载失败兜底图 URL",
+    "friend_links_zh_cn_eyebrow": "友情链接页眉文案（中文）", "friend_links_zh_cn_title": "友情链接页标题（中文）", "friend_links_zh_cn_description": "友情链接页说明（中文）", "friend_links_zh_cn_empty": "无数据提示（中文）", "friend_links_zh_cn_submit_title": "申请区标题（中文）", "friend_links_zh_cn_submit_description": "申请区说明（中文）", "friend_links_zh_cn_submitted": "提交成功提示（中文）",
+    "friend_links_en_us_eyebrow": "友情链接页眉文案（英文）", "friend_links_en_us_title": "友情链接页标题（英文）", "friend_links_en_us_description": "友情链接页说明（英文）", "friend_links_en_us_empty": "无数据提示（英文）", "friend_links_en_us_submit_title": "申请区标题（英文）", "friend_links_en_us_submit_description": "申请区说明（英文）", "friend_links_en_us_submitted": "提交成功提示（英文）"
   },
   "hints": {
     "auth_registration_enabled": "关闭后新用户不能注册，已注册用户不受影响。",

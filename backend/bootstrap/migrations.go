@@ -52,5 +52,12 @@ func Migrations() []schema.Migration {
 		&migrations.M20260927000002AddStoragePermissions{},
 		&migrations.M20260927000003AddTaskPermissions{},
 		&migrations.M20260928000001CreateContentNavigationFriendLinksTables{},
+		&migrations.M20260928000002AddFooterNavigationBilingualLabels{},
+		&migrations.M20260928000003UpdateDefaultSitePagesEnglish{},
+		&migrations.M20260928000004AddBackupActiveJobIndex{},
+		&migrations.M20260928000005CreateMediaSecurityScans{},
+		&migrations.M20260928000006ExtendAnnouncementsForStatus{},
+		&migrations.M20260928000007AddMediaExpiryPolicy{},
+		&migrations.M20260928000008CreateMediaExportJobs{},
 	}
 }

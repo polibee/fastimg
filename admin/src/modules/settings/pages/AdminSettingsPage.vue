@@ -161,12 +161,15 @@ async function save() {
     <StorageSettingsSection v-if="!loading" />
     <form v-if="!loading" class="grid gap-5" @submit.prevent="save">
       <template v-for="group in groups" :key="group.key">
-      <Card v-if="group.fields.length">
+      <Card v-if="group.fields.length" :id="group.key === 'content' ? 'friend-links-copy' : undefined">
         <CardHeader><CardTitle>{{ t(`settings.groups.${group.key}`) }}</CardTitle><CardDescription>{{ t(`settings.groupDescriptions.${group.key}`) }}</CardDescription></CardHeader>
         <CardContent>
           <template v-if="group.key !== 'gateway'">
           <FieldGroup class="grid min-w-0 gap-4 md:grid-cols-2">
-            <Field v-for="definition in group.fields" v-show="fieldVisible(definition.key)" :key="definition.key" :class="definition.span === 'full' ? 'min-w-0 md:col-span-2' : 'min-w-0'">
+            <template v-for="definition in group.fields" :key="definition.key">
+            <div v-if="group.key === 'content' && definition.key === 'friend_links.zh_cn.eyebrow'" class="md:col-span-2 border-b pb-2"><h3 class="font-medium">{{ t('settings.contentLanguages.zhCN') }}</h3><p class="mt-1 text-xs text-muted-foreground">{{ t('settings.contentLanguages.description') }}</p></div>
+            <div v-if="group.key === 'content' && definition.key === 'friend_links.en_us.eyebrow'" class="md:col-span-2 border-b pb-2 pt-3"><h3 class="font-medium">{{ t('settings.contentLanguages.enUS') }}</h3><p class="mt-1 text-xs text-muted-foreground">{{ t('settings.contentLanguages.description') }}</p></div>
+            <Field v-show="fieldVisible(definition.key)" :class="definition.span === 'full' ? 'min-w-0 md:col-span-2' : 'min-w-0'">
               <template v-if="definition.type === 'boolean'">
                 <div class="flex min-h-9 items-start gap-3 rounded-md border border-transparent py-1">
                   <Checkbox :id="`setting-${definition.key}`" class="mt-0.5" :model-value="values[definition.key] === 'true'" @update:model-value="setBoolean(definition.key, Boolean($event))" />
@@ -184,6 +187,7 @@ async function save() {
                 <FieldDescription v-if="fieldHint(definition.key)">{{ fieldHint(definition.key) }}</FieldDescription>
               </template>
             </Field>
+            </template>
           </FieldGroup>
           <div v-if="group.key === 'seo'" class="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
             <span class="mr-2 text-sm text-muted-foreground">{{ t('settings.publicFilesTitle') }}</span>

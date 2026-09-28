@@ -24,6 +24,7 @@ func Boot() contractsfoundation.Application {
 				adminconsole.AdminBootstrapCommand{},
 				adminconsole.MediaRecoveryDispatchCommand{},
 				adminconsole.SubscriptionLifecycleCommand{},
+				adminconsole.MediaExpiryCommand{},
 			}
 		}).
 		WithRouting(func() {

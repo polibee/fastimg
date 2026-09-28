@@ -13,7 +13,8 @@
     "albums": "相册",
     "shareLinks": "分享",
     "tokens": "API Token",
-    "reports": "我的举报"
+    "reports": "我的举报",
+    "exports": "导出数据"
   },
   "ads": {
     "label": "广告",
@@ -25,6 +26,8 @@
     "eyebrow": "公开媒体",
     "heading": "发现公开图片",
     "description": "浏览经过审核、允许公开展示的社区图片。",
+    "sortLabel": "排序",
+    "sort": { "latest": "最新", "hot": "热门", "trending": "本周趋势" },
     "disabledTitle": "发现页暂时关闭",
     "disabledDescription": "管理员暂时关闭了公开发现，私有媒体和个人分享链接不受影响。",
     "loading": "正在加载公开图片…",
@@ -42,7 +45,14 @@
     "submitReport": "提交举报",
     "cancel": "取消",
     "reportSubmitted": "举报已提交",
+    "reportAlreadySubmitted": "你已经提交过相同举报，管理员正在处理。",
+    "reportSelfMedia": "不能举报自己上传的图片。请在个人图片库中使用隐藏或删除功能。",
     "reportFailed": "这张图片的相同原因举报已存在，或暂时无法提交。",
+    "submittingReport": "提交中…",
+    "previewTitle": "图片预览",
+    "previewDescription": "在发现页内查看原图，不离开当前页面。",
+    "openPreview": "预览图片：{name}",
+    "closePreview": "关闭图片预览",
     "reasons": {
       "copyright": "侵犯版权",
       "adult": "成人或不适内容",
@@ -215,6 +225,10 @@
     "visibility": "图片可见性",
     "visibilityOptions": { "public": "公开", "link": "未列出（有链接可访问）", "private": "私有（仅自己）" },
     "saveVisibility": "保存访问权限",
+    "expiryTitle": "自动过期",
+    "expiryDescription": "设置未来的过期时间。系统会先发送提醒，之后将图片移入回收站。",
+    "expiryAt": "过期时间",
+    "saveExpiry": "保存过期设置",
     "saved": "已保存",
     "variants": "存储图片",
     "original": "原图",
@@ -242,7 +256,8 @@
       "visibilityFailed": "无法保存图片访问权限，请稍后重试。"
       ,"signedURLFailed": "无法生成签名 URL，请检查 APP_KEY 或稍后重试。"
       ,"policyFailed": "无法读取或保存防盗链策略，请稍后重试。"
-      ,"domainFailed": "无法添加或移除域名，请检查格式后重试。"
+      ,"domainFailed": "无法添加或移除域名，请检查格式后重试。",
+      "expiryFailed": "无法保存过期时间，请选择未来时间后重试。"
     }
   },
   "collections": {
@@ -390,7 +405,7 @@
     "dailyUploads": "每日上传",
     "apiUploads": "每月 API 上传",
     "bandwidth": "每月流量",
-    "transforms": "每月图片处理",
+    "transforms": "每月图片处理次数",
     "apiRate": "API 每分钟请求",
     "tokens": "API Token 数量",
     "ads": "广告",

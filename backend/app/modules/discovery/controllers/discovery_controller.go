@@ -23,14 +23,15 @@ func (c *Controller) Status(ctx httpcontract.Context) httpcontract.Response {
 
 func (c *Controller) Feed(ctx httpcontract.Context) httpcontract.Response {
 	page, perPage := discoveryservices.NormalizePage(ctx.Request().QueryInt("page", 1), ctx.Request().QueryInt("per_page", 24))
-	result, err := c.service.Feed(ctx.Context(), page, perPage)
+	sort := ctx.Request().Query("sort", "latest")
+	result, err := c.service.FeedSorted(ctx.Context(), page, perPage, sort)
 	if err != nil {
 		if errors.Is(err, discoveryservices.ErrDiscoveryDisabled) {
 			return adminmiddleware.APIError(ctx, http.StatusNotFound, "DISCOVERY_DISABLED")
 		}
 		return adminmiddleware.APIError(ctx, http.StatusInternalServerError, "DISCOVERY_UNAVAILABLE")
 	}
-	return ctx.Response().Success().Json(httpcontract.Json{"data": result.Items, "meta": map[string]any{"page": result.Page, "per_page": result.PerPage, "total": result.Total}})
+	return ctx.Response().Success().Json(httpcontract.Json{"data": result.Items, "meta": map[string]any{"page": result.Page, "per_page": result.PerPage, "total": result.Total, "sort": sort}})
 }
 
 func (c *Controller) Content(ctx httpcontract.Context) httpcontract.Response {

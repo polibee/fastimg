@@ -33,6 +33,7 @@ func (AdminBootstrapCommand) Extend() command.Extend {
 		Flags: []command.Flag{
 			&command.StringFlag{Name: "email", Usage: "administrator email address"},
 			&command.StringFlag{Name: "name", Usage: "administrator display name", Value: "Administrator"},
+			&command.BoolFlag{Name: "reset-password", Usage: "reset the supplied account password explicitly"},
 		},
 	}
 }
@@ -55,7 +56,7 @@ func (AdminBootstrapCommand) Handle(ctx console.Context) error {
 		return errors.New("bootstrap password must contain at least 12 characters")
 	}
 
-	user, created, err := ensureBootstrapUser(name, email, password)
+	user, created, err := ensureBootstrapUser(name, email, password, ctx.Option("reset-password") == "true")
 	if err != nil {
 		return err
 	}
@@ -64,9 +65,9 @@ func (AdminBootstrapCommand) Handle(ctx console.Context) error {
 	}
 
 	if created {
-		ctx.Success(fmt.Sprintf("Administrator created: %s", email))
+		ctx.Success(fmt.Sprintf("Administrator created: %s (role: super-admin)", email))
 	} else {
-		ctx.Success(fmt.Sprintf("Administrator access ensured for existing account: %s (password unchanged)", email))
+		ctx.Success(fmt.Sprintf("Administrator access ensured for existing account: %s (role: super-admin; password unchanged)", email))
 	}
 	return nil
 }
@@ -79,7 +80,7 @@ func readBootstrapPassword() (string, error) {
 	return strings.TrimSpace(line), nil
 }
 
-func ensureBootstrapUser(name, email, password string) (*models.User, bool, error) {
+func ensureBootstrapUser(name, email, password string, resetPassword bool) (*models.User, bool, error) {
 	var users []models.User
 	if err := facades.Orm().Query().Where("email = ?", email).Get(&users); err != nil {
 		return nil, false, err
@@ -87,6 +88,13 @@ func ensureBootstrapUser(name, email, password string) (*models.User, bool, erro
 	if len(users) > 0 {
 		user := users[0]
 		updates := map[string]any{"name": name, "status": "active"}
+		if resetPassword {
+			hash, err := facades.Hash().Make(password)
+			if err != nil {
+				return nil, false, err
+			}
+			updates["password"] = hash
+		}
 		if facades.Schema().HasColumn("users", "email_verified_at") {
 			updates["email_verified_at"] = time.Now().UTC()
 		}
@@ -130,13 +138,15 @@ func ensureBootstrapRole(userID uint) error {
 		}
 	}
 
-	for _, permission := range []models.Permission{
+	permissionsToEnsure := []models.Permission{
 		{Name: "admin.users.view", DisplayName: "View users"},
 		{Name: "admin.users.manage", DisplayName: "Manage users"},
 		{Name: "admin.roles.manage", DisplayName: "Manage roles"},
 		{Name: "admin.permissions.manage", DisplayName: "Manage permissions"},
 		{Name: "admin.settings.manage", DisplayName: "Manage system settings"},
-	} {
+	}
+	permissionsToEnsure = append(permissionsToEnsure, bootstrapFastImgPermissions()...)
+	for _, permission := range permissionsToEnsure {
 		var existing []models.Permission
 		if err := facades.Orm().Query().Where("name = ?", permission.Name).Get(&existing); err != nil {
 			return err
@@ -162,6 +172,29 @@ func ensureBootstrapRole(userID uint) error {
 		}
 	}
 	return nil
+}
+
+// bootstrapFastImgPermissions keeps a production install usable when the
+// deploy command runs migrations without development seeders. The super-admin
+// role must receive the same domain permissions as the explicit development
+// seeder, otherwise a successful bootstrap would create a shell-only account.
+func bootstrapFastImgPermissions() []models.Permission {
+	permissions := make([]models.Permission, 0, 64)
+	for _, module := range []string{"plans", "advertising", "folders", "albums"} {
+		for _, action := range []string{"view", "create", "update", "delete"} {
+			permissions = append(permissions, models.Permission{Name: "admin." + module + "." + action, DisplayName: module + "." + action})
+		}
+	}
+	for _, name := range []string{
+		"orders.view", "payment_transactions.view", "payment_events.view", "refunds.view", "billing.fulfill",
+		"media.view", "media.update", "media.delete", "reports.view", "reports.update",
+		"content_pages.view", "content_pages.manage", "footer_navigation.view", "footer_navigation.manage",
+		"friend_links.view", "friend_links.moderate", "api_tokens.view", "api_tokens.update", "api_tokens.delete",
+		"media_access_logs.view", "tasks.view", "tasks.retry", "backups.manage", "backups.download", "storage.view",
+	} {
+		permissions = append(permissions, models.Permission{Name: "admin." + name, DisplayName: name})
+	}
+	return permissions
 }
 
 func assignBootstrapPermission(permissionID, roleID uint) error {

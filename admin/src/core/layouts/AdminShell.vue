@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Activity, ArrowRight, BarChart3, ClipboardList, FileText, HardDrive, Languages, LayoutDashboard, Link2, ListTodo, LogOut, Search, Settings2, ShieldCheck, Unplug, WalletCards, UsersRound } from '@lucide/vue'
+import { Activity, Archive, ArrowRight, BarChart3, ClipboardList, FileText, HardDrive, Languages, LayoutDashboard, Link2, ListTodo, LogOut, Search, Settings2, ShieldCheck, Unplug, WalletCards, UsersRound } from '@lucide/vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,11 @@ const { t, te, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const accountLabel = computed(() => {
+  const name = auth.user?.name?.trim() || ''
+  return name && !name.includes('@') ? name : t('auth.adminAccount')
+})
+const accountInitial = computed(() => accountLabel.value.slice(0, 1).toUpperCase())
 const resourceManifests = ref<ResourceManifest[]>([])
 const storageOverview = ref<StorageOverview>()
 const hasEnabledStorage = computed(() => Boolean(storageOverview.value?.connections.some((connection) => connection.enabled)))
@@ -57,6 +62,7 @@ const breadcrumbLabel = computed(() => {
   if (String(route.name).startsWith('admin-content-page')) return t('content.pagesTitle')
   if (route.name === 'admin-footer-navigation') return t('footerNavigation.title')
   if (route.name === 'admin-friend-links') return t('friendLinks.adminTitle')
+  if (route.name === 'admin-backups') return t('backups.title')
   if (route.name === 'admin-storage') return t('storage.title')
   if (route.name === 'admin-statistics') return t('statistics.title')
   const resource = resourceManifests.value.find((item) => item.name === breadcrumbResource.value)
@@ -206,6 +212,7 @@ onBeforeUnmount(() => {
               <SidebarMenuItem v-if="auth.can('admin.content_pages.view')"><SidebarMenuButton as-child :is-active="String($route.name).startsWith('admin-content-page')" :tooltip="t('content.pagesTitle')"><RouterLink to="/admin/content-pages"><FileText /><span>{{ t('content.pagesTitle') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.footer_navigation.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-footer-navigation'" :tooltip="t('footerNavigation.title')"><RouterLink to="/admin/footer-navigation"><Link2 /><span>{{ t('footerNavigation.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.friend_links.view')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-friend-links'" :tooltip="t('friendLinks.adminTitle')"><RouterLink to="/admin/friend-links"><UsersRound /><span>{{ t('friendLinks.adminTitle') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
+              <SidebarMenuItem v-if="auth.can('admin.backups.manage')"><SidebarMenuButton as-child :is-active="$route.name === 'admin-backups'" :tooltip="t('backups.title')"><RouterLink to="/admin/backups"><Archive /><span>{{ t('backups.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem v-if="auth.can('admin.storage.view') && hasEnabledStorage"><SidebarMenuButton as-child :is-active="$route.name === 'admin-storage'" :tooltip="t('storage.title')"><RouterLink to="/admin/storage"><HardDrive /><span>{{ t('storage.title') }}</span></RouterLink></SidebarMenuButton></SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
@@ -228,11 +235,11 @@ onBeforeUnmount(() => {
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger as-child>
-                <SidebarMenuButton size="lg" :tooltip="auth.user?.name">
+                <SidebarMenuButton size="lg" :tooltip="accountLabel">
                   <Avatar class="size-8 rounded-lg">
-                    <AvatarFallback class="rounded-lg">{{ auth.user?.name?.slice(0, 1).toUpperCase() }}</AvatarFallback>
+                    <AvatarFallback class="rounded-lg">{{ accountInitial }}</AvatarFallback>
                   </Avatar>
-                  <span class="truncate">{{ auth.user?.name }}</span>
+                  <span class="truncate">{{ accountLabel }}</span>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="right" align="end" class="w-56">

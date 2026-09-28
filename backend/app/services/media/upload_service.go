@@ -117,6 +117,7 @@ type UploadService struct {
 	storage             storageservices.StorageProvider
 	repository          UploadRepository
 	storageConnectionID uint
+	securityDispatcher  func(uint) error
 }
 
 func NewUploadService(processor *ImageProcessor, storage storageservices.StorageProvider, repository UploadRepository) *UploadService {
@@ -135,7 +136,9 @@ func NewDatabaseUploadService() *UploadService {
 		provider = configured
 		storageConnectionID = connection.ID
 	}
-	return NewUploadServiceWithConnection(NewImageProcessor(ImageLimits{}), provider, NewDatabaseRepository(), storageConnectionID)
+	service := NewUploadServiceWithConnection(NewImageProcessor(ImageLimits{}), provider, NewDatabaseRepository(), storageConnectionID)
+	service.securityDispatcher = DispatchSecurityScan
+	return service
 }
 
 func (s *UploadService) GetStatus(ctx context.Context, userID, sessionID uint) (UploadOutcome, error) {
@@ -288,6 +291,11 @@ func (s *UploadService) Upload(ctx context.Context, input UploadInput) (UploadOu
 		// record, and a retry may safely complete the same operation.
 		outcome.Status = "processing"
 		return outcome, nil
+	}
+	// Security scanning is deliberately best effort after the upload is ready:
+	// a queue outage must not block a user's newly generated links.
+	if s.securityDispatcher != nil {
+		_ = s.securityDispatcher(reservation.MediaID)
 	}
 	outcome.Status = "ready"
 	return outcome, nil

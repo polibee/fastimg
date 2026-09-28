@@ -113,7 +113,7 @@ created_at, last_used_at, last_used_ip, usage_summary
 
 ### 4.3 管理端 Token 运营
 
-管理员通过 `/admin/api_tokens` 查看全站 Token 的非秘密元数据。该资源允许具备 `admin.api_tokens.update` 的管理员批量停用/撤销，允许具备独立 `admin.api_tokens.delete` 的管理员删除 Token；不提供创建、明文读取、`token_hash` 读取或完整 Token 导出。管理员 Personal API Token 不能进入 `/api/v1/admin/**`，后台仍使用框架会话和 RBAC。
+管理员通过 `/admin/api_tokens` 查看全站 Token 的非秘密元数据，包括所属用户、前缀、固定权限范围、状态、到期时间、最近使用时间、最近使用 IP、使用次数和创建时间。该资源允许具备 `admin.api_tokens.update` 的管理员批量停用/撤销，允许具备独立 `admin.api_tokens.delete` 的管理员单条或批量永久删除 Token；删除复用 Token Service 并清理限流记录，且写入管理审计。后台不提供创建、明文读取、`token_hash` 读取或完整 Token 导出。管理员 Personal API Token 不能进入 `/api/v1/admin/**`，后台仍使用框架会话和 RBAC。
 
 ## 5. 上传图片
 
@@ -523,10 +523,12 @@ Token 明确不能调用：批量上传、上传重试、套餐/用量、订单/
 
 ## 12. 套餐、价格和支付渠道边界
 
-`plans` 与 `plan_prices` 是不同的业务数据表，但开发阶段不提供独立的 `plan_prices` 后台资源：
+`plans` 与 `plan_prices` 是不同的业务数据表，但后台不提供独立的 `plan_prices` 菜单；价格版本嵌入会员计划编辑页：
 
 - `plans` 只维护产品身份、说明、排序、状态和 `entitlements_json` 权益额度。
 - `plan_prices` 由 Seeder/结算 Service 维护可售卖的不可变价格版本：计划、版本、金额、币种、月/年周期、试用天数和生效区间。
+- 管理员打开 `/admin/plans/:id/edit`，在“价格设置”区域添加月付/年付价格；同一计划、币种和周期只能有一个活动价格，新的活动价格会自动归档旧版本。
+- 后台价格接口为 `GET/POST /api/v1/admin/plans/{id}/prices` 和 `POST /api/v1/admin/plans/{id}/prices/{price_id}/archive`，分别复用 `admin.plans.view` 与 `admin.plans.update` 权限。界面输入普通价格（如 `19.90`），接口内部使用非负整数最小货币单位 `amount_minor`。
 - 公开套餐目录、当前订阅响应和管理端计划展示均不再输出 `plans.price_amount/currency/billing_period` 这组三个旧计划级价格字段；付费展示和下单只以活动 `plan_prices` 为准。`plan_prices` 不包含 `gateway_code`，价格表不再和支付渠道耦合。
 - 价格不再绑定唯一支付网关。会员创建订单后，在结算页从当前已启用且已配置的渠道中选择 PayPal、XCash、NOWPayments 或开发测试网关；订单保存价格快照，支付意图保存用户本次选择的 Provider。
 

@@ -53,8 +53,8 @@ export async function getMemberOrder(id: string, token: string) {
   return apiFetch<MemberOrder>(`/api/v1/orders/${id}`, {}, token)
 }
 
-export async function listMemberOrders(token: string) {
-  return apiFetchEnvelope<MemberOrder[]>('/api/v1/orders?page=1&per_page=50', {}, token)
+export async function listMemberOrders(token: string, page = 1, perPage = 20) {
+  return apiFetchEnvelope<MemberOrder[]>(`/api/v1/orders?page=${page}&per_page=${perPage}`, {}, token)
 }
 
 export async function startMemberPayment(id: string, gatewayCode: string, token: string) {

@@ -218,11 +218,21 @@ func refreshTokenCookie(token string) http.Cookie {
 		Name:     authservices.RefreshTokenCookieName,
 		Value:    token,
 		Path:     "/api/v1/auth",
-		MaxAge:   30 * 24 * 60 * 60,
+		MaxAge:   authservices.RefreshTokenMaxAge(),
 		SameSite: "Lax",
-		Secure:   facades.Config().GetString("app.env", "production") == "production",
+		// The deployment CLI supports a temporary HTTP endpoint before a Baota
+		// TLS reverse proxy is added. A Secure cookie cannot be returned over
+		// that bootstrap URL, which otherwise makes a newly-created admin look
+		// unable to stay logged in after the first reload. Once APP_URL is HTTPS,
+		// production cookies become Secure.
+		Secure:   refreshCookieSecure(),
 		HttpOnly: true,
 	}
+}
+
+func refreshCookieSecure() bool {
+	return facades.Config().GetString("app.env", "production") == "production" &&
+		strings.HasPrefix(strings.ToLower(strings.TrimSpace(facades.Config().GetString("app.url", ""))), "https://")
 }
 
 func (r *AuthController) parseToken(ctx http.Context) error {

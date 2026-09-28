@@ -68,7 +68,7 @@ func (s *UserService) Create(name, email, password, locale, status string) (*mod
 	if err := validateUserStatus(status); err != nil {
 		return nil, err
 	}
-	exists, err := facades.Orm().Query().Where("email = ?", email).Exists()
+	exists, err := facades.Orm().Query().Model(&models.User{}).Where("email = ?", email).Exists()
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (s *UserService) Update(id int64, name, email, password, locale, status str
 	if err := validateUserStatus(status); err != nil {
 		return nil, err
 	}
-	exists, err := facades.Orm().Query().Where("email = ? AND id <> ?", email, id).Exists()
+	exists, err := facades.Orm().Query().Model(&models.User{}).Where("email = ? AND id <> ?", email, id).Exists()
 	if err != nil {
 		return nil, err
 	}

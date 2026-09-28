@@ -95,6 +95,16 @@ func (s *MediaLibraryService) UpdateVisibility(ctx context.Context, userID, medi
 	return repository.UpdateVisibility(ctx, userID, mediaID, visibility)
 }
 
+func (s *MediaLibraryService) UpdateExpiry(ctx context.Context, userID, mediaID uint, expiresAt *time.Time) (models.MediaAsset, error) {
+	repository, ok := s.repository.(interface {
+		UpdateExpiry(context.Context, uint, uint, *time.Time) (models.MediaAsset, error)
+	})
+	if !ok {
+		return models.MediaAsset{}, errors.New("media expiry update is not supported")
+	}
+	return repository.UpdateExpiry(ctx, userID, mediaID, expiresAt)
+}
+
 func (s *MediaLibraryService) SoftDelete(ctx context.Context, userID, mediaID uint) (models.MediaAsset, error) {
 	return s.repository.SoftDelete(ctx, userID, mediaID)
 }

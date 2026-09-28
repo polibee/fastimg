@@ -3,6 +3,7 @@ package seeders
 import (
 	"os"
 	"strings"
+	"time"
 
 	"goravel/app/facades"
 	"goravel/app/models"
@@ -33,14 +34,20 @@ func (s *AdminUser) Run() error {
 		if err != nil {
 			return err
 		}
-		if err := facades.Orm().Query().Create(&models.User{
+		user := models.User{
 			Name:     "Administrator",
 			Email:    email,
 			Password: password,
 			Status:   "active",
 			Locale:   "zh-CN",
-		}); err != nil {
+		}
+		if err := facades.Orm().Query().Create(&user); err != nil {
 			return err
+		}
+		if facades.Schema().HasColumn("users", "email_verified_at") {
+			if _, err := facades.Orm().Query().Table("users").Where("id = ?", user.ID).Update("email_verified_at", time.Now().UTC()); err != nil {
+				return err
+			}
 		}
 	}
 

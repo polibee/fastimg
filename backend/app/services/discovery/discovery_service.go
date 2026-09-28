@@ -63,6 +63,10 @@ type Repository interface {
 	FindPublicVariant(ctx context.Context, mediaID uint, variant string) (PublicVariant, error)
 }
 
+type SortedRepository interface {
+	ListPublicSorted(ctx context.Context, page, perPage int, sort string) ([]models.MediaAsset, int64, error)
+}
+
 type DatabaseRepository struct{}
 
 func NewDatabaseRepository() *DatabaseRepository { return &DatabaseRepository{} }
@@ -79,6 +83,30 @@ func (r *DatabaseRepository) ListPublic(_ context.Context, page, perPage int) ([
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+func (r *DatabaseRepository) ListPublicSorted(_ context.Context, page, perPage int, sort string) ([]models.MediaAsset, int64, error) {
+	page, perPage = NormalizePage(page, perPage)
+	if sort != "hot" && sort != "trending" {
+		return r.ListPublic(context.Background(), page, perPage)
+	}
+	where := "ma.status = ? AND ma.deleted_at IS NULL AND ma.visibility = ? AND ma.moderation_status <> ?"
+	args := []any{"ready", VisibilityPublic, ModerationRejected}
+	total, err := facades.Orm().Query().Table("media_assets").Where("status = ? AND deleted_at IS NULL AND visibility = ? AND moderation_status <> ?", args...).Count()
+	if err != nil {
+		return nil, 0, err
+	}
+	order := "(SELECT COUNT(*) FROM media_access_logs mal WHERE mal.media_asset_id = ma.id AND mal.result = 'allowed') DESC, ma.id DESC"
+	if sort == "trending" {
+		order = "(SELECT COUNT(*) FROM media_access_logs mal WHERE mal.media_asset_id = ma.id AND mal.result = 'allowed' AND mal.accessed_at >= CURRENT_TIMESTAMP - INTERVAL '7 days') DESC, ma.created_at DESC, ma.id DESC"
+	}
+	statement := fmt.Sprintf("SELECT ma.* FROM media_assets ma WHERE %s ORDER BY %s LIMIT ? OFFSET ?", where, order)
+	args = append(args, perPage, (page-1)*perPage)
+	var assets []models.MediaAsset
+	if err := facades.Orm().Query().Raw(statement, args...).Scan(&assets); err != nil {
+		return nil, 0, err
+	}
+	return assets, total, nil
 }
 
 func (r *DatabaseRepository) FindPublicVariant(_ context.Context, mediaID uint, variant string) (PublicVariant, error) {
@@ -138,12 +166,26 @@ func (s *Service) Status(_ context.Context) Status {
 }
 
 func (s *Service) Feed(ctx context.Context, page, perPage int) (FeedPage, error) {
+	return s.FeedSorted(ctx, page, perPage, "latest")
+}
+
+func (s *Service) FeedSorted(ctx context.Context, page, perPage int, sort string) (FeedPage, error) {
 	status := s.Status(ctx)
 	if !status.Enabled {
 		return FeedPage{}, ErrDiscoveryDisabled
 	}
 	page, perPage = NormalizePage(page, perPage)
-	assets, total, err := s.repository.ListPublic(ctx, page, perPage)
+	if sort != "hot" && sort != "trending" {
+		sort = "latest"
+	}
+	var assets []models.MediaAsset
+	var total int64
+	var err error
+	if repository, ok := s.repository.(SortedRepository); ok {
+		assets, total, err = repository.ListPublicSorted(ctx, page, perPage, sort)
+	} else {
+		assets, total, err = s.repository.ListPublic(ctx, page, perPage)
+	}
 	if err != nil {
 		return FeedPage{}, err
 	}

@@ -35,6 +35,7 @@
 - [fastimg-production-readiness.md](./fastimg-production-readiness.md)：生产开发就绪评估、阶段门禁和 Provider 验证状态
 - [fastimg-production-audit.md](./fastimg-production-audit.md)：生产配置、支付幂等、审计脱敏和运维清理门禁
 - [fastimg-production-gates.md](./fastimg-production-gates.md)：真实支付、TLS、备份恢复、漏洞扫描、对象存储和压测门禁
+- [fastimg-backup-restore.md](./fastimg-backup-restore.md)：备份归档、跨服务器迁移、校验、恢复和敏感配置边界
 - [fastimg-stage-development-plan.md](./fastimg-stage-development-plan.md)：M0-M8 阶段性开发计划和详细功能清单
 
 ## 核心原则

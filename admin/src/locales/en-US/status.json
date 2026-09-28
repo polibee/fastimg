@@ -1,0 +1,13 @@
+{
+  "shortTitle": "Status",
+  "eyebrow": "Service health",
+  "title": "FastImg status",
+  "description": "A public view of the systems that serve uploads, images and payments.",
+  "components": "Components",
+  "maintenance": "Maintenance and notices",
+  "loading": "Checking services…",
+  "errorTitle": "Status is temporarily unavailable",
+  "retry": "Retry",
+  "componentNames": { "api": "API", "database": "Database", "storage": "Object storage", "payments": "Payments" },
+  "statuses": { "operational": "Operational", "degraded": "Degraded", "outage": "Outage" }
+}

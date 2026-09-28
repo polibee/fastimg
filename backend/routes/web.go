@@ -24,6 +24,7 @@ import (
 	plancontrollers "goravel/app/modules/plans/controllers"
 	seocontrollers "goravel/app/modules/seo/controllers"
 	sharecontrollers "goravel/app/modules/shares/controllers"
+	statuscontrollers "goravel/app/modules/status/controllers"
 	uploadcontrollers "goravel/app/modules/uploads/controllers"
 	usercontrollers "goravel/app/modules/users/controllers"
 	"goravel/app/openapi"
@@ -42,8 +43,10 @@ func Web() {
 		return ctx.Response().Json(200, http.Json(openapi.Spec()))
 	})
 	seoController := seocontrollers.NewPublicController()
+	statusController := statuscontrollers.NewController()
 	facades.Route().Get("/sitemap.xml", seoController.Sitemap)
 	facades.Route().Get("/robots.txt", seoController.Robots)
+	facades.Route().Get("/api/v1/status", statusController.Index)
 	facades.Route().Get("/api/v1/site/presentation", seoController.Presentation)
 	if facades.Config().GetString("app.env", "production") != "production" {
 		facades.Route().Get("/api/docs", func(ctx http.Context) http.Response {
@@ -70,6 +73,7 @@ func Web() {
 	billingMemberController := billingcontrollers.NewMemberController()
 	billingWebhookController := billingcontrollers.NewWebhookController()
 	adminFinanceController := billingcontrollers.NewAdminFinanceController()
+	planPriceController := plancontrollers.NewPlanPriceController()
 	facades.Route().Get("/users", userController.Index)
 	facades.Route().Get("/api/v1/plans", planController.Index)
 	facades.Route().Get("/api/v1/discovery/status", discoveryController.Status)
@@ -80,6 +84,7 @@ func Web() {
 	facades.Route().Get("/api/v1/site/pages/{slug}", contentPublicController.Show)
 	facades.Route().Get("/api/v1/site/footer-navigation", footerController.Public)
 	facades.Route().Get("/api/v1/friend-links", friendLinkController.PublicList)
+	facades.Route().Get("/api/v1/site/friend-links/presentation", friendLinkController.Presentation)
 	facades.Route().Post("/api/v1/friend-links", friendLinkController.Submit)
 	// The former member submission endpoint is intentionally retired. Keep a
 	// tombstone so old clients receive an explicit error instead of a silent
@@ -132,6 +137,12 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberScope("media:read")).Get("/api/v1/media/{id}", mediaController.Show)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberScope("media:read")).Get("/api/v1/media/{id}/content", mediaController.Content)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Patch("/api/v1/media/{id}/visibility", mediaController.UpdateVisibility)
+	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Patch("/api/v1/media/{id}/lifecycle", mediaController.UpdateLifecycle)
+	exportController := mediacontrollers.NewExportController()
+	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Get("/api/v1/me/exports", exportController.Index)
+	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Post("/api/v1/me/exports", exportController.Create)
+	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Get("/api/v1/me/exports/{id}", exportController.Show)
+	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Get("/api/v1/me/exports/{id}/download", exportController.Download)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberScope("media:delete")).Delete("/api/v1/media/{id}", mediaController.Delete)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Delete("/api/v1/media/trash", mediaController.EmptyTrash)
 	facades.Route().Middleware(adminmiddleware.RequireMemberAuthentication(), adminmiddleware.RequireMemberSession()).Delete("/api/v1/media/{id}/permanent", mediaController.PermanentDelete)
@@ -221,6 +232,10 @@ func Web() {
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.view")).Get("/api/v1/admin/storage/statistics", storageController.Statistics)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.manage")).Put("/api/v1/admin/storage/connections/{provider}", storageController.Update)
 	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.storage.manage")).Post("/api/v1/admin/storage/connections/{provider}/test", storageController.Test)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.plans.view")).Get("/api/v1/admin/plans/{id}/prices", planPriceController.Index)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.plans.update")).Post("/api/v1/admin/plans/{id}/prices", planPriceController.Create)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.plans.update")).Post("/api/v1/admin/plans/{id}/prices/{price_id}/archive", planPriceController.Archive)
+	facades.Route().Middleware(adminmiddleware.RequirePermission("admin.plans.update")).Delete("/api/v1/admin/plans/{id}/prices/{price_id}", planPriceController.Delete)
 	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Get("/api/v1/admin/backups", backupController.List)
 	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Post("/api/v1/admin/backups", backupController.Create)
 	facades.Route().Middleware(adminmiddleware.RequirePermission(backupcontrollers.BackupManagePermission)).Get("/api/v1/admin/backups/{id}", backupController.Show)

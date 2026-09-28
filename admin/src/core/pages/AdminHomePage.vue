@@ -47,7 +47,7 @@ onMounted(async () => {
   <div class="flex flex-col gap-6">
     <Card>
     <CardHeader>
-      <CardTitle>{{ t('auth.welcome', { name: auth.user?.name || auth.user?.email || '' }) }}</CardTitle>
+      <CardTitle>{{ t('auth.welcome', { name: auth.user?.name || t('auth.adminAccount') }) }}</CardTitle>
     </CardHeader>
     <CardContent class="text-sm text-muted-foreground">
       {{ t('auth.dashboardDescription') }}

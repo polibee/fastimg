@@ -1,10 +1,12 @@
 import { apiFetch } from '@/lib/api'
 
-export type NavigationItem = { id: number; group_id: number; parent_id?: number | null; label: string; target_type: 'page' | 'route' | 'external' | 'friends'; target_value: string; open_in_new_tab: boolean; sort_order: number; is_enabled: boolean }
-export type NavigationGroup = { id: number; title: string; locale: string; sort_order: number; is_enabled: boolean }
+export type NavigationLocale = 'zh-CN' | 'en-US' | 'all'
+export type NavigationTargetType = 'page' | 'route' | 'external' | 'friends'
+export type NavigationItem = { id: number; group_id: number; parent_id?: number | null; label: string; label_zh_cn: string; label_en_us: string; target_type: NavigationTargetType; target_value: string; open_in_new_tab: boolean; sort_order: number; is_enabled: boolean }
+export type NavigationGroup = { id: number; title: string; title_zh_cn: string; title_en_us: string; locale: NavigationLocale; sort_order: number; is_enabled: boolean }
 export type NavigationGroupResult = { group: NavigationGroup; items: NavigationItem[] }
-export type NavigationGroupInput = Omit<NavigationGroup, 'id'>
-export type NavigationItemInput = Omit<NavigationItem, 'id'>
+export type NavigationGroupInput = { title_zh_cn: string; title_en_us: string; locale: NavigationLocale; sort_order: number; is_enabled: boolean }
+export type NavigationItemInput = { group_id: number; parent_id?: number | null; label_zh_cn: string; label_en_us: string; target_type: NavigationTargetType; target_value: string; open_in_new_tab: boolean; sort_order: number; is_enabled: boolean }
 
 export const footerApi = {
   list(token: string) { return apiFetch<NavigationGroupResult[]>('/api/v1/admin/footer-navigation', {}, token) },

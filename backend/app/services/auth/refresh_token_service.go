@@ -6,13 +6,15 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const (
 	RefreshTokenCookieName = "go_vue_admin_refresh"
-	refreshTokenTTL        = 30 * 24 * time.Hour
+	defaultRefreshTokenTTL = 30 * 24 * time.Hour
 )
 
 var ErrRefreshTokenInvalid = errors.New("invalid refresh token")
@@ -40,10 +42,25 @@ func (s *RefreshTokenService) Issue(userID uint) (string, error) {
 		return "", err
 	}
 	raw := base64.RawURLEncoding.EncodeToString(buffer)
-	if err := s.store.Put(refreshTokenKey(raw), strconv.FormatUint(uint64(userID), 10), refreshTokenTTL); err != nil {
+	if err := s.store.Put(refreshTokenKey(raw), strconv.FormatUint(uint64(userID), 10), RefreshTokenTTL()); err != nil {
 		return "", fmt.Errorf("%w: %v", ErrRefreshTokenStoreUnavailable, err)
 	}
 	return raw, nil
+}
+
+// RefreshTokenTTL is shared by the durable store and the browser cookie. A
+// non-positive or malformed value falls back to the safe 30-day default;
+// durable sessions are never made immortal by accident.
+func RefreshTokenTTL() time.Duration {
+	minutes, err := strconv.Atoi(strings.TrimSpace(os.Getenv("JWT_REFRESH_TTL")))
+	if err != nil || minutes <= 0 {
+		return defaultRefreshTokenTTL
+	}
+	return time.Duration(minutes) * time.Minute
+}
+
+func RefreshTokenMaxAge() int {
+	return int(RefreshTokenTTL() / time.Second)
 }
 
 func (s *RefreshTokenService) Consume(raw string) (uint, error) {

@@ -17,5 +17,6 @@ func (*FastImgQueueProvider) Boot(_ contractsfoundation.Application) {
 	facades.Queue().Register([]contractsqueue.Job{
 		&billingservices.FulfillOrderJob{},
 		&mediaservices.RecoverUploadJob{},
+		&mediaservices.SecurityScanJob{},
 	})
 }

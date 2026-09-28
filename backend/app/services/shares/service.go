@@ -143,6 +143,15 @@ func (r *DatabaseRepository) ListOwned(_ context.Context, userID uint) ([]models
 	return links, nil
 }
 
+func (r *DatabaseRepository) ListOwnedPaginated(_ context.Context, userID uint, page, perPage int) ([]models.ShareLink, int64, error) {
+	var links []models.ShareLink
+	var total int64
+	if err := facades.Orm().Query().Where("user_id = ?", userID).OrderBy("id", "desc").Paginate(page, perPage, &links, &total); err != nil {
+		return nil, 0, err
+	}
+	return links, total, nil
+}
+
 func (r *DatabaseRepository) Revoke(_ context.Context, userID, id uint) error {
 	now := time.Now().UTC()
 	result, err := facades.Orm().Query().Table("share_links").Where("id = ? AND user_id = ? AND status = ?", id, userID, "active").Update(map[string]any{"status": "revoked", "revoked_at": now, "updated_at": now})
@@ -222,6 +231,48 @@ func (s *Service) List(ctx context.Context, userID uint) ([]ShareView, error) {
 		views = append(views, shareView(link, ""))
 	}
 	return views, nil
+}
+
+func (s *Service) ListPage(ctx context.Context, userID uint, page, perPage int) ([]ShareView, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	var links []models.ShareLink
+	var total int64
+	if repository, ok := s.repository.(interface {
+		ListOwnedPaginated(context.Context, uint, int, int) ([]models.ShareLink, int64, error)
+	}); ok {
+		var err error
+		links, total, err = repository.ListOwnedPaginated(ctx, userID, page, perPage)
+		if err != nil {
+			return nil, 0, err
+		}
+	} else {
+		var err error
+		links, err = s.repository.ListOwned(ctx, userID)
+		if err != nil {
+			return nil, 0, err
+		}
+		total = int64(len(links))
+		start := (page - 1) * perPage
+		if start >= len(links) {
+			links = nil
+		} else {
+			end := start + perPage
+			if end > len(links) {
+				end = len(links)
+			}
+			links = links[start:end]
+		}
+	}
+	views := make([]ShareView, 0, len(links))
+	for _, link := range links {
+		views = append(views, shareView(link, ""))
+	}
+	return views, total, nil
 }
 
 func (s *Service) Revoke(ctx context.Context, userID, id uint) error {

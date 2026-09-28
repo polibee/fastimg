@@ -12,6 +12,7 @@ export const resourceDefinition = {
     { name: "view", label: "View", kind: "", permission: "admin.api_tokens.view", batch: false, payload: "" },
     { name: "set-status", label: "Set status", kind: "api-token-status", permission: "admin.api_tokens.update", batch: true, payload: "api-token-status", payload_fields: [{ name: "status", label: "Status", type: "select", required: true, options: [{ value: "disabled", label: "Disabled" }, { value: "revoked", label: "Revoked" }] }] },
     { name: "delete", label: "Delete", kind: "", permission: "admin.api_tokens.delete", batch: false, payload: "" },
+    { name: "bulk-delete", label: "Delete selected", kind: "builtin-delete", permission: "admin.api_tokens.delete", batch: true, payload: "delete" },
   ],
   relations: [],
   form_groups: [],

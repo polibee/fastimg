@@ -212,7 +212,7 @@ func (s *SubscriptionLifecycleService) processEvent(subscription *models.Subscri
 
 func ensureExpiryDelivery(subscription *models.Subscription, kind, key string, now time.Time) (*models.SubscriptionNotificationDelivery, bool, error) {
 	var delivery models.SubscriptionNotificationDelivery
-	exists, err := facades.Orm().Query().Where("event_key = ?", key).Exists()
+	exists, err := facades.Orm().Query().Model(&models.SubscriptionNotificationDelivery{}).Where("event_key = ?", key).Exists()
 	if err != nil {
 		return nil, false, err
 	}

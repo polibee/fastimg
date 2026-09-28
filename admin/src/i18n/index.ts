@@ -33,8 +33,23 @@ import enUSFooterNavigation from '@/locales/en-US/footer-navigation.json'
 import zhCNFooterNavigation from '@/locales/zh-CN/footer-navigation.json'
 import enUSFriendLinks from '@/locales/en-US/friend-links.json'
 import zhCNFriendLinks from '@/locales/zh-CN/friend-links.json'
+import enUSPlans from '@/locales/en-US/plans.json'
+import zhCNPlans from '@/locales/zh-CN/plans.json'
+import enUSBackups from '@/locales/en-US/backups.json'
+import zhCNBackups from '@/locales/zh-CN/backups.json'
+import enUSStatus from '@/locales/en-US/status.json'
+import zhCNStatus from '@/locales/zh-CN/status.json'
+import enUSExports from '@/locales/en-US/exports.json'
+import zhCNExports from '@/locales/zh-CN/exports.json'
 
 export const SUPPORTED_LOCALES = ['zh-CN', 'en-US'] as const
+
+function localeMessage(value: unknown) {
+  if (value && typeof value === 'object' && 'default' in value) {
+    value = (value as { default: unknown }).default
+  }
+  return value && typeof value === 'object' ? { ...(value as Record<string, unknown>) } : {}
+}
 
 const initialLocale = localStorage.getItem('locale') === 'en-US' ? 'en-US' : 'zh-CN'
 
@@ -43,8 +58,8 @@ const i18n = createI18n({
   locale: initialLocale,
   fallbackLocale: 'en-US',
   messages: {
-    'zh-CN': { core: zhCNCcore, auth: zhCNAuth, errors: zhCNErrors, states: zhCNStates, rbac: zhCNRbac, resource: zhCNResource, media: zhCNMedia, member: zhCNMember, billing: zhCNBilling, settings: zhCNSettings, statistics: zhCNStatistics, albums: zhCNAlbums, storage: zhCNStorage, tasks: zhCNTasks, content: zhCNContent, footerNavigation: zhCNFooterNavigation, friendLinks: zhCNFriendLinks },
-    'en-US': { core: enUSCore, auth: enUSAuth, errors: enUSErrors, states: enUSStates, rbac: enUSRbac, resource: enUSResource, media: enUSMedia, member: enUSMember, billing: enUSBilling, settings: enUSSettings, statistics: enUSStatistics, albums: enUSAlbums, storage: enUSStorage, tasks: enUSTasks, content: enUSContent, footerNavigation: enUSFooterNavigation, friendLinks: enUSFriendLinks },
+    'zh-CN': { core: zhCNCcore, auth: zhCNAuth, errors: zhCNErrors, states: zhCNStates, rbac: zhCNRbac, resource: zhCNResource, media: zhCNMedia, member: zhCNMember, billing: zhCNBilling, settings: zhCNSettings, statistics: zhCNStatistics, albums: zhCNAlbums, storage: zhCNStorage, tasks: zhCNTasks, content: localeMessage(zhCNContent), footerNavigation: localeMessage(zhCNFooterNavigation), friendLinks: localeMessage(zhCNFriendLinks), plans: zhCNPlans, backups: zhCNBackups, statusPage: zhCNStatus, exports: zhCNExports },
+    'en-US': { core: enUSCore, auth: enUSAuth, errors: enUSErrors, states: enUSStates, rbac: enUSRbac, resource: enUSResource, media: enUSMedia, member: enUSMember, billing: enUSBilling, settings: enUSSettings, statistics: enUSStatistics, albums: enUSAlbums, storage: enUSStorage, tasks: enUSTasks, content: localeMessage(enUSContent), footerNavigation: localeMessage(enUSFooterNavigation), friendLinks: localeMessage(enUSFriendLinks), plans: enUSPlans, backups: enUSBackups, statusPage: enUSStatus, exports: enUSExports },
   },
 })
 

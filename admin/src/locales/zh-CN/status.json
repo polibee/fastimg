@@ -1,0 +1,13 @@
+{
+  "shortTitle": "服务状态",
+  "eyebrow": "服务健康度",
+  "title": "FastImg 服务状态",
+  "description": "公开查看上传、图片访问和支付相关服务的运行状态。",
+  "components": "服务组件",
+  "maintenance": "维护与公告",
+  "loading": "正在检查服务…",
+  "errorTitle": "状态页面暂时不可用",
+  "retry": "重试",
+  "componentNames": { "api": "API", "database": "数据库", "storage": "对象存储", "payments": "支付" },
+  "statuses": { "operational": "运行正常", "degraded": "性能下降", "outage": "服务中断" }
+}

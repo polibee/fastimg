@@ -38,7 +38,7 @@ test('guest can open the member home and public plans while private member pages
 test('SSG pages come from the registered public member page manifest', () => {
   const pages = JSON.parse(read('src/apps/member/public-pages.json'))
   const prerender = read('scripts/prerender-seo.mjs')
-  assert.deepEqual(pages.map((page) => page.path), ['/', '/plans', '/discover', '/friends', '/page/privacy', '/page/terms', '/page/about'])
+  assert.deepEqual(pages.map((page) => page.path), ['/', '/plans', '/discover', '/friends', '/status', '/page/privacy', '/page/terms', '/page/about'])
   assert.match(prerender, /public-pages\.json/)
 })
 

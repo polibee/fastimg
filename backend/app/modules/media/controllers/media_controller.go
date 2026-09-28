@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	httpcontract "github.com/goravel/framework/contracts/http"
 
@@ -27,6 +29,10 @@ type moveMediaFolderRequest struct {
 
 type updateVisibilityRequest struct {
 	Visibility string `json:"visibility"`
+}
+
+type updateLifecycleRequest struct {
+	ExpiresAt *string `json:"expires_at"`
 }
 
 func NewMediaController() *MediaController {
@@ -117,6 +123,37 @@ func (c *MediaController) UpdateVisibility(ctx httpcontract.Context) httpcontrac
 		return mediaServiceFailure(ctx, err)
 	}
 	return ctx.Response().Success().Json(httpcontract.Json{"data": map[string]any{"id": asset.ID, "visibility": asset.Visibility}})
+}
+
+func (c *MediaController) UpdateLifecycle(ctx httpcontract.Context) httpcontract.Response {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return adminmiddleware.APIError(ctx, http.StatusUnauthorized, "AUTH_UNAUTHORIZED")
+	}
+	mediaID := ctx.Request().RouteInt64("id")
+	if mediaID <= 0 {
+		return adminmiddleware.APIError(ctx, http.StatusNotFound, "MEDIA_NOT_FOUND")
+	}
+	var input updateLifecycleRequest
+	if err := ctx.Request().Bind(&input); err != nil {
+		return adminmiddleware.APIError(ctx, http.StatusUnprocessableEntity, "MEDIA_EXPIRY_INVALID")
+	}
+	var expiresAt *time.Time
+	if input.ExpiresAt != nil && strings.TrimSpace(*input.ExpiresAt) != "" {
+		parsed, parseErr := time.Parse(time.RFC3339, strings.TrimSpace(*input.ExpiresAt))
+		if parseErr != nil {
+			return adminmiddleware.APIError(ctx, http.StatusUnprocessableEntity, "MEDIA_EXPIRY_INVALID")
+		}
+		expiresAt = &parsed
+	}
+	asset, err := c.service.UpdateExpiry(ctx.Context(), userID, uint(mediaID), expiresAt)
+	if err != nil {
+		if errors.Is(err, mediaservices.ErrInvalidMediaExpiry) {
+			return adminmiddleware.APIError(ctx, http.StatusUnprocessableEntity, "MEDIA_EXPIRY_INVALID")
+		}
+		return mediaServiceFailure(ctx, err)
+	}
+	return ctx.Response().Success().Json(httpcontract.Json{"data": map[string]any{"id": asset.ID, "expires_at": asset.ExpiresAt}})
 }
 
 // AdminContent is deliberately separate from the member own-scope endpoint.
@@ -270,6 +307,7 @@ func mediaListItemJSON(item mediaservices.MediaListItem) map[string]any {
 		"size_bytes": item.Asset.SizeBytes, "width": item.Asset.Width,
 		"height": item.Asset.Height, "status": item.Asset.Status,
 		"visibility": item.Asset.Visibility, "moderation_status": item.Asset.ModerationStatus,
+		"expires_at": item.Asset.ExpiresAt,
 		"deleted_at": item.Asset.DeletedAt, "created_at": item.Asset.CreatedAt,
 		"links": links, "variants": variants,
 	}

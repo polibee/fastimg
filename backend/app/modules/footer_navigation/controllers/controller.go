@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 
 	httpcontract "github.com/goravel/framework/contracts/http"
@@ -38,6 +39,9 @@ func (c *Controller) SaveGroup(ctx httpcontract.Context) httpcontract.Response {
 	id := uint(ctx.Request().RouteInt64("id"))
 	row, err := c.service.SaveGroup(id, input)
 	if err != nil {
+		if errors.Is(err, footerservices.ErrNotFound) {
+			return adminmiddleware.APIError(ctx, 404, "FOOTER_NAVIGATION_NOT_FOUND")
+		}
 		return adminmiddleware.APIError(ctx, 422, "FOOTER_NAVIGATION_INVALID")
 	}
 	record(ctx, "footer_navigation.group.save", row.ID)
@@ -51,6 +55,9 @@ func (c *Controller) SaveItem(ctx httpcontract.Context) httpcontract.Response {
 	id := uint(ctx.Request().RouteInt64("id"))
 	row, err := c.service.SaveItem(id, input)
 	if err != nil {
+		if errors.Is(err, footerservices.ErrNotFound) {
+			return adminmiddleware.APIError(ctx, 404, "FOOTER_NAVIGATION_NOT_FOUND")
+		}
 		return adminmiddleware.APIError(ctx, 422, "FOOTER_NAVIGATION_INVALID")
 	}
 	record(ctx, "footer_navigation.item.save", row.ID)

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Flag, Image, LoaderCircle, RefreshCw } from '@lucide/vue'
+import { Flag, Image, LoaderCircle, RefreshCw, X } from '@lucide/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { apiFetch, apiFetchEnvelope, ApiError } from '@/lib/api'
 import { setPageSEO } from '@/lib/seo'
@@ -38,8 +39,11 @@ const total = ref(0)
 const reportingID = ref<number | null>(null)
 const reportReason = ref('copyright')
 const reportDescription = ref('')
-const reportFailed = ref(false)
+const reportErrorCode = ref<string | null>(null)
+const reportSubmitting = ref(false)
 const reportedID = ref<number | null>(null)
+const previewItem = ref<DiscoveryItem | null>(null)
+const sort = ref('latest')
 
 const hasMore = computed(() => items.value.length < total.value)
 
@@ -67,7 +71,7 @@ async function loadFeed(reset = false) {
     const statusResponse = await apiFetch<DiscoveryStatus>('/api/v1/discovery/status')
     status.value = statusResponse
     if (!statusResponse.enabled) return
-    const response = await apiFetchEnvelope<DiscoveryItem[]>(`/api/v1/discovery/feed?page=${page.value}&per_page=24`)
+    const response = await apiFetchEnvelope<DiscoveryItem[]>(`/api/v1/discovery/feed?page=${page.value}&per_page=24&sort=${encodeURIComponent(sort.value)}`)
     items.value = reset ? response.data : [...items.value, ...response.data]
     total.value = Number(response.meta?.total ?? items.value.length)
   } catch {
@@ -105,21 +109,42 @@ function openReport(item: DiscoveryItem) {
   reportingID.value = item.id
   reportReason.value = 'copyright'
   reportDescription.value = ''
-  reportFailed.value = false
+  reportErrorCode.value = null
+}
+
+function openPreview(item: DiscoveryItem) {
+  previewItem.value = item
+}
+
+function closePreview() {
+  previewItem.value = null
+}
+
+function reportErrorMessage() {
+  if (reportErrorCode.value === 'REPORT_ALREADY_SUBMITTED') return t('member.discover.reportAlreadySubmitted')
+  if (reportErrorCode.value === 'REPORT_SELF_MEDIA') return t('member.discover.reportSelfMedia')
+  return t('member.discover.reportFailed')
 }
 
 async function submitReport() {
-  if (!auth.token || !reportingID.value) return
-  reportFailed.value = false
+  if (!auth.token || !reportingID.value) {
+    reportErrorCode.value = 'AUTH_UNAUTHORIZED'
+    return
+  }
+  const mediaID = reportingID.value
+  reportSubmitting.value = true
+  reportErrorCode.value = null
   try {
-    await apiFetch(`/api/v1/media/${reportingID.value}/reports`, {
+    await apiFetch(`/api/v1/media/${mediaID}/reports`, {
       method: 'POST',
       body: JSON.stringify({ reason: reportReason.value, description: reportDescription.value.trim() }),
     }, auth.token)
-    reportedID.value = reportingID.value
+    reportedID.value = mediaID
     reportingID.value = null
   } catch (error) {
-    reportFailed.value = error instanceof ApiError && error.code === 'REPORT_ALREADY_SUBMITTED'
+    reportErrorCode.value = error instanceof ApiError ? error.code ?? 'REPORT_UNAVAILABLE' : 'REPORT_UNAVAILABLE'
+  } finally {
+    reportSubmitting.value = false
   }
 }
 </script>
@@ -130,6 +155,14 @@ async function submitReport() {
       <p class="text-sm font-medium text-primary">{{ t('member.discover.eyebrow') }}</p>
       <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">{{ t('member.discover.heading') }}</h1>
       <p class="text-muted-foreground">{{ t('member.discover.description') }}</p>
+      <label class="inline-flex items-center gap-2 text-sm">
+        <span class="font-medium">{{ t('member.discover.sortLabel') }}</span>
+        <select v-model="sort" class="h-9 rounded-md border bg-background px-3" @change="loadFeed(true)">
+          <option value="latest">{{ t('member.discover.sort.latest') }}</option>
+          <option value="hot">{{ t('member.discover.sort.hot') }}</option>
+          <option value="trending">{{ t('member.discover.sort.trending') }}</option>
+        </select>
+      </label>
     </header>
 
     <Alert v-if="!status.enabled" class="max-w-2xl">
@@ -150,9 +183,9 @@ async function submitReport() {
     </div>
     <div v-else-if="items.length" class="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4">
       <article v-for="item in items" :key="item.id" class="group mb-4 break-inside-avoid overflow-hidden rounded-lg border bg-card shadow-sm">
-        <a :href="item.original_url" target="_blank" rel="noreferrer" class="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+        <button type="button" class="block w-full cursor-zoom-in text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" :aria-label="t('member.discover.openPreview', { name: item.original_name })" @click="openPreview(item)">
           <img :src="item.thumbnail_url" :alt="item.original_name" loading="lazy" class="block h-auto w-full bg-muted object-cover transition-opacity group-hover:opacity-90" @error="handleImageError" />
-        </a>
+        </button>
         <div class="space-y-2 px-3 py-3">
           <div class="flex items-start justify-between gap-2">
             <p class="min-w-0 truncate text-sm font-medium" :title="item.original_name">{{ item.original_name }}</p>
@@ -191,11 +224,27 @@ async function submitReport() {
         </select>
       </label>
       <Textarea v-model="reportDescription" :placeholder="t('member.discover.reportPlaceholder')" maxlength="2000" />
-      <Alert v-if="reportFailed" variant="destructive"><AlertDescription>{{ t('member.discover.reportFailed') }}</AlertDescription></Alert>
+      <Alert v-if="reportErrorCode" variant="destructive"><AlertDescription>{{ reportErrorMessage() }}</AlertDescription></Alert>
       <div class="flex justify-end gap-2">
         <Button variant="ghost" @click="reportingID = null">{{ t('member.discover.cancel') }}</Button>
-        <Button @click="submitReport">{{ t('member.discover.submitReport') }}</Button>
+        <Button :disabled="reportSubmitting" @click="submitReport">
+          <LoaderCircle v-if="reportSubmitting" class="size-4 animate-spin" />
+          {{ reportSubmitting ? t('member.discover.submittingReport') : t('member.discover.submitReport') }}
+        </Button>
       </div>
     </div>
+
+    <Dialog :open="Boolean(previewItem)" @update:open="(open) => !open && closePreview()">
+      <DialogContent class="max-w-[min(92vw,72rem)] overflow-hidden border-0 bg-black/95 p-2 text-white sm:max-w-[min(92vw,72rem)]" :show-close-button="false">
+        <DialogTitle class="sr-only">{{ t('member.discover.previewTitle') }}</DialogTitle>
+        <DialogDescription class="sr-only">{{ t('member.discover.previewDescription') }}</DialogDescription>
+        <DialogClose as-child>
+          <Button type="button" variant="ghost" size="icon" class="absolute right-3 top-3 z-10 text-white hover:bg-white/15" :aria-label="t('member.discover.closePreview')">
+            <X class="size-5" />
+          </Button>
+        </DialogClose>
+        <img v-if="previewItem" :src="previewItem.original_url" :alt="previewItem.original_name" class="max-h-[82vh] w-full object-contain" @error="handleImageError" />
+      </DialogContent>
+    </Dialog>
   </section>
 </template>

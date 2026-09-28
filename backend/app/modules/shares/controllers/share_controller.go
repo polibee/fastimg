@@ -70,11 +70,23 @@ func (c *ShareController) Index(ctx httpcontract.Context) httpcontract.Response 
 	if err != nil {
 		return ctx.Response().Status(http.StatusUnauthorized).Json(httpcontract.Json{"code": "AUTH_UNAUTHORIZED"})
 	}
-	items, err := c.service.List(ctx.Context(), userID)
+	page, _ := strconv.Atoi(ctx.Request().Query("page", "1"))
+	perPage, _ := strconv.Atoi(ctx.Request().Query("per_page", "20"))
+	items, total, err := c.service.ListPage(ctx.Context(), userID, page, perPage)
 	if err != nil {
 		return ctx.Response().Status(http.StatusInternalServerError).Json(httpcontract.Json{"code": "SHARES_UNAVAILABLE"})
 	}
-	return ctx.Response().Success().Json(httpcontract.Json{"data": items})
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	lastPage := int64(1)
+	if total > 0 {
+		lastPage = (total + int64(perPage) - 1) / int64(perPage)
+	}
+	return ctx.Response().Success().Json(httpcontract.Json{"data": items, "meta": httpcontract.Json{"page": page, "per_page": perPage, "total": total, "last_page": lastPage}})
 }
 
 func (c *ShareController) Revoke(ctx httpcontract.Context) httpcontract.Response {

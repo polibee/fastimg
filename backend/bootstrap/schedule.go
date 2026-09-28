@@ -14,5 +14,6 @@ func Schedule() []schedule.Event {
 		facades.Schedule().Command("admin:prune-audit-logs --days=365").DailyAt("02:30").Name("audit-log-retention").SkipIfStillRunning(),
 		facades.Schedule().Command("media:dispatch-recovery").EveryFiveMinutes().Name("media-upload-recovery").SkipIfStillRunning(),
 		facades.Schedule().Command("subscriptions:process-expiry").DailyAt("01:45").Name("subscription-expiry-lifecycle").SkipIfStillRunning(),
+		facades.Schedule().Command("media:process-expiry").DailyAt("02:00").Name("media-expiry-lifecycle").SkipIfStillRunning(),
 	}
 }

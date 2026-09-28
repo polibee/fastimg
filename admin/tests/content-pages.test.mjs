@@ -27,3 +27,14 @@ test('content form sends Tiptap JSON and never exposes raw HTML editing', () => 
   assert.doesNotMatch(editor, /<textarea[\s\S]*html/i)
   assert.doesNotMatch(form, /v-html|content_html|rawHtml/i)
 })
+
+test('default public pages have complete English content and safe upgrade wiring', () => {
+  const defaults = read('../backend/app/modules/content/defaults/default_pages.go')
+  const seeder = read('../backend/database/seeders/site_content.go')
+  const migrations = read('../backend/bootstrap/migrations.go')
+  for (const phrase of ['Privacy Policy', 'Terms of Use', 'About FastImg', 'Information we collect', 'Acceptable uploads', 'What you can do']) {
+    assert.match(defaults, new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${phrase} should be part of the default copy`)
+  }
+  assert.match(seeder, /contentdefaults\.DefaultPages\(\)/)
+  assert.match(migrations, /M20260928000003UpdateDefaultSitePagesEnglish/)
+})

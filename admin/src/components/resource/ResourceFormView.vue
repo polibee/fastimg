@@ -20,6 +20,7 @@ import { useI18n } from 'vue-i18n'
 import { localizedFieldHint, localizedFieldLabel, localizedOptionLabel, localizedResourceLabel } from '@/core/resource/resource-i18n'
 import ResourceDateTimePicker from '@/components/resource/ResourceDateTimePicker.vue'
 import ResourceEntitlementsEditor from '@/components/resource/ResourceEntitlementsEditor.vue'
+import PlanPricingEditor from '@/modules/plans/components/PlanPricingEditor.vue'
 
 interface ResourceDefinition {
   label: string
@@ -59,6 +60,7 @@ const formGroups = computed(() => {
   return [{ name: 'default', label: resourceLabel.value, columns: 1, fields: formFields.value }]
 })
 const resourceLabel = computed(() => localizedResourceLabel(t, te, props.resource.route.split('/').filter(Boolean).pop() || '', props.resource.label))
+const isPlan = computed(() => props.resource.route.split('/').filter(Boolean).pop() === 'plans')
 const formTitle = computed(() => t(editing.value ? 'resource.editResource' : 'resource.createResource', { resource: resourceLabel.value }))
 function fieldLabel(field: ResourceFormField) { return localizedFieldLabel(t, te, props.resource.route.split('/').filter(Boolean).pop() || '', field.name, field.label) }
 function fieldHint(field: ResourceFormField) { return localizedFieldHint(t, te, props.resource.route.split('/').filter(Boolean).pop() || '', field.name, field.hint || '') }
@@ -177,5 +179,6 @@ async function submit() {
       </FieldGroup>
       <div class="flex gap-2"><Button type="submit" :disabled="saving || Boolean(error)"><Save data-icon="inline-start" />{{ saving ? t('resource.saving') : t('resource.save') }}</Button><Button type="button" variant="outline" @click="router.back()">{{ t('resource.cancel') }}</Button></div>
     </form></CardContent></Card>
+    <PlanPricingEditor v-if="editing && isPlan" :plan-id="String(route.params.id)" />
   </div>
 </template>

@@ -27,11 +27,26 @@ func (c *AdminMediaController) Index(ctx httpcontract.Context) httpcontract.Resp
 	if albumID <= 0 {
 		return albumMediaFailure(ctx, http.StatusNotFound, "ALBUM_NOT_FOUND")
 	}
-	items, err := c.service.ListAdminAlbumMedia(ctx.Context(), uint(albumID))
+	page := ctx.Request().QueryInt("page", 1)
+	perPage := ctx.Request().QueryInt("per_page", 20)
+	items, total, err := c.service.ListAdminAlbumMediaPage(ctx.Context(), uint(albumID), page, perPage)
 	if err != nil {
 		return albumMediaError(ctx, err)
 	}
-	return ctx.Response().Success().Json(httpcontract.Json{"data": items, "meta": map[string]any{"album_id": albumID, "total": len(items)}})
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	lastPage := int64(0)
+	if total > 0 {
+		lastPage = (total + int64(perPage) - 1) / int64(perPage)
+	}
+	return ctx.Response().Success().Json(httpcontract.Json{"data": items, "meta": map[string]any{"album_id": albumID, "page": page, "per_page": perPage, "total": total, "last_page": lastPage}})
 }
 
 func (c *AdminMediaController) Add(ctx httpcontract.Context) httpcontract.Response {
