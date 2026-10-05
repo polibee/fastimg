@@ -12,7 +12,7 @@ const isOwnScope = (resource: unknown) => {
 
 const adminResourceNames = new Set<string>(
   generatedResourceDefinitions
-    .filter((resource) => !isOwnScope(resource))
+    .filter((resource) => !isOwnScope(resource) && !(resource.navigation as { hidden?: boolean }).hidden)
     .map((resource) => resource.name),
 )
 

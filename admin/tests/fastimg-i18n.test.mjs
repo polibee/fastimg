@@ -77,3 +77,11 @@ test('FastImg generic resources have Chinese and English labels for fields and o
     assert.notEqual(lookup(chinese), lookup(english), `${description} must be localized rather than shared fallback text`)
   }
 })
+
+test('member album failures have localized alert titles in both supported languages', () => {
+  for (const locale of ['zh-CN', 'en-US']) {
+    const messages = JSON.parse(readFileSync(path.join(localesRoot, locale, 'member.json'), 'utf8'))
+    assert.equal(typeof messages.albums?.errorTitle, 'string', `${locale} member.albums.errorTitle must be localized`)
+    assert.notEqual(messages.albums.errorTitle, 'member.albums.errorTitle', `${locale} must not render the translation key`)
+  }
+})

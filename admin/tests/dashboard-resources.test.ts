@@ -19,6 +19,14 @@ test('own-scope resources never appear as global admin resources', () => {
   assert.deepEqual(visibleDashboardResources(resources, ['admin.albums.view', 'admin.advertising.view']).map((item) => item.name), ['advertising'])
 })
 
+test('hidden resources do not appear on the admin dashboard', () => {
+  const resources = [
+    { name: 'announcements', label: 'Announcements', route: '/admin/announcements', permissions: ['admin.announcements.view'], navigation: { hidden: true } },
+    { name: 'plans', label: 'Plans', route: '/admin/plans', permissions: ['admin.plans.view'], navigation: { hidden: false } },
+  ]
+  assert.deepEqual(visibleDashboardResources(resources, ['admin.announcements.view', 'admin.plans.view']).map((item) => item.name), ['plans'])
+})
+
 test('dashboard maps resource routes to admin frontend routes', () => {
   assert.equal(dashboardResourceRoute(resources[0]), '/admin/users')
   assert.equal(dashboardResourceRoute({ name: 'roles', route: '/admin/roles' }), '/admin/roles')

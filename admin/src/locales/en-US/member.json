@@ -313,6 +313,7 @@
     "unlisted": "Unlisted",
     "public": "Public",
     "mediaCount": "{count} images",
+    "errorTitle": "Album action could not be completed",
     "errors": {
       "loadMediaFailed": "Could not load album images. Please try again.",
       "removeMediaFailed": "Could not remove the selected images. Please try again.",

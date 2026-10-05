@@ -115,6 +115,7 @@ Custom Page 仍然必须使用框架的认证、权限、API 错误、通知、�
 - Personal API Token 的最小权限固定为 `upload:write`、`media:read`、`media:delete`；Token 只允许当前用户的上传、图片列表/详情/链接和删除，不能调用会员结算或管理员 API。
 - `/api/v1/*` 是版本化 API；`/api/upload`、`/api/images`、`/api/image/{id}` 是同一最小能力的客户端兼容别名，不复制业务逻辑。
 - `plan_prices` 是结算使用的价格版本，不绑定唯一网关；管理员从 `/admin/plans/:id/edit` 的“价格设置”区域维护它，结算页从已注册 Provider 列表中选择渠道，Provider 密钥只来自服务端设置的加密字段。价格接口复用 `admin.plans.view/update` 权限，不创建独立 `admin.plan_prices.*` 权限，避免和“会员计划”形成重复菜单。
+- 基础框架遗留的 `departments`、`announcements` 资源暂不属于 FastImg 运营功能：保留表和状态接口的兼容读取，但通过资源清单的 `navigation.hidden` 隐藏管理导航、首页资源卡片和前端路由，待真正的业务页面与权限契约完成后再启用；不通过迁移删除已有生产数据。
 - `/sitemap.xml`、`/robots.txt` 和前端 `build:ssg` 为公开会员首页、套餐、发现页以及通过 `SSG_PUBLIC_ALBUM_IDS` 选择的公开相册提供 SEO 首屏；服务端只允许 `visibility=public` 的相册和公开媒体进入响应；私有媒体、Token、订单和后台路径不进入站点地图。
 
 ## 6. 第一阶段允许修改的基础文件

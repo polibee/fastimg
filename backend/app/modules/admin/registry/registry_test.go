@@ -39,7 +39,7 @@ func TestAdminRegistryExposesFormFields(t *testing.T) {
 	}
 }
 
-func TestDepartmentsIsAStandardGenericResource(t *testing.T) {
+func TestFrameworkResourcesRemainHiddenFromFastImgNavigation(t *testing.T) {
 	manifest, err := AdminRegistry().Find("departments")
 	if err != nil {
 		t.Fatalf("departments resource missing: %v", err)
@@ -49,6 +49,16 @@ func TestDepartmentsIsAStandardGenericResource(t *testing.T) {
 	}
 	if manifest.Route != "/admin/departments" {
 		t.Fatalf("departments route = %q, want /admin/departments", manifest.Route)
+	}
+	if !manifest.Navigation.Hidden {
+		t.Fatal("departments must stay hidden until a FastImg department feature is implemented")
+	}
+	announcement, err := AdminRegistry().Find("announcements")
+	if err != nil {
+		t.Fatalf("announcements resource missing: %v", err)
+	}
+	if !announcement.Navigation.Hidden {
+		t.Fatal("announcements must stay hidden until its FastImg management page is implemented")
 	}
 }
 

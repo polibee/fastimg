@@ -313,6 +313,7 @@
     "unlisted": "不公开列出",
     "public": "公开",
     "mediaCount": "{count} 张图片",
+    "errorTitle": "相册操作未完成",
     "errors": {
       "loadMediaFailed": "无法加载相册图片，请稍后重试。",
       "removeMediaFailed": "无法移除所选图片，请稍后重试。",

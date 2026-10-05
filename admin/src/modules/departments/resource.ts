@@ -6,7 +6,7 @@ export const resourceDefinition = {
   permission: "admin.departments.view",
   icon: "box",
   pageMode: "generic",
-  navigation: { group: "business", order: 100 },
+  navigation: { group: "business", order: 100, hidden: true },
 
   actions: [{ name: "view", label: "View", kind: "", permission: "admin.departments.view", batch: false, payload: "" }, { name: "create", label: "Create", kind: "", permission: "admin.departments.create", batch: false, payload: "" }, { name: "update", label: "Update", kind: "", permission: "admin.departments.update", batch: false, payload: "" }, { name: "delete", label: "Delete", kind: "", permission: "admin.departments.delete", batch: false, payload: "" }],
   relations: [{ name: "parent", kind: "belongsTo", resource: "departments", field: "parent_id", foreign_field: "id", label_field: "name", selectable: true, multiple: false }],

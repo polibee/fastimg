@@ -5,11 +5,15 @@ export interface DashboardResource {
   permissions: string[]
   data_scope?: 'all' | 'own'
   dataScope?: 'all' | 'own'
+  navigation?: {
+    hidden?: boolean
+  }
 }
 
 export function visibleDashboardResources(resources: DashboardResource[], permissions: string[]) {
   const granted = new Set(permissions)
   return resources.filter((resource) => resource.data_scope !== 'own' && resource.dataScope !== 'own'
+    && !resource.navigation?.hidden
     && resource.permissions.some((permission) => granted.has(permission)))
 }
 
