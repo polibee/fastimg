@@ -5,7 +5,11 @@ import { buildSandboxedAdDocument } from '../src/modules/advertising/sandbox.ts'
 test('preserves arbitrary third-party HTML ad embeds', () => {
   const embed = '<script src="https://ads.example.test/widget.js"></script><object data="https://ads.example.test/slot"></object>'
 
-  assert.equal(buildSandboxedAdDocument(embed), embed)
+  const document = buildSandboxedAdDocument(embed)
+
+  assert.match(document, /overflow:hidden/)
+  assert.match(document, /ads\.example\.test\/widget\.js/)
+  assert.match(document, /ads\.example\.test\/slot/)
 })
 
 test('wraps plain JavaScript in an isolated HTML document', () => {

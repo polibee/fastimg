@@ -26,7 +26,6 @@ func Manifest() resource.Manifest {
 			{Name: "name", Label: "Name", Sortable: true},
 			{Name: "placement", Label: "Placement", Sortable: true},
 			{Name: "creative_type", Label: "Creative type", Sortable: true},
-			{Name: "creative_content", Label: "Creative content", Sortable: false},
 			{Name: "target_url", Label: "Target_url", Sortable: true},
 			{Name: "plan_code", Label: "Plan_code", Sortable: true},
 			{Name: "starts_at", Label: "Starts_at", Sortable: true},

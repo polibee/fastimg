@@ -71,3 +71,11 @@ func TestManifestExposesAdminCreativeTypesAndContent(t *testing.T) {
 		}
 	}
 }
+
+func TestManifestDoesNotRenderFullCreativeContentInAdminList(t *testing.T) {
+	for _, column := range Manifest().Columns {
+		if column.Name == "creative_content" {
+			t.Fatal("creative_content must stay in the edit form, not be rendered in the admin list")
+		}
+	}
+}

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 const adminRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (relativePath) => readFileSync(path.join(adminRoot, relativePath), 'utf8')
 
-test('member shell mounts admin-configured advertising slots without card chrome', () => {
+test('member shell mounts admin-configured advertising slots in compact card shells', () => {
   const shell = read('src/core/layouts/MemberShell.vue')
   for (const placement of ['header', 'footer', 'left', 'right']) {
     assert.match(shell, new RegExp(`<MemberAdSlot placement="${placement}"`))
@@ -24,6 +24,9 @@ test('member advertising supports text, image and sandboxed javascript only', ()
   assert.match(component, /sandbox="allow-scripts"/)
   assert.match(component, /:srcdoc=/)
   assert.match(component, /buildSandboxedAdDocument/)
+  assert.match(component, /rounded-xl/)
+  assert.match(component, /scrolling="no"/)
+  assert.match(component, /max-w-full/)
   assert.doesNotMatch(component, /v-html/)
 })
 
