@@ -23,7 +23,7 @@ func NewSettingService() *SettingService { return &SettingService{} }
 
 func normalizeSettingType(valueType string) string {
 	valueType = strings.ToLower(strings.TrimSpace(valueType))
-	if valueType == "" {
+	if valueType == "" || valueType == "select" {
 		return "string"
 	}
 	return valueType

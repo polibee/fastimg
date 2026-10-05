@@ -54,3 +54,27 @@ test('submits changed values and preserves an intentionally blank secret', () =>
     { key: 'stats.enabled', value: 'true', value_type: 'boolean', group: 'statistics', description: 'stats.enabled' },
   ])
 })
+
+test('submits only fields explicitly changed by the administrator', () => {
+  const updates = buildSettingUpdates(
+    definitions,
+    {
+      site_title: 'FastImg production',
+      'email.provider': 'smtp',
+      'payment.paypal.client_secret': '__configured__',
+      'stats.enabled': 'false',
+    },
+    {
+      site_title: '',
+      'email.provider': '',
+      'payment.paypal.client_secret': '',
+      'stats.enabled': '',
+    },
+    (key) => key,
+    new Set(['site_title']),
+  )
+
+  assert.deepEqual(updates, [
+    { key: 'site_title', value: 'FastImg production', value_type: 'string', group: 'seo', description: 'site_title' },
+  ])
+})

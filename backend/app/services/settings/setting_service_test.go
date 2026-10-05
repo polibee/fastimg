@@ -43,6 +43,7 @@ func TestValidateSetting(t *testing.T) {
 func TestNormalizeSettingType(t *testing.T) {
 	assert.Equal(t, "string", normalizeSettingType(""))
 	assert.Equal(t, "boolean", normalizeSettingType(" boolean "))
+	assert.Equal(t, "string", normalizeSettingType("select"))
 }
 
 func TestStorageProviderCredentialsAreSecretSettings(t *testing.T) {

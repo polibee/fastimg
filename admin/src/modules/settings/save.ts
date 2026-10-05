@@ -16,8 +16,10 @@ export function buildSettingUpdates(
   values: Record<string, string | undefined>,
   initialValues: Record<string, string | undefined>,
   descriptionForKey: (key: string) => string,
+  changedKeys?: ReadonlySet<string>,
 ): SettingUpdate[] {
   return Object.entries(definitions).flatMap(([key, definition]) => {
+    if (changedKeys && !changedKeys.has(key)) return []
     const value = values[key] ?? ''
     if (value === (initialValues[key] ?? '')) return []
 

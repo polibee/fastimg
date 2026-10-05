@@ -43,10 +43,17 @@ test('settings page exposes backend sitemap and robots links', () => {
   assert.match(page, /settings\.openRobots/)
 })
 
-test('development email defaults remain saveable instead of being snapshotted as persisted values', () => {
+test('development email defaults are display-only until edited', () => {
   const page = read('src/modules/settings/pages/AdminSettingsPage.vue')
   const mounted = page.slice(page.indexOf('onMounted(async'))
   assert.match(mounted, /snapshotInitialValues\(\)[\s\S]*applyEmailDefaults\(\)/)
+})
+
+test('settings save reports an expired session instead of failing silently', () => {
+  const page = read('src/modules/settings/pages/AdminSettingsPage.vue')
+  assert.doesNotMatch(page, /if \(!auth\.token\) return\n  saving\.value/)
+  assert.match(page, /AUTH_UNAUTHORIZED/)
+  assert.match(page, /changedKeys/)
 })
 
 test('settings locales contain the layout copy in both languages', () => {

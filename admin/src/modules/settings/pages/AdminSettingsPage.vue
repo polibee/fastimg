@@ -24,6 +24,7 @@ const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
 const initialValues = reactive<Record<string, string>>({})
+const changedKeys = new Set<string>()
 const groups = settingGroups
 const values = reactive<Record<string, string>>({})
 const gatewaySections = [
@@ -42,9 +43,10 @@ function fieldHint(key: string) { return t(`settings.hints.${key.replaceAll('.',
 function isBoolean(key: string) { return definitions[key]?.type === 'boolean' }
 function isSecret(key: string) { return definitions[key]?.type === 'secret' }
 function fieldValue(key: string) { return values[key] === '__configured__' ? '' : values[key] || '' }
-function setValue(key: string, value: string | number) { values[key] = String(value ?? '') }
-function setBoolean(key: string, checked: boolean) { values[key] = checked ? 'true' : 'false' }
-function setSelectValue(key: string, value: string) { values[key] = value }
+function markChanged(key: string) { changedKeys.add(key) }
+function setValue(key: string, value: string | number) { values[key] = String(value ?? ''); markChanged(key) }
+function setBoolean(key: string, checked: boolean) { values[key] = checked ? 'true' : 'false'; markChanged(key) }
+function setSelectValue(key: string, value: string) { values[key] = value; markChanged(key) }
 function fieldVisible(key: string) { return definitions[key]?.visible?.(values) ?? true }
 function selectOptions(key: string) {
   if (key === 'email.provider') return emailProviderOptions
@@ -123,9 +125,9 @@ onMounted(async () => {
   try {
     const settings = await generatedApi.settings(auth.token)
     for (const item of settings as SystemSetting[]) values[item.key] = item.value
-    // Snapshot only persisted values first. Development defaults (including
-    // the sender address) must remain dirty so Save can write them to the
-    // settings store instead of merely displaying an unsaved placeholder.
+    // Snapshot persisted values before adding display defaults. The changed
+    // key set prevents those defaults and generated callback URLs from being
+    // submitted unless the administrator edits them explicitly.
     snapshotInitialValues()
     applyEmailDefaults()
     applyGatewayDefaults()
@@ -134,15 +136,20 @@ onMounted(async () => {
 watch(() => [values.site_url, values['payment.paypal.environment']], () => applyGatewayDefaults())
 
 async function save() {
-  if (!auth.token) return
+  if (!auth.token) {
+    error.value = t(errorMessageKey('AUTH_UNAUTHORIZED'))
+    saved.value = false
+    return
+  }
   saving.value = true; error.value = ''; saved.value = false
   let currentKey = ''
   try {
-    const updates = buildSettingUpdates(definitions, values, initialValues, fieldLabel)
+    const updates = buildSettingUpdates(definitions, values, initialValues, fieldLabel, changedKeys)
     for (const update of updates) {
       currentKey = update.key
       await generatedApi.updateSetting(update.key, update, auth.token)
       initialValues[update.key] = update.value
+      changedKeys.delete(update.key)
     }
     saved.value = true
   } catch (cause) {
@@ -218,7 +225,7 @@ async function save() {
                     <template v-else><FieldLabel :for="`setting-${key}`">{{ fieldLabel(key) }}</FieldLabel><Select v-if="definitions[key].type === 'select'" :model-value="values[key] || undefined" @update:model-value="setSelectValue(key, String($event))"><SelectTrigger :id="`setting-${key}`" class="w-full"><SelectValue :placeholder="fieldLabel(key)" /></SelectTrigger><SelectContent><SelectItem v-for="option in selectOptions(key)" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</SelectItem></SelectContent></Select><Input v-else :id="`setting-${key}`" :model-value="fieldValue(key)" class="w-full" :type="isSecret(key) ? 'password' : 'text'" :placeholder="isSecret(key) && values[key] === '__configured__' ? t('settings.secretConfigured') : ''" @update:model-value="setValue(key, $event)" /><FieldDescription v-if="fieldHint(key)">{{ fieldHint(key) }}</FieldDescription></template>
                   </Field>
                 </FieldGroup>
-                <div class="mt-5 grid min-w-0 gap-4 border-t pt-4"><p class="text-xs font-medium text-muted-foreground">{{ t('settings.gatewayURLsTitle') }}</p><Field v-for="item in gatewayURLFields(section.key)" :key="item.key" class="min-w-0"><FieldLabel :for="`generated-${section.key}-${item.kind}`">{{ t(item.label) }}</FieldLabel><Input :id="`generated-${section.key}-${item.kind}`" v-model="values[item.key]" class="w-full font-mono text-xs" /><FieldDescription>{{ t(item.hint) }}</FieldDescription></Field></div>
+                <div class="mt-5 grid min-w-0 gap-4 border-t pt-4"><p class="text-xs font-medium text-muted-foreground">{{ t('settings.gatewayURLsTitle') }}</p><Field v-for="item in gatewayURLFields(section.key)" :key="item.key" class="min-w-0"><FieldLabel :for="`generated-${section.key}-${item.kind}`">{{ t(item.label) }}</FieldLabel><Input :id="`generated-${section.key}-${item.kind}`" :model-value="values[item.key] || ''" class="w-full font-mono text-xs" @update:model-value="setValue(item.key, $event)" /><FieldDescription>{{ t(item.hint) }}</FieldDescription></Field></div>
               </section>
             </div>
           </template>
