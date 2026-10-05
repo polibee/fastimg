@@ -44,6 +44,7 @@ func TestNormalizeSettingType(t *testing.T) {
 	assert.Equal(t, "string", normalizeSettingType(""))
 	assert.Equal(t, "boolean", normalizeSettingType(" boolean "))
 	assert.Equal(t, "string", normalizeSettingType("select"))
+	assert.Equal(t, "string", normalizeSettingType("textarea"))
 }
 
 func TestStorageProviderCredentialsAreSecretSettings(t *testing.T) {

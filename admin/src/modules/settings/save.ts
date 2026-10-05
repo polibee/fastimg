@@ -30,10 +30,11 @@ export function buildSettingUpdates(
     return [{
       key,
       value: nextValue,
-      // `select` is a presentation control. The backend stores the selected
-      // value as a normal string; sending `select` violates the settings API
-      // value_type contract and makes otherwise valid settings impossible to save.
-      value_type: definition.type === 'select' ? 'string' : definition.type,
+      // `select` and `textarea` are presentation controls. The backend stores
+      // both values as normal strings; sending either UI type violates the
+      // settings API value_type contract and makes valid settings impossible
+      // to save.
+      value_type: definition.type === 'select' || definition.type === 'textarea' ? 'string' : definition.type,
       group: definition.group,
       description: descriptionForKey(key),
     }]

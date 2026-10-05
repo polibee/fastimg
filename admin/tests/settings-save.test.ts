@@ -78,3 +78,26 @@ test('submits only fields explicitly changed by the administrator', () => {
     { key: 'site_title', value: 'FastImg production', value_type: 'string', group: 'seo', description: 'site_title' },
   ])
 })
+
+test('stores multiline textarea settings as strings', () => {
+  const updates = buildSettingUpdates(
+    {
+      'friend_links.zh_cn.description': { type: 'textarea', group: 'content' },
+    },
+    {
+      'friend_links.zh_cn.description': '欢迎交换友链',
+    },
+    {},
+    (key) => key,
+  )
+
+  assert.deepEqual(updates, [
+    {
+      key: 'friend_links.zh_cn.description',
+      value: '欢迎交换友链',
+      value_type: 'string',
+      group: 'content',
+      description: 'friend_links.zh_cn.description',
+    },
+  ])
+})
