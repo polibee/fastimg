@@ -23,6 +23,7 @@ test('member advertising supports text, image and sandboxed javascript only', ()
   }
   assert.match(component, /sandbox="allow-scripts"/)
   assert.match(component, /:srcdoc=/)
+  assert.match(component, /buildSandboxedAdDocument/)
   assert.doesNotMatch(component, /v-html/)
 })
 

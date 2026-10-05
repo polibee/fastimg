@@ -19,6 +19,15 @@ func TestPrepareAdvertisingWriteValidatesAdminCreative(t *testing.T) {
 		t.Fatalf("creative content was not normalized: %#v", valid["creative_content"])
 	}
 
+	adsense := map[string]any{
+		"placement":        "footer",
+		"creative_type":    "script",
+		"creative_content": "<script async src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js\"></script><ins class=\"adsbygoogle\"></ins><script>(adsbygoogle = window.adsbygoogle || []).push({});</script>",
+	}
+	if err := PrepareAdvertisingWrite("create", adsense); err != nil {
+		t.Fatalf("complete AdSense embed rejected: %v", err)
+	}
+
 	for _, creativeType := range []string{"text", "image", "script"} {
 		payload := map[string]any{
 			"placement":        "footer",

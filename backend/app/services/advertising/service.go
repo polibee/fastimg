@@ -74,10 +74,6 @@ func PrepareAdvertisingWrite(_ string, payload map[string]any) error {
 	if creativeContent == "" {
 		return ErrCreativeRequired
 	}
-	if creativeType == CreativeTypeScript && strings.Contains(strings.ToLower(creativeContent), "</script") {
-		return fmt.Errorf("%w: script content must be JavaScript source without a script tag", ErrCreativeRequired)
-	}
-
 	targetURL := strings.TrimSpace(stringValue(payload["target_url"]))
 	if targetURL != "" {
 		parsed, err := url.Parse(targetURL)

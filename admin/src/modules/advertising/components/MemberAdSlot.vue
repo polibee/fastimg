@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiFetch } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
+import { buildSandboxedAdDocument } from '@/modules/advertising/sandbox'
 
 type Placement = 'header' | 'footer' | 'left' | 'right'
 type CreativeType = 'text' | 'image' | 'script'
@@ -31,11 +32,6 @@ function safeTarget(value?: string) {
   }
 }
 
-function scriptDocument(source: string) {
-  const escaped = source.replace(/<\/script/gi, '<\\/script')
-  return `<!doctype html><html><body><script>${escaped}<\/script></body></html>`
-}
-
 onMounted(async () => {
   if (!auth.token) return
   try {
@@ -57,7 +53,7 @@ onMounted(async () => {
       <img v-else-if="ad.creative_type === 'image'" :src="ad.creative_content" :alt="t('member.ads.imageAlt')" class="max-h-28 w-full object-contain" loading="lazy">
       <iframe
         v-else-if="ad.creative_type === 'script'"
-        :srcdoc="scriptDocument(ad.creative_content)"
+        :srcdoc="buildSandboxedAdDocument(ad.creative_content)"
         sandbox="allow-scripts"
         referrerpolicy="no-referrer"
         :title="ad.name || t('member.ads.label')"
