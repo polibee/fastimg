@@ -45,11 +45,11 @@ func (s *RefundService) Request(ctx context.Context, userID, orderID uint, amoun
 		return nil, ErrInvalidRefund
 	}
 	var order models.Order
-	if err := facades.Orm().Query().Where("id = ? AND user_id = ?", orderID, userID).First(&order); err != nil {
+	if err := facades.Orm().Query().Where("id = ? AND user_id = ?", orderID, userID).First(&order); err != nil || order.ID == 0 {
 		return nil, ErrOrderNotFound
 	}
 	var intent models.PaymentIntent
-	if err := facades.Orm().Query().Where("order_id = ? AND status = ?", order.ID, "succeeded").First(&intent); err != nil {
+	if err := facades.Orm().Query().Where("order_id = ? AND status = ?", order.ID, "succeeded").First(&intent); err != nil || intent.ID == 0 {
 		return nil, ErrRefundUnavailable
 	}
 	var refunds []models.Refund

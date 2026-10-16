@@ -101,7 +101,7 @@ func (s *WebhookService) IngestVerified(_ context.Context, gatewayCode string, e
 	}
 	if !duplicate && NormalizeGatewayPaymentStatus(event.Status) == "succeeded" {
 		var intent models.PaymentIntent
-		if err := facades.Orm().Query().Where("provider_code = ? AND provider_payment_id = ?", gatewayCode, event.ProviderPaymentID).First(&intent); err == nil {
+		if err := facades.Orm().Query().Where("provider_code = ? AND provider_payment_id = ?", gatewayCode, event.ProviderPaymentID).First(&intent); err == nil && intent.ID > 0 {
 			_ = NewFulfillmentService().EnqueuePaidOrder(intent.OrderID)
 		}
 	}
@@ -110,11 +110,11 @@ func (s *WebhookService) IngestVerified(_ context.Context, gatewayCode string, e
 
 func applyGatewayEvent(tx orm.Query, event providers.GatewayEvent) error {
 	var intent models.PaymentIntent
-	if err := tx.Where("provider_code = ? AND provider_payment_id = ?", event.GatewayCode, event.ProviderPaymentID).First(&intent); err != nil {
+	if err := tx.Where("provider_code = ? AND provider_payment_id = ?", event.GatewayCode, event.ProviderPaymentID).First(&intent); err != nil || intent.ID == 0 {
 		return ErrPaymentEventRejected
 	}
 	var order models.Order
-	if err := tx.Where("id = ?", intent.OrderID).First(&order); err != nil {
+	if err := tx.Where("id = ?", intent.OrderID).First(&order); err != nil || order.ID == 0 {
 		return ErrOrderNotFound
 	}
 	if err := ValidatePaymentEvent(event.AmountMinor, event.Currency, order.TotalAmountMinor, order.Currency, event.ProviderPaymentID); err != nil {

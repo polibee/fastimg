@@ -40,13 +40,13 @@ func (s *PaymentService) StartPayment(ctx context.Context, userID, orderID uint,
 	var order models.Order
 	var intent models.PaymentIntent
 	err = facades.Orm().Transaction(func(tx orm.Query) error {
-		if err := tx.Where("id = ? AND user_id = ?", orderID, userID).First(&order); err != nil {
+		if err := tx.Where("id = ? AND user_id = ?", orderID, userID).First(&order); err != nil || order.ID == 0 {
 			return ErrOrderNotFound
 		}
 		if order.Status != "pending_payment" && order.Status != "created" {
 			return ErrPaymentNotAllowed
 		}
-		if err := tx.Where("user_id = ? AND idempotency_key = ?", userID, idempotencyKey).First(&intent); err == nil {
+		if err := tx.Where("user_id = ? AND idempotency_key = ?", userID, idempotencyKey).First(&intent); err == nil && intent.ID > 0 {
 			return ValidatePaymentIdempotency(intent, orderID, input.GatewayCode, idempotencyKey)
 		}
 		intent = models.PaymentIntent{OrderID: order.ID, UserID: userID, ProviderCode: input.GatewayCode, AmountMinor: order.TotalAmountMinor, Currency: order.Currency, Status: "created", AttemptNo: 1, IdempotencyKey: idempotencyKey}
