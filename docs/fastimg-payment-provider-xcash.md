@@ -20,7 +20,7 @@ XCASH_RETURN_URL=https://img.example.com/orders/{order_id}?payment=success
 
 管理端会预填 `https://pay.xca.sh`，也允许改为兼容网关地址；开发环境的本地 HTTP stub 只用于离线 Provider 测试。真实 Xcash 通知地址必须使用公网 HTTPS，并按 Xcash 项目配置 IP 白名单和通知地址。
 
-管理员在“系统设置 > 支付网关 > XCash”填写 Appid 和 HMAC key；官方 API 根地址默认是 `https://pay.xca.sh`，Webhook 地址需要在 Xcash 项目后台配置并与本地设置保持一致，成功回跳地址由系统根据 `site_url` 预填，均可修改，敏感值会加密保存。FastImg 按 Xcash 官方接口使用 `redirect_url`，不会向 `/v1/invoice` 发送不受官方接口支持的 `notify_url` 或 `return_url`；`{order_id}` 会在创建账单时替换为 FastImg 订单号，回跳地址只负责回到订单页，不能代替 Webhook 验签。
+管理员在“系统设置 > 支付网关 > XCash”填写 Appid 和 HMAC key；官方 API 根地址默认是 `https://pay.xca.sh`，Webhook 地址需要在 Xcash 项目后台配置并与本地设置保持一致，成功回跳地址由系统根据 `site_url` 预填，均可修改，敏感值会加密保存。FastImg 创建账单时发送 `notify_url` 和 `return_url`；`{order_id}` 会在创建账单时替换为 FastImg 订单号，回跳地址只负责回到订单页，不能代替 Webhook 验签。
 
 ## 签名协议
 

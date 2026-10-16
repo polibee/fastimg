@@ -24,14 +24,14 @@ func TestProviderUsesSignedCreateAndPublicQuery(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 				t.Fatalf("decode invoice payload: %v", err)
 			}
-			if payload["redirect_url"] != "https://img.test/orders/FST-1?payment=success" {
-				t.Fatalf("redirect_url = %v, want Xcash redirect_url", payload["redirect_url"])
+			if payload["notify_url"] != "https://img.test/api/v1/payment-gateways/xcash/webhook" {
+				t.Fatalf("notify_url = %v, want Xcash notify_url", payload["notify_url"])
 			}
-			if _, exists := payload["notify_url"]; exists {
-				t.Fatal("Xcash invoice must not send unsupported notify_url")
+			if payload["return_url"] != "https://img.test/orders/FST-1?payment=success" {
+				t.Fatalf("return_url = %v, want Xcash return_url", payload["return_url"])
 			}
-			if _, exists := payload["return_url"]; exists {
-				t.Fatal("Xcash invoice must not send unsupported return_url")
+			if _, exists := payload["redirect_url"]; exists {
+				t.Fatal("Xcash invoice must not send redirect_url: the invoice API defines notify_url and return_url")
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"sys_no":"INV1","out_no":"FST-1","pay_url":"https://pay.test/INV1","status":"waiting"}`))
@@ -48,7 +48,7 @@ func TestProviderUsesSignedCreateAndPublicQuery(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := New(Config{Enabled: true, BaseURL: server.URL, AppID: "app-1", HMACKey: "key-1", Timeout: time.Second, ReturnURL: "https://img.test/orders/{order_id}?payment=success"})
+	provider := New(Config{Enabled: true, BaseURL: server.URL, AppID: "app-1", HMACKey: "key-1", Timeout: time.Second, CallbackURL: "https://img.test/api/v1/payment-gateways/xcash/webhook", ReturnURL: "https://img.test/orders/{order_id}?payment=success"})
 	session, err := provider.CreatePayment(context.Background(), providers.CreatePaymentRequest{OrderNo: "FST-1", PaymentIntentID: 7, AmountMinor: 1999, Currency: "CNY", Description: "Creator"})
 	if err != nil || session.ProviderPaymentID != "INV1" || session.Status != "pending" {
 		t.Fatalf("create session = %+v, err=%v", session, err)

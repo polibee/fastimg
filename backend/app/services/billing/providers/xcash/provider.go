@@ -49,7 +49,7 @@ func (p *Provider) CreatePayment(ctx context.Context, request providers.CreatePa
 	payload := map[string]any{
 		"out_no": request.OrderNo, "title": truncateTitle(request.Description), "currency": request.Currency,
 		"amount": formatMinor(request.AmountMinor), "duration": 30,
-		"redirect_url": orderReturnURL(p.config.ReturnURL, request.OrderNo),
+		"notify_url": p.config.CallbackURL, "return_url": orderReturnURL(p.config.ReturnURL, request.OrderNo),
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
